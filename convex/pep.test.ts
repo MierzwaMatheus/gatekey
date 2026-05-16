@@ -78,3 +78,85 @@ test("extractApiKeyContext: lança erro quando token não começa com gk_live_pk
 test("extractApiKeyContext: lança erro quando token não tem separador de publicId", () => {
   expect(() => extractApiKeyContextFormat("Bearer gk_live_pk_nosseparator")).toThrow("invalid_api_key_format");
 });
+
+// ── extractApiKeyContext: lookup e verificação de hash ───────────────────────
+
+import argon2 from "argon2";
+import { internal } from "./_generated/api";
+
+test("extractApiKeyContext: lança api_key_invalid quando publicId não encontrado no DB", async () => {
+  const t = convexTest(schema, modules);
+  const result = await t.action(internal.pep.verifyApiKey, {
+    authHeader: "Bearer gk_live_pk_notfound_anysecret",
+  });
+  expect(result).toMatchObject({ success: false, error: "api_key_invalid" });
+});
+
+test("extractApiKeyContext: lança api_key_invalid quando key está revogada", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+  });
+  const orgId = await t.run(async (ctx) => {
+    return (await ctx.db.query("orgs").first())!._id;
+  });
+  const secretHash = await argon2.hash("mysecret");
+  await t.run(async (ctx) => {
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "revokedkey",
+      secretHash,
+      scopes: ["read"],
+      description: "test key",
+      status: "revoked",
+    });
+  });
+  const result = await t.action(internal.pep.verifyApiKey, {
+    authHeader: "Bearer gk_live_pk_revokedkey_mysecret",
+  });
+  expect(result).toMatchObject({ success: false, error: "api_key_invalid" });
+});
+
+test("extractApiKeyContext: retorna contexto para key válida com secret correto", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await t.run(async (ctx) => {
+    return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+  });
+  const secretHash = await argon2.hash("validsecret");
+  await t.run(async (ctx) => {
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "validkey",
+      secretHash,
+      scopes: ["read", "write"],
+      description: "test key",
+      status: "active",
+    });
+  });
+  const result = await t.action(internal.pep.verifyApiKey, {
+    authHeader: "Bearer gk_live_pk_validkey_validsecret",
+  });
+  expect(result).toMatchObject({ success: true, publicId: "validkey", scopes: ["read", "write"] });
+});
+
+test("extractApiKeyContext: lança api_key_invalid quando hash do secret não confere", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await t.run(async (ctx) => {
+    return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+  });
+  const secretHash = await argon2.hash("correctsecret");
+  await t.run(async (ctx) => {
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "mykey",
+      secretHash,
+      scopes: ["read"],
+      description: "test key",
+      status: "active",
+    });
+  });
+  const result = await t.action(internal.pep.verifyApiKey, {
+    authHeader: "Bearer gk_live_pk_mykey_wrongsecret",
+  });
+  expect(result).toMatchObject({ success: false, error: "api_key_invalid" });
+});

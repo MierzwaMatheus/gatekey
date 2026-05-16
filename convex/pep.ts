@@ -1,7 +1,9 @@
 "use node";
 
+import { internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { v } from "convex/values";
 import { type AuthContext, type ApiKeyContext, extractJwtContext } from "./pepUtils";
 
 const API_KEY_PREFIX = "gk_live_pk_";
@@ -76,6 +78,22 @@ export async function resolveAuthContext(
   const data = extractJwtContext(authHeader);
   return { type: "jwt", data };
 }
+
+export const verifyApiKey = internalAction({
+  args: { authHeader: v.string() },
+  returns: v.union(
+    v.object({ success: v.literal(true), orgId: v.string(), scopes: v.array(v.string()), keyId: v.string(), publicId: v.string() }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, { authHeader }) => {
+    try {
+      const context = await extractApiKeyContext(authHeader, ctx);
+      return { success: true as const, ...context };
+    } catch (e) {
+      return { success: false as const, error: (e as Error).message };
+    }
+  },
+});
 
 export function withPep(
   handler: (ctx: ActionCtx, req: Request, auth: AuthContext) => Promise<Response>,
