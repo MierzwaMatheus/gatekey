@@ -145,4 +145,202 @@ http.route({
   }),
 });
 
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+const JSON_HEADERS = { "Content-Type": "application/json" };
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+}
+
+async function resolveJwtCaller(
+  ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
+  req: Request,
+): Promise<{ callerId: string; orgId: string } | Response> {
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return jsonResponse({ error: "missing_token" }, 401);
+  }
+  const token = authHeader.slice(7);
+  const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
+  if (!verified.valid) {
+    return jsonResponse({ error: "invalid_token" }, 401);
+  }
+  return {
+    callerId: verified.payload.sub as string,
+    orgId: verified.payload.orgId as string,
+  };
+}
+
+function isResponse(v: unknown): v is Response {
+  return v instanceof Response;
+}
+
+// ── POST /v1/users ───────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/users",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: { email?: string; password?: string; role?: string; orgId?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.email || !body.password || !body.role) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    const orgId = (body.orgId ?? caller.orgId) as never;
+
+    try {
+      const result = await ctx.runAction(internal.usersActions.createUserWithPassword, {
+        callerId: caller.callerId,
+        orgId,
+        email: body.email,
+        password: body.password,
+        role: body.role,
+      });
+      return jsonResponse(result, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) {
+        const match = msg.match(/limit=(\d+), current=(\d+)/);
+        return jsonResponse(
+          {
+            error: "QuotaExceeded",
+            message: "Org has reached the maximum number of users.",
+            quota: "users_per_org",
+            limit: match ? Number(match[1]) : null,
+            current: match ? Number(match[2]) : null,
+          },
+          429,
+        );
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/users/:id ───────────────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/users/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const segments = url.pathname.replace(/^\/v1\/users\//, "").split("/");
+    const userId = segments[0];
+    const isPermissions = segments[1] === "permissions";
+
+    if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+
+    try {
+      if (isPermissions) {
+        const permissions = await ctx.runQuery(internal.users.getUserPermissions, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          orgId: caller.orgId as never,
+        });
+        return jsonResponse({ permissions });
+      }
+
+      const user = await ctx.runQuery(internal.users.getUserById, {
+        callerId: caller.callerId as never,
+        userId: userId as never,
+        orgId: caller.orgId as never,
+      });
+      if (!user) return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse(user);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── PATCH /v1/users/:id ─────────────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/users/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const userId = url.pathname.replace(/^\/v1\/users\//, "").split("/")[0];
+    if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+
+    let body: { email?: string; password?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+
+    try {
+      if (body.password) {
+        await ctx.runAction(internal.usersActions.updateUserPassword, {
+          callerId: caller.callerId,
+          userId,
+          orgId: caller.orgId,
+          password: body.password,
+        });
+      } else if (body.email) {
+        await ctx.runMutation(internal.users.updateUser, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          orgId: caller.orgId as never,
+          email: body.email,
+        });
+      }
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      if (msg.includes("not_in_org")) return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/users/:id ────────────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/users/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const userId = url.pathname.replace(/^\/v1\/users\//, "").split("/")[0];
+    if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+
+    try {
+      await ctx.runMutation(internal.users.deleteUser, {
+        callerId: caller.callerId as never,
+        userId: userId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      if (msg.includes("not_in_org")) return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
