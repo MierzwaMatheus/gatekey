@@ -752,4 +752,52 @@ http.route({
   }),
 });
 
+http.route({
+  path: "/v1/sessions",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const userIdFilter = url.searchParams.get("userId") ?? undefined;
+
+    const sessions = await ctx.runQuery(internal.sessions.listSessions, {
+      orgId: caller.orgId as never,
+      userId: userIdFilter as never,
+    });
+    return jsonResponse(sessions);
+  }),
+});
+
+http.route({
+  path: "/v1/sessions/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const sessionId = url.pathname.replace(/^\/v1\/sessions\//, "").split("/")[0];
+    if (!sessionId) return jsonResponse({ error: "missing_session_id" }, 400);
+
+    const ip = req.headers.get("x-forwarded-for") ?? undefined;
+
+    try {
+      await ctx.runAction(internal.sessions.revokeSession, {
+        sessionId: sessionId as never,
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        ip,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("session_not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;

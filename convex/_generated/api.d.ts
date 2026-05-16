@@ -24,6 +24,7 @@ import type * as pepUtils from "../pepUtils.js";
 import type * as resourceTypes from "../resourceTypes.js";
 import type * as roles from "../roles.js";
 import type * as seed from "../seed.js";
+import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 import type * as usersActions from "../usersActions.js";
 
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   resourceTypes: typeof resourceTypes;
   roles: typeof roles;
   seed: typeof seed;
+  sessions: typeof sessions;
   users: typeof users;
   usersActions: typeof usersActions;
 }>;
