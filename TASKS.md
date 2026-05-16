@@ -214,17 +214,17 @@
 
 ### 2.7 API Keys com escopos — closes #7
 
-- [ ] Implementar `POST /v1/api-keys` — gera `publicId` (`gk_live_pk_` + 24 chars aleatórios), gera secret (32 bytes), armazena `argon2id(secret)`, retorna secret em plaintext apenas nesta resposta; PEP requer role org_admin
-- [ ] Implementar `GET /v1/api-keys` — lista keys da org com metadata (publicId, scopes, description, lastUsedAt, status) sem secret; PEP requer role org_admin
-- [ ] Implementar `DELETE /v1/api-keys/:id` — muda status para `revoked`; PEP requer role org_admin
-- [ ] Implementar validação de API Key no PEP: recebe valor bruto no header, faz argon2id hash, compara com `secretHash` no banco
-- [ ] Implementar verificação de escopo no PEP: após validar a key, verificar se `scopes[]` contém o escopo requerido pelo endpoint
-- [ ] Implementar atualização de `lastUsedAt` e `lastUsedIp` a cada uso bem-sucedido da key
-- [ ] Implementar verificação de cota `api_keys_per_org` em `POST /v1/api-keys`
-- [ ] Chamar `writeAuditEvent` com action `api_key.create` e `api_key.revoke`
-- [ ] Escrever teste: `GET /v1/api-keys` nunca retorna o campo `secretHash` ou o secret original
-- [ ] Escrever teste: API Key com escopo `["check"]` recebe 403 ao chamar `POST /v1/users`
-- [ ] Escrever teste: API Key revogada recebe 401 imediatamente após revogação
+- [x] Implementar `POST /v1/api-keys` — gera `publicId` (`gk_live_pk_` + 24 chars aleatórios), gera secret (32 bytes), armazena `argon2id(secret)`, retorna secret em plaintext apenas nesta resposta; PEP requer role org_admin
+- [x] Implementar `GET /v1/api-keys` — lista keys da org com metadata (publicId, scopes, description, lastUsedAt, status) sem secret; PEP requer role org_admin
+- [x] Implementar `DELETE /v1/api-keys/:id` — muda status para `revoked`; PEP requer role org_admin
+- [x] Implementar validação de API Key no PEP: recebe valor bruto no header, faz argon2id hash, compara com `secretHash` no banco
+- [x] Implementar verificação de escopo no PEP: após validar a key, verificar se `scopes[]` contém o escopo requerido pelo endpoint
+- [x] Implementar atualização de `lastUsedAt` e `lastUsedIp` a cada uso bem-sucedido da key
+- [x] Implementar verificação de cota `api_keys_per_org` em `POST /v1/api-keys`
+- [x] Chamar `writeAuditEvent` com action `api_key.create` e `api_key.revoke`
+- [x] Escrever teste: `GET /v1/api-keys` nunca retorna o campo `secretHash` ou o secret original
+- [x] Escrever teste: API Key com escopo `["check"]` recebe 403 ao chamar `POST /v1/users`
+- [x] Escrever teste: API Key revogada recebe 401 imediatamente após revogação
 
 ### 2.8 Audit Log hot tier — closes #8
 
