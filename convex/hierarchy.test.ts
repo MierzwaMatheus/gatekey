@@ -371,6 +371,75 @@ test("createUser: não-admin não pode criar usuário", async () => {
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 7: suspendUser ─────────────────────────────────────────────────────
+
+test("suspendUser: Org Admin suspende usuário da própria org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme",
+    adminEmail: "admin@acme.io",
+  });
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const targetId = await createRegularUser(t, "target@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: targetId,
+      orgId,
+      role: "member",
+      status: "active",
+    }),
+  );
+
+  await t.mutation(internal.hierarchy.suspendUser, {
+    callerId: adminUser!._id,
+    userId: targetId,
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(targetId));
+  expect(user?.status).toBe("suspended");
+});
+
+test("suspendUser: Root pode suspender qualquer usuário", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const targetId = await createRegularUser(t, "target@other.io");
+
+  await t.mutation(internal.hierarchy.suspendUser, {
+    callerId: rootId,
+    userId: targetId,
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(targetId));
+  expect(user?.status).toBe("suspended");
+});
+
+test("suspendUser: Org Admin não pode suspender usuário de outra org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme",
+    adminEmail: "admin@acme.io",
+  });
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const targetId = await createRegularUser(t, "target@other.io");
+  // target não está na org do admin
+  void orgId;
+
+  await expect(
+    t.mutation(internal.hierarchy.suspendUser, {
+      callerId: adminUser!._id,
+      userId: targetId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("createUser: org em cota máxima retorna erro quota_exceeded", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);

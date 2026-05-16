@@ -131,7 +131,7 @@
 - [x] Criar Convex mutation `deleteOrg({orgId})` — apenas Root; soft delete (status = deleted)
 - [x] Criar Convex mutation `createWorkspace({orgId, name})` — Org Admin da org ou Root
 - [x] Criar Convex mutation `suspendWorkspace({workspaceId})` — Org Admin da org ou Root
-- [ ] Criar Convex mutation `createUser({orgId, email, password, role})` — Org Admin da org ou WS Admin (sem self-service)
+- [x] Criar Convex mutation `createUser({orgId, email, password, role})` — Org Admin da org ou WS Admin (sem self-service)
 - [ ] Criar Convex mutation `suspendUser({userId})` — Org Admin (apenas usuários da própria org) ou Root
 - [ ] Criar Convex mutation `resetUserPassword({userId, newPassword})` — Org Admin (própria org) ou Root
 - [ ] Criar Convex mutation `addWorkspaceMember({workspaceId, userId, roleId})` — WS Admin ou Org Admin
