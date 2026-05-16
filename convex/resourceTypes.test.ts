@@ -86,6 +86,117 @@ test("createResourceType: cria resource type com herança", async () => {
   expect(stored!.inheritanceMode).toBe("auto");
 });
 
+// ── Ciclo 2: listResourceTypes ────────────────────────────────────────────────
+
+test("listResourceTypes: retorna apenas tipos da própria org", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  // segunda org
+  const rootId2 = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root2@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  const orgId2 = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId2,
+    name: "Other Corp",
+    adminEmail: "admin2@other.io",
+  });
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId,
+    orgId,
+    name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: rootId2,
+    orgId: orgId2,
+    name: "project",
+  });
+
+  const list = await t.run((ctx) =>
+    ctx.runQuery(internal.resourceTypes.listResourceTypes, {
+      callerId: adminId,
+      orgId,
+    }),
+  );
+
+  expect(list).toHaveLength(1);
+  expect(list[0].name).toBe("folder");
+});
+
+test("listResourceTypes: retorna vazio quando nenhum tipo registrado", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  const list = await t.run((ctx) =>
+    ctx.runQuery(internal.resourceTypes.listResourceTypes, {
+      callerId: adminId,
+      orgId,
+    }),
+  );
+
+  expect(list).toHaveLength(0);
+});
+
+// ── Ciclo 3: validação de inheritsFrom ────────────────────────────────────────
+
+test("createResourceType: rejeita inheritsFrom inexistente na org", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  await expect(
+    t.mutation(internal.resourceTypes.createResourceType, {
+      callerId: adminId,
+      orgId,
+      name: "document",
+      inheritsFrom: "nonexistent",
+    }),
+  ).rejects.toThrow("invalid_inherits_from");
+});
+
+test("createResourceType: rejeita inheritsFrom de outra org", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  const rootId2 = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root2@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  const orgId2 = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId2,
+    name: "Other Corp",
+    adminEmail: "admin2@other.io",
+  });
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: rootId2,
+    orgId: orgId2,
+    name: "folder",
+  });
+
+  await expect(
+    t.mutation(internal.resourceTypes.createResourceType, {
+      callerId: adminId,
+      orgId,
+      name: "document",
+      inheritsFrom: "folder",
+    }),
+  ).rejects.toThrow("invalid_inherits_from");
+});
+
 test("createResourceType: registra evento no audit_log", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId } = await setupOrgWithAdmin(t);
