@@ -198,11 +198,11 @@
 
 ### 2.5 REST API — Verificação de permissão — closes #6 (parcial)
 
-- [ ] Implementar `POST /v1/check` — recebe `{userId, capability, resourceType, resourceId?}`, chama `pdpDecide`, retorna `{allowed, reason}`; PEP requer escopo `check`
-- [ ] Chamar `writeAuditEvent` para cada chamada de `/check` incluindo o resultado ALLOW/DENY e reason
-- [ ] Escrever teste: `POST /v1/check` com binding correto retorna `{allowed: true}`
-- [ ] Escrever teste: `POST /v1/check` sem binding retorna `{allowed: false, reason: "no_binding_found"}`
-- [ ] Escrever teste: `POST /v1/check` com usuário suspenso retorna `{allowed: false, reason: "user_inactive"}`
+- [x] Implementar `POST /v1/check` — recebe `{userId, capability, resourceType, resourceId?}`, chama `pdpDecide`, retorna `{allowed, reason}`; PEP requer escopo `check`
+- [x] Chamar `writeAuditEvent` para cada chamada de `/check` incluindo o resultado ALLOW/DENY e reason
+- [x] Escrever teste: `POST /v1/check` com binding correto retorna `{allowed: true}`
+- [x] Escrever teste: `POST /v1/check` sem binding retorna `{allowed: false, reason: "no_binding_found"}`
+- [x] Escrever teste: `POST /v1/check` com usuário suspenso retorna `{allowed: false, reason: "user_inactive"}`
 
 ### 2.6 REST API — Sessões — closes #6 (parcial)
 
