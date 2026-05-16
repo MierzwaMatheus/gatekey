@@ -93,6 +93,17 @@ export const checkAndIncrementRateLimit = internalMutation({
   },
 });
 
+export const getOrgSettings = internalQuery({
+  args: { orgId: v.id("orgs") },
+  returns: v.any(),
+  handler: async (ctx, { orgId }) => {
+    return await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+  },
+});
+
 export const getFirstActiveOrgForUser = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),

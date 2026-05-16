@@ -8,6 +8,13 @@
  * @module
  */
 
+import type * as auditLog from "../auditLog.js";
+import type * as auth from "../auth.js";
+import type * as authStore from "../authStore.js";
+import type * as hierarchy from "../hierarchy.js";
+import type * as http from "../http.js";
+import type * as jwt from "../jwt.js";
+import type * as jwtStore from "../jwtStore.js";
 import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
 import type * as pepMutation from "../pepMutation.js";
@@ -21,6 +28,13 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auditLog: typeof auditLog;
+  auth: typeof auth;
+  authStore: typeof authStore;
+  hierarchy: typeof hierarchy;
+  http: typeof http;
+  jwt: typeof jwt;
+  jwtStore: typeof jwtStore;
   pdp: typeof pdp;
   pep: typeof pep;
   pepMutation: typeof pepMutation;

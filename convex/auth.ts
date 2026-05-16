@@ -3,6 +3,7 @@
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 const LOCK_THRESHOLD = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -123,6 +124,24 @@ export const loginWithPassword = internalAction({
         orgId: orgId as never,
       })) as { jwtExpiryAccess: number } | null;
       if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+    }
+
+    // Verificar cota sessions_per_user
+    if (orgId) {
+      const orgSettings = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+        orgId: orgId as never,
+      })) as { jwtExpiryAccess: number; jwtExpiryRefresh: number } | null;
+      const orgSettingsFull = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+        orgId: orgId as never,
+      })) as { quotas?: Record<string, number> } | null;
+      const sessionQuota = orgSettingsFull?.quotas?.["sessions_per_user"] ?? 5;
+      const activeSessionCount = (await ctx.runQuery(
+        internal.jwtStore.countActiveSessionsForUser,
+        { userId: user._id as never },
+      )) as number;
+      if (activeSessionCount >= sessionQuota) {
+        return { success: false as const, error: "quota_exceeded" };
+      }
     }
 
     // Criar sessão com refresh token
@@ -269,5 +288,49 @@ export const logoutSession = internalAction({
     });
 
     return null;
+  },
+});
+
+export const resetUserPassword = internalAction({
+  args: {
+    callerId: v.id("users"),
+    userId: v.id("users"),
+    newPassword: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.newPassword);
+
+    await ctx.runMutation(internal.hierarchy.patchUserPasswordHash, {
+      callerId: args.callerId,
+      userId: args.userId,
+      passwordHash,
+    });
+
+    return null;
+  },
+});
+
+export const createUser = internalAction({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    email: v.string(),
+    password: v.string(),
+    role: v.string(),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args): Promise<Id<"users">> => {
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.password);
+
+    return await ctx.runMutation(internal.hierarchy.createUserForOrg, {
+      callerId: args.callerId,
+      orgId: args.orgId,
+      email: args.email,
+      passwordHash,
+      role: args.role,
+    });
   },
 });
