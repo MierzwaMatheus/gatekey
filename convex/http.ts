@@ -153,6 +153,8 @@ function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
 }
 
+const API_KEY_PREFIX = "gk_live_pk_";
+
 async function resolveJwtCaller(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   req: Request,
@@ -162,6 +164,15 @@ async function resolveJwtCaller(
     return jsonResponse({ error: "missing_token" }, 401);
   }
   const token = authHeader.slice(7);
+
+  if (token.startsWith(API_KEY_PREFIX)) {
+    const result = await ctx.runAction(internal.pep.verifyApiKey, { authHeader });
+    if (!result.success) {
+      return jsonResponse({ error: "invalid_api_key" }, 401);
+    }
+    return { callerId: result.orgId, orgId: result.orgId };
+  }
+
   const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
   if (!verified.valid) {
     return jsonResponse({ error: "invalid_token" }, 401);
