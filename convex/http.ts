@@ -166,6 +166,15 @@ async function resolveJwtCaller(
   if (!verified.valid) {
     return jsonResponse({ error: "invalid_token" }, 401);
   }
+  const sessionId = verified.payload.sessionId;
+  if (sessionId) {
+    const blacklisted = await ctx.runQuery(internal.jwtStore.isSessionBlacklisted, {
+      sessionId: sessionId as never,
+    });
+    if (blacklisted) {
+      return jsonResponse({ error: "session_revoked" }, 401);
+    }
+  }
   return {
     callerId: verified.payload.sub as string,
     orgId: verified.payload.orgId as string,
