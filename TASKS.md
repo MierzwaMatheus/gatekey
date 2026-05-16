@@ -230,8 +230,8 @@
 
 - [x] Criar função `writeAuditEvent(event: AuditEvent)` — helper centralizado que insere em `audit_log`; chamado internamente, nunca exposto diretamente
 - [x] Confirmar que `writeAuditEvent` cobre todos os eventos listados no PRD seção 8.1
-- [ ] Implementar `GET /v1/audit-log` com paginação por cursor, filtros `?orgId=&workspaceId=&action=&result=&from=&to=`; PEP requer `audit:read`
-- [ ] Garantir ausência de endpoints `PUT`, `PATCH` ou `DELETE` para `audit_log`
+- [x] Implementar `GET /v1/audit-log` com paginação por cursor, filtros `?orgId=&workspaceId=&action=&result=&from=&to=`; PEP requer `audit:read`
+- [x] Garantir ausência de endpoints `PUT`, `PATCH` ou `DELETE` para `audit_log`
 - [ ] Escrever teste: sequência login → criar binding → revogar binding gera 3 eventos na ordem correta
 - [ ] Escrever teste: Root acessa logs de qualquer org; Org Admin acessa apenas logs da própria org; WS Admin acessa apenas logs do próprio workspace
 

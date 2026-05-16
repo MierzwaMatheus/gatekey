@@ -242,6 +242,74 @@ test("listAuditLog: WS Admin acessa apenas logs do próprio workspace", async ()
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 3: endpoint HTTP GET /v1/audit-log ─────────────────────────────────
+
+test("GET /v1/audit-log: retorna 401 sem token", async () => {
+  const t = convexTest(schema, modules);
+  const res = await t.fetch("/v1/audit-log", { method: "GET" });
+  expect(res.status).toBe(401);
+});
+
+test("GET /v1/audit-log: Org Admin recebe logs da própria org com status 200", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, workspaceId, editorRole, PASSWORD } = await setupBase(t);
+
+  await t.mutation(internal.bindings.createBinding, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    userId: adminId,
+    roleId: editorRole,
+    resourceType: "document",
+    resourceId: "doc_http",
+  });
+
+  const login = await t.action(internal.auth.loginWithPassword, {
+    email: "admin@acme.io",
+    password: PASSWORD,
+  });
+  if (!login.success) throw new Error("login failed");
+
+  const res = await t.fetch(`/v1/audit-log?orgId=${orgId}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { logs: unknown[]; isDone: boolean };
+  expect(Array.isArray(body.logs)).toBe(true);
+  expect(body.logs.length).toBeGreaterThan(0);
+  expect(body.isDone).toBeDefined();
+});
+
+test("GET /v1/audit-log: filtro action funciona via query param", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, workspaceId, editorRole, PASSWORD } = await setupBase(t);
+
+  await t.mutation(internal.bindings.createBinding, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    userId: adminId,
+    roleId: editorRole,
+    resourceType: "document",
+    resourceId: "doc_filter2",
+  });
+
+  const login = await t.action(internal.auth.loginWithPassword, {
+    email: "admin@acme.io",
+    password: PASSWORD,
+  });
+  if (!login.success) throw new Error("login failed");
+
+  const res = await t.fetch(`/v1/audit-log?orgId=${orgId}&action=binding.create`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${login.accessToken}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { logs: Array<{ action: string }> };
+  expect(body.logs.every((e) => e.action === "binding.create")).toBe(true);
+});
+
 test("listAuditLog: filtros action e result funcionam corretamente", async () => {
   const t = convexTest(schema, modules);
   const { rootId, orgId, adminId, workspaceId, editorRole } = await setupBase(t);

@@ -893,4 +893,47 @@ http.route({
   }),
 });
 
+// ── GET /v1/audit-log ────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/audit-log",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const orgId = (url.searchParams.get("orgId") ?? caller.orgId) as never;
+    const wsParam = url.searchParams.get("workspaceId");
+    const workspaceId = wsParam ? (wsParam as never) : undefined;
+    const action = url.searchParams.get("action") ?? undefined;
+    const rawResult = url.searchParams.get("result");
+    const resultFilter = (rawResult === "allow" || rawResult === "deny") ? rawResult : undefined;
+    const fromParam = url.searchParams.get("from");
+    const toParam = url.searchParams.get("to");
+    const from = fromParam ? Number(fromParam) : undefined;
+    const to = toParam ? Number(toParam) : undefined;
+    const cursor = url.searchParams.get("cursor") ?? null;
+    const numItems = Math.min(Number(url.searchParams.get("numItems") ?? "50"), 200);
+
+    try {
+      const result = await ctx.runQuery(internal.auditLog.listAuditLog, {
+        callerId: caller.callerId as never,
+        orgId,
+        workspaceId,
+        action,
+        result: resultFilter,
+        from,
+        to,
+        paginationOpts: { numItems, cursor },
+      });
+      return jsonResponse({ logs: result.page, isDone: result.isDone, cursor: result.continueCursor });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
