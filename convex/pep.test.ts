@@ -275,6 +275,44 @@ test("withPep: retorna HTTP 403 com JSON quando pdpDecide retorna DENY", async (
   expect(body).toMatchObject({ allowed: false, reason: expect.any(String) });
 });
 
+// ── withPepMutation ──────────────────────────────────────────────────────────
+
+import { withPepMutation } from "./pepMutation";
+
+test("withPepMutation: executa handler quando PDP permite", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run(async (ctx) => ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }));
+  const wsId = await t.run(async (ctx) => ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }));
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", { email: "m@test.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  await t.run(async (ctx) => ctx.db.insert("workspace_members", { userId, workspaceId: wsId, status: "active" }));
+  const roleId = await t.run(async (ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+  const capId = await t.run(async (ctx) =>
+    ctx.db.insert("capabilities", { name: "read", description: "read", isBase: true }),
+  );
+  await t.run(async (ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: capId }));
+  await t.run(async (ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsId }),
+  );
+
+  const result = await t.mutation(internal.pepMutation.testMutation, {
+    userId,
+    orgId,
+    workspaceId: wsId,
+    requiredCapability: "read",
+  });
+  expect(result).toBe("ok");
+});
+
+test("withPepMutation: pode ser registrada como internalMutation", () => {
+  expect(typeof withPepMutation).toBe("function");
+  const registered = withPepMutation(async () => "result", "read");
+  expect(registered).toBeDefined();
+  expect(typeof registered.isConvexFunction).toBe("undefined");
+});
+
 // ── withPep: PDP ALLOW delega ao handler ────────────────────────────────────
 
 test("withPep: chama handler e retorna sua Response quando PDP permite (sem workspaceId)", async () => {

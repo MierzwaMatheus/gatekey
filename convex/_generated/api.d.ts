@@ -10,6 +10,7 @@
 
 import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
+import type * as pepMutation from "../pepMutation.js";
 import type * as pepUtils from "../pepUtils.js";
 import type * as seed from "../seed.js";
 
@@ -22,6 +23,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   pdp: typeof pdp;
   pep: typeof pep;
+  pepMutation: typeof pepMutation;
   pepUtils: typeof pepUtils;
   seed: typeof seed;
 }>;
