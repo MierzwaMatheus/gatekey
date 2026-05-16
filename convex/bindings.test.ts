@@ -3,10 +3,63 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
+import argon2 from "argon2";
 
 const modules = import.meta.glob("./**/*.ts");
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function setupOrgWithAdminAndWorkspaceAndToken(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "admin", isBase: true }),
+  );
+
+  const PASSWORD = "admin-secret-123";
+  const passwordHash = await argon2.hash(PASSWORD);
+
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "admin@acme.io"))
+      .first(),
+  );
+  await t.run((ctx) => ctx.db.patch(adminUser!._id, { passwordHash }));
+  const adminId = adminUser!._id;
+
+  const workspaceId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Main Workspace",
+  });
+
+  const login = await t.action(internal.auth.loginWithPassword, {
+    email: "admin@acme.io",
+    password: PASSWORD,
+  });
+  if (!login.success) throw new Error("login failed in test setup");
+  const token = login.accessToken;
+
+  return { rootId, orgId, adminId, workspaceId, token };
+}
 
 async function setupOrgWithAdminAndWorkspace(t: ReturnType<typeof convexTest>) {
   const rootId = await t.run((ctx) =>
@@ -371,4 +424,150 @@ test("createBinding: lança forbidden se caller não é admin da org", async () 
       resourceType: "workspace",
     }),
   ).rejects.toThrow("forbidden");
+});
+
+// ── Ciclo 5: Rotas HTTP ───────────────────────────────────────────────────────
+
+test("POST /v1/bindings: retorna 401 sem token", async () => {
+  const t = convexTest(schema, modules);
+  const res = await t.fetch("/v1/bindings", { method: "POST" });
+  expect(res.status).toBe(401);
+});
+
+test("POST /v1/bindings: retorna 400 sem campos obrigatórios", async () => {
+  const t = convexTest(schema, modules);
+  const { token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const res = await t.fetch("/v1/bindings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: "some-id" }),
+  });
+  expect(res.status).toBe(400);
+});
+
+test("POST /v1/bindings: cria binding e retorna 201", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId, token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "http-member@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+
+  const res = await t.fetch("/v1/bindings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  });
+  expect(res.status).toBe(201);
+  const body = await res.json() as { id: string };
+  expect(body.id).toBeDefined();
+});
+
+test("POST /v1/bindings: roleId de outro workspace retorna 422", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const otherWsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Other WS", status: "active" }),
+  );
+  const roleInOtherWs = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId: otherWsId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "http2@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+
+  const res = await t.fetch("/v1/bindings", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: memberId, roleId: roleInOtherWs, resourceType: "workspace", workspaceId }),
+  });
+  expect(res.status).toBe(422);
+  const body = await res.json() as { error: string };
+  expect(body.error).toBe("InvalidRoleWorkspace");
+});
+
+test("GET /v1/bindings: retorna 401 sem token", async () => {
+  const t = convexTest(schema, modules);
+  const res = await t.fetch("/v1/bindings?workspaceId=x", { method: "GET" });
+  expect(res.status).toBe(401);
+});
+
+test("GET /v1/bindings: retorna 400 sem workspaceId", async () => {
+  const t = convexTest(schema, modules);
+  const { token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const res = await t.fetch("/v1/bindings", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(400);
+});
+
+test("GET /v1/bindings: retorna lista de bindings do workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const res = await t.fetch(`/v1/bindings?workspaceId=${workspaceId}`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { bindings: unknown[] };
+  expect(Array.isArray(body.bindings)).toBe(true);
+});
+
+test("DELETE /v1/bindings/:id: retorna 401 sem token", async () => {
+  const t = convexTest(schema, modules);
+  const res = await t.fetch("/v1/bindings/fake-id", { method: "DELETE" });
+  expect(res.status).toBe(401);
+});
+
+test("DELETE /v1/bindings/:id: retorna 404 para binding inexistente", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "temp", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "del2@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+  await t.run((ctx) => ctx.db.delete(bindingId));
+
+  const res = await t.fetch(`/v1/bindings/${bindingId}?workspaceId=${workspaceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(404);
+});
+
+test("DELETE /v1/bindings/:id: remove binding e retorna success", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupOrgWithAdminAndWorkspaceAndToken(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer2", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "del3@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const res = await t.fetch(`/v1/bindings/${bindingId}?workspaceId=${workspaceId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(200);
+  const body = await res.json() as { success: boolean };
+  expect(body.success).toBe(true);
 });
