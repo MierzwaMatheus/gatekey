@@ -338,3 +338,49 @@ test("logoutSession: registra auth.logout no audit_log", async () => {
   const logoutEvent = events.find((e) => e.action === "auth.logout");
   expect(logoutEvent).toBeDefined();
 });
+
+// ── Ciclo sessions_per_user quota ─────────────────────────────────────────────
+
+test("loginWithPassword: sessions_per_user atingido retorna quota_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+  const userId = await createUser(t, "quota@test.com", "correct");
+  await addOrgMember(t, userId as string, orgId as string);
+  // Configurar quota = 1
+  await t.run(async (ctx) => {
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+    if (settings) {
+      await ctx.db.patch(settings._id, { quotas: { sessions_per_user: 1 } });
+    } else {
+      await ctx.db.insert("org_settings", {
+        orgId: orgId as never,
+        loginMethods: ["email_password"],
+        mfaRequired: false,
+        jwtExpiryAccess: 3600,
+        jwtExpiryRefresh: 2592000,
+        quotas: { sessions_per_user: 1 },
+      });
+    }
+  });
+  // Criar 1 sessão ativa para atingir cota
+  await t.run(async (ctx) => {
+    await ctx.db.insert("sessions", {
+      userId: userId as never,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 99999999,
+    });
+  });
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "quota@test.com",
+    password: "correct",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("quota_exceeded");
+  }
+});

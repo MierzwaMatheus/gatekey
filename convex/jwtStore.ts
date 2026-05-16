@@ -95,6 +95,19 @@ export const isSessionBlacklisted = internalQuery({
   },
 });
 
+export const countActiveSessionsForUser = internalQuery({
+  args: { userId: v.id("users") },
+  returns: v.number(),
+  handler: async (ctx, { userId }) => {
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+    const now = Date.now();
+    return sessions.filter((s) => s.expiresAt > now).length;
+  },
+});
+
 export const getSession = internalQuery({
   args: { sessionId: v.id("sessions") },
   returns: v.any(),

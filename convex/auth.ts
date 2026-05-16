@@ -126,6 +126,24 @@ export const loginWithPassword = internalAction({
       if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
     }
 
+    // Verificar cota sessions_per_user
+    if (orgId) {
+      const orgSettings = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+        orgId: orgId as never,
+      })) as { jwtExpiryAccess: number; jwtExpiryRefresh: number } | null;
+      const orgSettingsFull = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+        orgId: orgId as never,
+      })) as { quotas?: Record<string, number> } | null;
+      const sessionQuota = orgSettingsFull?.quotas?.["sessions_per_user"] ?? 5;
+      const activeSessionCount = (await ctx.runQuery(
+        internal.jwtStore.countActiveSessionsForUser,
+        { userId: user._id as never },
+      )) as number;
+      if (activeSessionCount >= sessionQuota) {
+        return { success: false as const, error: "quota_exceeded" };
+      }
+    }
+
     // Criar sessão com refresh token
     const sessionResult = (await ctx.runAction(internal.jwt.createSessionWithRefreshToken, {
       userId: user._id as never,
