@@ -728,6 +728,96 @@ test("suspendUser: Org Admin não pode suspender usuário de outra org", async (
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 13: herança automática — createWorkspace → bindings para Org Admins ─
+
+test("createWorkspace: Org Admins da org recebem binding admin automaticamente", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  const adminRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "admin", isBase: true }),
+  );
+  const admin1Id = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "admin1@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const admin2Id = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "admin2@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: admin1Id, orgId, role: "admin", status: "active" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: admin2Id, orgId, role: "admin", status: "active" }),
+  );
+
+  const wsId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Dev",
+  });
+
+  const binding1 = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", admin1Id),
+      )
+      .first(),
+  );
+  const binding2 = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", admin2Id),
+      )
+      .first(),
+  );
+
+  expect(binding1?.roleId).toBe(adminRoleId);
+  expect(binding2?.roleId).toBe(adminRoleId);
+});
+
+test("createWorkspace: Root sem ser org_member não recebe binding", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "admin", isBase: true }),
+  );
+
+  const wsId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Dev",
+  });
+
+  const bindings = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", rootId),
+      )
+      .collect(),
+  );
+  expect(bindings).toHaveLength(0);
+});
+
 // ── Ciclo 12: workspaces_per_org quota ──────────────────────────────────────
 
 test("createWorkspace: org em cota máxima de workspaces retorna quota_exceeded", async () => {

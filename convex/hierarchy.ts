@@ -143,11 +143,38 @@ export const createWorkspace = internalMutation({
       throw new Error("quota_exceeded: workspaces_per_org");
     }
 
-    return await ctx.db.insert("workspaces", {
+    const newWsId = await ctx.db.insert("workspaces", {
       orgId: args.orgId,
       name: args.name,
       status: "active",
     });
+
+    const adminRole = await ctx.db
+      .query("roles")
+      .filter((q) => q.and(q.eq(q.field("isBase"), true), q.eq(q.field("name"), "admin")))
+      .first();
+    if (adminRole) {
+      const orgAdmins = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("role"), "admin"),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .collect();
+      for (const member of orgAdmins) {
+        await ctx.db.insert("bindings", {
+          userId: member.userId,
+          roleId: adminRole._id,
+          resourceType: "workspace",
+          workspaceId: newWsId,
+        });
+      }
+    }
+
+    return newWsId;
   },
 });
 
