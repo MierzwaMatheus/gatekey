@@ -1,0 +1,159 @@
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+export default defineSchema({
+  users: defineTable({
+    email: v.string(),
+    passwordHash: v.string(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("deleted")),
+    loginAttempts: v.number(),
+    lockedUntil: v.optional(v.number()),
+    updatedAt: v.number(),
+  }),
+
+  orgs: defineTable({
+    name: v.string(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("deleted")),
+    updatedAt: v.number(),
+  }),
+
+  org_settings: defineTable({
+    orgId: v.id("orgs"),
+    loginMethods: v.array(
+      v.union(
+        v.literal("email_password"),
+        v.literal("magic_link"),
+        v.literal("oauth_google"),
+        v.literal("oauth_github"),
+      ),
+    ),
+    mfaRequired: v.boolean(),
+    jwtExpiryAccess: v.number(),
+    jwtExpiryRefresh: v.number(),
+    quotas: v.record(v.string(), v.number()),
+    defaultLanguage: v.optional(v.string()),
+  }),
+
+  workspaces: defineTable({
+    orgId: v.id("orgs"),
+    name: v.string(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("deleted")),
+  }),
+
+  org_members: defineTable({
+    userId: v.id("users"),
+    orgId: v.id("orgs"),
+    role: v.string(),
+    status: v.union(v.literal("active"), v.literal("suspended"), v.literal("removed")),
+  }),
+
+  workspace_members: defineTable({
+    userId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+    status: v.union(v.literal("active"), v.literal("removed")),
+  }),
+
+  roles: defineTable({
+    workspaceId: v.optional(v.id("workspaces")),
+    name: v.string(),
+    isBase: v.boolean(),
+  }),
+
+  capabilities: defineTable({
+    orgId: v.optional(v.id("orgs")),
+    name: v.string(),
+    description: v.string(),
+    isBase: v.boolean(),
+  }),
+
+  role_capabilities: defineTable({
+    roleId: v.id("roles"),
+    capabilityId: v.id("capabilities"),
+  }),
+
+  resource_types: defineTable({
+    orgId: v.id("orgs"),
+    name: v.string(),
+    inheritsFrom: v.optional(v.string()),
+    inheritanceMode: v.optional(v.string()),
+  }),
+
+  bindings: defineTable({
+    userId: v.id("users"),
+    roleId: v.id("roles"),
+    resourceType: v.string(),
+    resourceId: v.optional(v.string()),
+    parentResourceId: v.optional(v.string()),
+    workspaceId: v.id("workspaces"),
+  })
+    .index("by_workspaceId_and_userId", ["workspaceId", "userId"])
+    .index("by_resourceType_and_resourceId", ["resourceType", "resourceId"])
+    .index("by_userId_and_resourceType_and_resourceId", ["userId", "resourceType", "resourceId"]),
+
+  api_keys: defineTable({
+    orgId: v.id("orgs"),
+    publicId: v.string(),
+    secretHash: v.string(),
+    scopes: v.array(v.string()),
+    description: v.string(),
+    lastUsedAt: v.optional(v.number()),
+    lastUsedIp: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+  }).index("by_orgId_and_status", ["orgId", "status"]),
+
+  sessions: defineTable({
+    userId: v.id("users"),
+    refreshTokenHash: v.string(),
+    expiresAt: v.number(),
+    deviceInfo: v.optional(v.string()),
+    ip: v.optional(v.string()),
+  }).index("by_userId", ["userId"]),
+
+  session_blacklist: defineTable({
+    sessionId: v.id("sessions"),
+    expiresAt: v.number(),
+  }).index("by_sessionId", ["sessionId"]),
+
+  audit_log: defineTable({
+    timestamp: v.number(),
+    actorType: v.union(v.literal("user"), v.literal("api_key"), v.literal("system")),
+    actorId: v.string(),
+    actorRole: v.optional(v.string()),
+    action: v.string(),
+    target: v.object({
+      type: v.string(),
+      id: v.optional(v.string()),
+    }),
+    orgId: v.optional(v.id("orgs")),
+    workspaceId: v.optional(v.id("workspaces")),
+    ip: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    result: v.union(v.literal("allow"), v.literal("deny")),
+    reason: v.optional(v.string()),
+  })
+    .index("by_orgId_and_timestamp", ["orgId", "timestamp"])
+    .index("by_workspaceId_and_timestamp", ["workspaceId", "timestamp"]),
+
+  audit_exports: defineTable({
+    orgId: v.id("orgs"),
+    period: v.object({
+      start: v.number(),
+      end: v.number(),
+    }),
+    storagePath: v.string(),
+  }),
+
+  magic_link_tokens: defineTable({
+    tokenHash: v.string(),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+    usedAt: v.optional(v.number()),
+  }),
+
+  mfa_configs: defineTable({
+    userId: v.id("users"),
+    secret: v.string(),
+    backupCodes: v.array(v.string()),
+    activatedAt: v.number(),
+  }),
+});
