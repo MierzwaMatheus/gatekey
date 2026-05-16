@@ -64,7 +64,7 @@
 - [x] Escrever teste unitário para `findParentBinding` — binding no container pai é encontrado
 - [x] Escrever teste unitário para `resolveRole` — capabilities do role são retornadas corretamente
 - [x] Escrever teste de integração: ALLOW por binding direto no recurso
-- [ ] Escrever teste de integração: ALLOW por herança de container pai (inheritanceMode configurado)
+- [x] Escrever teste de integração: ALLOW por herança de container pai (inheritanceMode configurado)
 - [x] Escrever teste de integração: ALLOW por herança de workspace (sem binding direto)
 - [x] Escrever teste de integração: DENY quando nenhum binding existe em nenhum nível
 - [x] Escrever teste de integração: DENY quando usuário está suspenso (mesmo com binding válido)
