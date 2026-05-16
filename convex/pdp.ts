@@ -1,6 +1,18 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
+export const checkApiKeyValid = internalQuery({
+  args: { publicId: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { publicId }) => {
+    const key = await ctx.db
+      .query("api_keys")
+      .withIndex("by_publicId", (q) => q.eq("publicId", publicId))
+      .unique();
+    return key?.status === "active";
+  },
+});
+
 export const checkSessionValid = internalQuery({
   args: { sessionId: v.id("sessions") },
   returns: v.boolean(),

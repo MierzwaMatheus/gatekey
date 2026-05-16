@@ -124,3 +124,51 @@ test("checkUserActive: retorna false para usuário deletado", async () => {
   });
   expect(result).toBe(false);
 });
+
+// ── checkApiKeyValid ─────────────────────────────────────────────────────────
+
+test("checkApiKeyValid: retorna true para api_key ativa", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "gk_live_pk_abc123",
+      secretHash: "h",
+      scopes: ["check"],
+      description: "test key",
+      status: "active",
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkApiKeyValid, { publicId: "gk_live_pk_abc123" });
+  });
+  expect(result).toBe(true);
+});
+
+test("checkApiKeyValid: retorna false para api_key revogada", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "gk_live_pk_revoked",
+      secretHash: "h",
+      scopes: ["check"],
+      description: "revoked key",
+      status: "revoked",
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkApiKeyValid, { publicId: "gk_live_pk_revoked" });
+  });
+  expect(result).toBe(false);
+});
+
+test("checkApiKeyValid: retorna false para publicId inexistente", async () => {
+  const t = convexTest(schema, modules);
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkApiKeyValid, { publicId: "gk_live_pk_nonexistent" });
+  });
+  expect(result).toBe(false);
+});
