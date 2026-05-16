@@ -38,11 +38,11 @@
 
 ### 1.2 PDP (Policy Decision Point) — closes #2 (parcial)
 
-- [ ] Criar função `checkUserActive(userId)` — retorna false se status = suspended ou deleted
-- [ ] Criar função `checkSessionValid(sessionId)` — consulta `session_blacklist` e verifica expiração, retorna false se revogada ou expirada
-- [ ] Criar função `checkApiKeyValid(publicId)` — verifica status = active
-- [ ] Criar função `checkApiKeyScope(publicId, requiredScope)` — verifica se `scopes[]` contém o escopo requerido
-- [ ] Criar função `checkWorkspaceMembership(userId, workspaceId)` — verifica existência de registro ativo em `workspace_members`
+- [x] Criar função `checkUserActive(userId)` — retorna false se status = suspended ou deleted
+- [x] Criar função `checkSessionValid(sessionId)` — consulta `session_blacklist` e verifica expiração, retorna false se revogada ou expirada
+- [x] Criar função `checkApiKeyValid(publicId)` — verifica status = active
+- [x] Criar função `checkApiKeyScope(publicId, requiredScope)` — verifica se `scopes[]` contém o escopo requerido
+- [x] Criar função `checkWorkspaceMembership(userId, workspaceId)` — verifica existência de registro ativo em `workspace_members`
 - [ ] Criar função `findDirectBinding(userId, resourceType, resourceId)` — lookup em `bindings` pelo índice `bindings_by_user_resource`
 - [ ] Criar função `findParentBinding(userId, resourceType, resourceId)` — busca `resource_types.inheritsFrom` para o tipo, depois lookup binding no tipo pai
 - [ ] Criar função `findWorkspaceBinding(userId, workspaceId)` — lookup binding no nível de workspace (resourceId = null)
@@ -57,9 +57,9 @@
 - [ ] Implementar passo 7 no PDP: `findParentBinding` — se tipo tem `inheritanceMode` configurado
 - [ ] Implementar passo 8 no PDP: `findWorkspaceBinding` — fallback para nível de workspace
 - [ ] Garantir que qualquer exceção não tratada no PDP resulta em `{allowed: false, reason: "internal_error"}` (fail closed)
-- [ ] Escrever teste unitário para `checkUserActive` — usuário ativo retorna true, suspenso retorna false
-- [ ] Escrever teste unitário para `checkSessionValid` — sessão na blacklist retorna false
-- [ ] Escrever teste unitário para `checkApiKeyScope` — escopo ausente retorna false
+- [x] Escrever teste unitário para `checkUserActive` — usuário ativo retorna true, suspenso retorna false
+- [x] Escrever teste unitário para `checkSessionValid` — sessão na blacklist retorna false
+- [x] Escrever teste unitário para `checkApiKeyScope` — escopo ausente retorna false
 - [ ] Escrever teste unitário para `findDirectBinding` — binding existente é encontrado
 - [ ] Escrever teste unitário para `findParentBinding` — binding no container pai é encontrado
 - [ ] Escrever teste unitário para `resolveRole` — capabilities do role são retornadas corretamente
