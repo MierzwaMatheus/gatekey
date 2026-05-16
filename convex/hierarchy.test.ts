@@ -444,6 +444,139 @@ test("createUser: não-admin não pode criar usuário", async () => {
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 9: addWorkspaceMember ──────────────────────────────────────────────
+
+async function setupOrgAndWorkspace(t: ReturnType<typeof convexTest>) {
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gk.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { users_per_workspace: 30 },
+    }),
+  );
+  const wsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Dev", status: "active" }),
+  );
+  return { rootId, orgId, wsId };
+}
+
+test("addWorkspaceMember: Org Admin adiciona membro ao workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, wsId } = await setupOrgAndWorkspace(t);
+  const adminId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "admin@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: adminId, orgId, role: "admin", status: "active" }),
+  );
+  const memberId = await createRegularUser(t, "member@acme.io");
+
+  await t.mutation(internal.hierarchy.addWorkspaceMember, {
+    callerId: adminId,
+    workspaceId: wsId,
+    userId: memberId,
+  });
+
+  const wm = await t.run((ctx) =>
+    ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", memberId).eq("workspaceId", wsId),
+      )
+      .first(),
+  );
+  expect(wm?.status).toBe("active");
+});
+
+test("addWorkspaceMember: Root pode adicionar membro", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, wsId } = await setupOrgAndWorkspace(t);
+  const memberId = await createRegularUser(t, "member@acme.io");
+
+  await t.mutation(internal.hierarchy.addWorkspaceMember, {
+    callerId: rootId,
+    workspaceId: wsId,
+    userId: memberId,
+  });
+
+  const wm = await t.run((ctx) =>
+    ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", memberId).eq("workspaceId", wsId),
+      )
+      .first(),
+  );
+  expect(wm).not.toBeNull();
+});
+
+test("addWorkspaceMember: usuário sem role admin não pode adicionar membro", async () => {
+  const t = convexTest(schema, modules);
+  const { wsId } = await setupOrgAndWorkspace(t);
+  const regularId = await createRegularUser(t, "regular@acme.io");
+  const memberId = await createRegularUser(t, "member@acme.io");
+
+  await expect(
+    t.mutation(internal.hierarchy.addWorkspaceMember, {
+      callerId: regularId,
+      workspaceId: wsId,
+      userId: memberId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("addWorkspaceMember: workspace em cota máxima retorna erro quota_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgId, wsId } = await setupOrgAndWorkspace(t);
+  // Sobrescrever cota para 1
+  const settings = await t.run((ctx) =>
+    ctx.db.query("org_settings").filter((q) => q.eq(q.field("orgId"), orgId)).first(),
+  );
+  await t.run((ctx) =>
+    ctx.db.patch(settings!._id, { quotas: { users_per_workspace: 1 } }),
+  );
+  // Adicionar 1 membro existente para atingir cota
+  const existingMemberId = await createRegularUser(t, "existing@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", {
+      userId: existingMemberId,
+      workspaceId: wsId,
+      status: "active",
+    }),
+  );
+  const newMemberId = await createRegularUser(t, "new@acme.io");
+
+  await expect(
+    t.mutation(internal.hierarchy.addWorkspaceMember, {
+      callerId: rootId,
+      workspaceId: wsId,
+      userId: newMemberId,
+    }),
+  ).rejects.toThrow("quota_exceeded");
+});
+
 // ── Ciclo 7: suspendUser ─────────────────────────────────────────────────────
 
 test("suspendUser: Org Admin suspende usuário da própria org", async () => {

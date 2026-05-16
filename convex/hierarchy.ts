@@ -326,6 +326,75 @@ export const suspendUser = internalMutation({
   },
 });
 
+export const addWorkspaceMember = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("not_found: workspace");
+
+    if (!caller.isRoot) {
+      const orgMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), workspace.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!orgMembership || orgMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), workspace.orgId))
+      .first();
+    const quota = settings?.quotas["users_per_workspace"] ?? DEFAULT_QUOTAS["users_per_workspace"];
+    const currentCount = await ctx.db
+      .query("workspace_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("workspaceId"), args.workspaceId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .collect()
+      .then((r) => r.length);
+    if (currentCount >= quota) {
+      throw new Error("quota_exceeded: users_per_workspace");
+    }
+
+    await ctx.db.insert("workspace_members", {
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      status: "active",
+    });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "workspace.member.add",
+      target: { type: "workspace_members", id: args.userId as string },
+      orgId: workspace.orgId,
+      workspaceId: args.workspaceId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 export const suspendWorkspace = internalMutation({
   args: {
     callerId: v.id("users"),
