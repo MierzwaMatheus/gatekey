@@ -181,13 +181,13 @@
 
 ### 2.3 REST API — Bindings — closes #6 (parcial)
 
-- [ ] Implementar `POST /v1/bindings` — cria binding `{userId, roleId, resourceType, resourceId?, workspaceId}`; PEP requer `bindings:write`
-- [ ] Implementar `GET /v1/bindings` — lista bindings com filtros opcionais `?userId=&resourceType=`; PEP requer `bindings:read`
-- [ ] Implementar `DELETE /v1/bindings/:id` — revoga binding; PEP requer `bindings:write`
-- [ ] Validar na criação que `roleId` pertence ao mesmo workspace do binding
-- [ ] Validar na criação que `userId` pertence ao workspace
-- [ ] Chamar `writeAuditEvent` em create e delete
-- [ ] Escrever teste: `POST /v1/bindings` com `roleId` de outro workspace retorna 422
+- [x] Implementar `POST /v1/bindings` — cria binding `{userId, roleId, resourceType, resourceId?, workspaceId}`; PEP requer `bindings:write`
+- [x] Implementar `GET /v1/bindings` — lista bindings com filtros opcionais `?userId=&resourceType=`; PEP requer `bindings:read`
+- [x] Implementar `DELETE /v1/bindings/:id` — revoga binding; PEP requer `bindings:write`
+- [x] Validar na criação que `roleId` pertence ao mesmo workspace do binding
+- [x] Validar na criação que `userId` pertence ao workspace
+- [x] Chamar `writeAuditEvent` em create e delete
+- [x] Escrever teste: `POST /v1/bindings` com `roleId` de outro workspace retorna 422
 
 ### 2.4 REST API — Resource Types — closes #6 (parcial)
 

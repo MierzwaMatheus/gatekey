@@ -525,4 +525,120 @@ http.route({
   }),
 });
 
+// ── POST /v1/bindings ─────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/bindings",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: {
+      userId?: string;
+      roleId?: string;
+      resourceType?: string;
+      resourceId?: string;
+      parentResourceId?: string;
+      workspaceId?: string;
+    };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.userId || !body.roleId || !body.resourceType || !body.workspaceId) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    try {
+      const result = await ctx.runMutation(internal.bindings.createBinding, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: body.workspaceId as never,
+        userId: body.userId as never,
+        roleId: body.roleId as never,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        parentResourceId: body.parentResourceId,
+      });
+      return jsonResponse(result, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("invalid_role_workspace")) {
+        return jsonResponse({ error: "InvalidRoleWorkspace", message: "Role does not belong to the specified workspace." }, 422);
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/bindings ──────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/bindings",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const workspaceId = url.searchParams.get("workspaceId");
+    if (!workspaceId) return jsonResponse({ error: "missing_workspace_id" }, 400);
+
+    const userId = url.searchParams.get("userId") ?? undefined;
+    const resourceType = url.searchParams.get("resourceType") ?? undefined;
+
+    try {
+      const bindings = await ctx.runQuery(internal.bindings.listBindings, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: workspaceId as never,
+        userId: userId as never,
+        resourceType,
+      });
+      return jsonResponse({ bindings });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/bindings/:id ───────────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/bindings/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const bindingId = url.pathname.replace(/^\/v1\/bindings\//, "").split("/")[0];
+    if (!bindingId) return jsonResponse({ error: "missing_binding_id" }, 400);
+
+    const workspaceId = url.searchParams.get("workspaceId");
+    if (!workspaceId) return jsonResponse({ error: "missing_workspace_id" }, 400);
+
+    try {
+      await ctx.runMutation(internal.bindings.deleteBinding, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: workspaceId as never,
+        bindingId: bindingId as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
