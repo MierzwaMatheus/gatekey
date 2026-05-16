@@ -395,6 +395,60 @@ export const addWorkspaceMember = internalMutation({
   },
 });
 
+export const removeWorkspaceMember = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("not_found: workspace");
+
+    if (!caller.isRoot) {
+      const orgMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), workspace.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!orgMembership || orgMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    const wm = await ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", args.userId).eq("workspaceId", args.workspaceId),
+      )
+      .first();
+    if (!wm) throw new Error("not_found: workspace_member");
+
+    await ctx.db.patch(wm._id, { status: "removed" });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "workspace.member.remove",
+      target: { type: "workspace_members", id: args.userId as string },
+      orgId: workspace.orgId,
+      workspaceId: args.workspaceId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 export const suspendWorkspace = internalMutation({
   args: {
     callerId: v.id("users"),

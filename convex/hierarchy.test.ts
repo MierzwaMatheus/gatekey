@@ -444,6 +444,88 @@ test("createUser: não-admin não pode criar usuário", async () => {
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 10: removeWorkspaceMember ──────────────────────────────────────────
+
+test("removeWorkspaceMember: Org Admin remove membro do workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, wsId } = await setupOrgAndWorkspace(t);
+  const adminId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "admin2@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: adminId, orgId, role: "admin", status: "active" }),
+  );
+  const memberId = await createRegularUser(t, "member2@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: memberId, workspaceId: wsId, status: "active" }),
+  );
+
+  await t.mutation(internal.hierarchy.removeWorkspaceMember, {
+    callerId: adminId,
+    workspaceId: wsId,
+    userId: memberId,
+  });
+
+  const wm = await t.run((ctx) =>
+    ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", memberId).eq("workspaceId", wsId),
+      )
+      .first(),
+  );
+  expect(wm?.status).toBe("removed");
+});
+
+test("removeWorkspaceMember: Root pode remover membro", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, wsId } = await setupOrgAndWorkspace(t);
+  const memberId = await createRegularUser(t, "member3@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: memberId, workspaceId: wsId, status: "active" }),
+  );
+
+  await t.mutation(internal.hierarchy.removeWorkspaceMember, {
+    callerId: rootId,
+    workspaceId: wsId,
+    userId: memberId,
+  });
+
+  const wm = await t.run((ctx) =>
+    ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", memberId).eq("workspaceId", wsId),
+      )
+      .first(),
+  );
+  expect(wm?.status).toBe("removed");
+});
+
+test("removeWorkspaceMember: não-admin não pode remover membro", async () => {
+  const t = convexTest(schema, modules);
+  const { wsId } = await setupOrgAndWorkspace(t);
+  const regularId = await createRegularUser(t, "regular2@acme.io");
+  const memberId = await createRegularUser(t, "member4@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: memberId, workspaceId: wsId, status: "active" }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.removeWorkspaceMember, {
+      callerId: regularId,
+      workspaceId: wsId,
+      userId: memberId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 // ── Ciclo 9: addWorkspaceMember ──────────────────────────────────────────────
 
 async function setupOrgAndWorkspace(t: ReturnType<typeof convexTest>) {
