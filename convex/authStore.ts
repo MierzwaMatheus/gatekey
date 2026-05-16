@@ -59,6 +59,40 @@ export const createUserRecord = internalMutation({
   },
 });
 
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX = 10;
+
+export const checkAndIncrementRateLimit = internalMutation({
+  args: { ip: v.string(), endpoint: v.string() },
+  returns: v.boolean(), // true = permitido, false = bloqueado
+  handler: async (ctx, { ip, endpoint }) => {
+    const now = Date.now();
+    const windowStart = now - RATE_LIMIT_WINDOW_MS;
+
+    const existing = await ctx.db
+      .query("ip_rate_limits")
+      .withIndex("by_ip_and_endpoint", (q) => q.eq("ip", ip).eq("endpoint", endpoint))
+      .first();
+
+    if (!existing || existing.windowStart < windowStart) {
+      // Nova janela
+      if (existing) {
+        await ctx.db.patch(existing._id, { count: 1, windowStart: now });
+      } else {
+        await ctx.db.insert("ip_rate_limits", { ip, endpoint, count: 1, windowStart: now });
+      }
+      return true;
+    }
+
+    if (existing.count >= RATE_LIMIT_MAX) {
+      return false;
+    }
+
+    await ctx.db.patch(existing._id, { count: existing.count + 1 });
+    return true;
+  },
+});
+
 export const getFirstActiveOrgForUser = internalQuery({
   args: { userId: v.id("users") },
   returns: v.any(),

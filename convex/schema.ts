@@ -159,6 +159,13 @@ export default defineSchema({
     activatedAt: v.number(),
   }),
 
+  ip_rate_limits: defineTable({
+    ip: v.string(),
+    endpoint: v.string(),
+    count: v.number(),
+    windowStart: v.number(),
+  }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
+
   key_pairs: defineTable({
     kid: v.string(),
     privateKeyJwk: v.string(),

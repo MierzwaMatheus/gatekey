@@ -286,6 +286,36 @@ test("loginWithPassword: registra auth.login.blocked quando conta está bloquead
   expect(blockedEvent).toBeDefined();
 });
 
+// ── Ciclo 10: rate limiting por IP ───────────────────────────────────────────
+
+test("loginWithPassword: muitas requisições do mesmo IP retornam rate_limit_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  // Simular janela de rate limit já cheia para o IP
+  await t.run(async (ctx) => {
+    await ctx.db.insert("ip_rate_limits", {
+      ip: "1.2.3.4",
+      endpoint: "/v1/auth/login",
+      count: 10,
+      windowStart: Date.now() - 30 * 1000, // 30s atrás (dentro da janela de 1min)
+    });
+  });
+
+  await createUser(t, "ratelimit@test.com", "correct");
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "ratelimit@test.com",
+    password: "correct",
+    ip: "1.2.3.4",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("rate_limit_exceeded");
+  }
+});
+
 test("logoutSession: registra auth.logout no audit_log", async () => {
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);

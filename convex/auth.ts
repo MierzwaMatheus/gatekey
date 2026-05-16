@@ -33,6 +33,17 @@ export const loginWithPassword = internalAction({
   > => {
     const argon2 = await import("argon2");
 
+    // Verificar rate limiting por IP
+    if (args.ip) {
+      const allowed = (await ctx.runMutation(internal.authStore.checkAndIncrementRateLimit, {
+        ip: args.ip,
+        endpoint: "/v1/auth/login",
+      })) as boolean;
+      if (!allowed) {
+        return { success: false as const, error: "rate_limit_exceeded" };
+      }
+    }
+
     const user = (await ctx.runQuery(internal.authStore.getUserByEmail, {
       email: args.email,
     })) as {
