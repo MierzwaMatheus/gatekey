@@ -298,6 +298,37 @@ test("findWorkspaceBinding: retorna null quando não existe binding de workspace
   expect(result).toBeNull();
 });
 
+// ── resolveRole ──────────────────────────────────────────────────────────────
+
+test("resolveRole: retorna nomes das capabilities do role", async () => {
+  const t = convexTest(schema, modules);
+  const roleId = await t.run(async (ctx) => {
+    const rId = await ctx.db.insert("roles", { name: "editor", isBase: true });
+    const cap1 = await ctx.db.insert("capabilities", { name: "document:read", description: "Read docs", isBase: true });
+    const cap2 = await ctx.db.insert("capabilities", { name: "document:write", description: "Write docs", isBase: true });
+    await ctx.db.insert("role_capabilities", { roleId: rId, capabilityId: cap1 });
+    await ctx.db.insert("role_capabilities", { roleId: rId, capabilityId: cap2 });
+    return rId;
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.resolveRole, { roleId });
+  });
+  expect(result).toHaveLength(2);
+  expect(result).toContain("document:read");
+  expect(result).toContain("document:write");
+});
+
+test("resolveRole: retorna array vazio quando role não tem capabilities", async () => {
+  const t = convexTest(schema, modules);
+  const roleId = await t.run(async (ctx) => {
+    return await ctx.db.insert("roles", { name: "empty-role", isBase: false });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.resolveRole, { roleId });
+  });
+  expect(result).toEqual([]);
+});
+
 // ── checkWorkspaceMembership ──────────────────────────────────────────────────
 
 test("checkWorkspaceMembership: retorna true para membro ativo", async () => {

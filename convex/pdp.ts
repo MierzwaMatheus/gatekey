@@ -14,6 +14,24 @@ export const findDirectBinding = internalQuery({
   },
 });
 
+export const resolveRole = internalQuery({
+  args: { roleId: v.id("roles") },
+  returns: v.array(v.string()),
+  handler: async (ctx, { roleId }) => {
+    const roleCapabilities = await ctx.db
+      .query("role_capabilities")
+      .filter((q) => q.eq(q.field("roleId"), roleId))
+      .collect();
+    const names = await Promise.all(
+      roleCapabilities.map(async (rc) => {
+        const cap = await ctx.db.get(rc.capabilityId);
+        return cap?.name ?? null;
+      }),
+    );
+    return names.filter((n): n is string => n !== null);
+  },
+});
+
 export const findWorkspaceBinding = internalQuery({
   args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
   returns: v.union(v.null(), v.any()),

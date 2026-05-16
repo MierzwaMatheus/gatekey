@@ -45,7 +45,7 @@
 - [x] Criar função `checkWorkspaceMembership(userId, workspaceId)` — verifica existência de registro ativo em `workspace_members`
 - [x] Criar função `findDirectBinding(userId, resourceType, resourceId)` — lookup em `bindings` pelo índice `bindings_by_user_resource`
 - [ ] Criar função `findParentBinding(userId, resourceType, resourceId)` — busca `resource_types.inheritsFrom` para o tipo, depois lookup binding no tipo pai
-- [ ] Criar função `findWorkspaceBinding(userId, workspaceId)` — lookup binding no nível de workspace (resourceId = null)
+- [x] Criar função `findWorkspaceBinding(userId, workspaceId)` — lookup binding no nível de workspace (resourceId = null)
 - [ ] Criar função `resolveRole(roleId)` — retorna array de capability names via join `roles → role_capabilities → capabilities`
 - [ ] Criar função `pdpDecide(context: {userId, orgId, capability, resourceType, resourceId, workspaceId, sessionId?, apiKeyId?})` — orquestra os 8 passos em ordem, retorna `{allowed: boolean, reason: string}`
 - [ ] Implementar passo 1 no PDP: verificar `checkUserActive`
