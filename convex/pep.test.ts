@@ -23,3 +23,42 @@ test("extractJwtContext: lança erro quando token tem menos de 3 segmentos", () 
 test("extractJwtContext: lança erro quando payload base64 não é JSON válido", () => {
   expect(() => extractJwtContext("Bearer eyJhbGci.bm90anNvbg.sig")).toThrow();
 });
+
+// ── extractJwtContext: extração de payload ───────────────────────────────────
+
+function makeJwt(payload: Record<string, unknown>): string {
+  const encoded = btoa(JSON.stringify(payload))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+  return `Bearer eyJhbGciOiJSUzI1NiJ9.${encoded}.sig`;
+}
+
+test("extractJwtContext: retorna userId do campo sub", () => {
+  const header = makeJwt({ sub: "user123", orgId: "org1" });
+  const ctx = extractJwtContext(header);
+  expect(ctx.userId).toBe("user123");
+});
+
+test("extractJwtContext: retorna orgId, sessionId, workspaceIds, roles do payload", () => {
+  const header = makeJwt({
+    sub: "user1",
+    orgId: "org1",
+    sessionId: "sess1",
+    workspaceIds: ["ws1", "ws2"],
+    roles: { ws1: "admin" },
+  });
+  const ctx = extractJwtContext(header);
+  expect(ctx.orgId).toBe("org1");
+  expect(ctx.sessionId).toBe("sess1");
+  expect(ctx.workspaceIds).toEqual(["ws1", "ws2"]);
+  expect(ctx.roles).toEqual({ ws1: "admin" });
+});
+
+test("extractJwtContext: lança erro quando campo sub está ausente", () => {
+  expect(() => extractJwtContext(makeJwt({ orgId: "org1" }))).toThrow();
+});
+
+test("extractJwtContext: lança erro quando campo orgId está ausente", () => {
+  expect(() => extractJwtContext(makeJwt({ sub: "user1" }))).toThrow();
+});
