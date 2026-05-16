@@ -65,7 +65,20 @@ test("extractJwtContext: lança erro quando campo orgId está ausente", () => {
 
 // ── extractApiKeyContext: validação de formato ───────────────────────────────
 
-import { extractApiKeyContextFormat } from "./pep";
+import { extractApiKeyContextFormat, withPep } from "./pep";
+import type { ActionCtx } from "./_generated/server";
+
+function makeMockCtx(runQueryImpl?: (fn: unknown, args: unknown) => Promise<unknown>): ActionCtx {
+  return {
+    runQuery: runQueryImpl ?? (async () => null),
+    runMutation: async () => null,
+    runAction: async () => null,
+    scheduler: { runAfter: async () => {}, runAt: async () => {} },
+    auth: { getUserIdentity: async () => null },
+    storage: {} as never,
+    vectorSearch: async () => [],
+  } as unknown as ActionCtx;
+}
 
 test("extractApiKeyContext: lança erro quando header não tem prefixo Bearer", () => {
   expect(() => extractApiKeyContextFormat("gk_live_pk_abc123_secret")).toThrow("missing_bearer");
@@ -196,4 +209,45 @@ test("extractApiKeyContext: lança api_key_invalid quando hash do secret não co
     authHeader: "Bearer gk_live_pk_mykey_wrongsecret",
   });
   expect(result).toMatchObject({ success: false, error: "api_key_invalid" });
+});
+
+// ── withPep: token ausente/inválido retorna 401 ──────────────────────────────
+
+const noopHandler = async () => new Response("OK", { status: 200 });
+
+test("withPep: retorna HTTP 401 quando Authorization header está ausente", async () => {
+  const handler = withPep(noopHandler, { resourceType: "workspace" });
+  const req = new Request("https://example.com/api", { method: "GET" });
+  const res = await handler(makeMockCtx(), req);
+  expect(res.status).toBe(401);
+});
+
+test("withPep: retorna HTTP 401 quando JWT está malformado (segmentos insuficientes)", async () => {
+  const handler = withPep(noopHandler, { resourceType: "workspace" });
+  const req = new Request("https://example.com/api", {
+    method: "GET",
+    headers: { Authorization: "Bearer eyJhbGci.payload" },
+  });
+  const res = await handler(makeMockCtx(), req);
+  expect(res.status).toBe(401);
+});
+
+test("withPep: retorna HTTP 401 quando payload JWT não é JSON válido", async () => {
+  const handler = withPep(noopHandler, { resourceType: "workspace" });
+  const req = new Request("https://example.com/api", {
+    method: "GET",
+    headers: { Authorization: "Bearer eyJhbGci.bm90anNvbg.sig" },
+  });
+  const res = await handler(makeMockCtx(), req);
+  expect(res.status).toBe(401);
+});
+
+test("withPep: retorna HTTP 401 quando formato do token API Key é inválido", async () => {
+  const handler = withPep(noopHandler, { resourceType: "workspace" });
+  const req = new Request("https://example.com/api", {
+    method: "GET",
+    headers: { Authorization: "Bearer gk_live_pk_nossep" },
+  });
+  const res = await handler(makeMockCtx(), req);
+  expect(res.status).toBe(401);
 });
