@@ -275,6 +275,22 @@ test("withPep: retorna HTTP 403 com JSON quando pdpDecide retorna DENY", async (
   expect(body).toMatchObject({ allowed: false, reason: expect.any(String) });
 });
 
+// ── withPep: PDP ALLOW delega ao handler ────────────────────────────────────
+
+test("withPep: chama handler e retorna sua Response quando PDP permite (sem workspaceId)", async () => {
+  const handler = withPep(
+    async (_ctx, _req, auth) =>
+      new Response(JSON.stringify({ userId: auth.type === "jwt" ? auth.data.userId : null }), { status: 200 }),
+    { resourceType: "workspace" },
+  );
+  const jwtHeader = makeJwt({ sub: "user42", orgId: "org1" });
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: jwtHeader } });
+  const res = await handler(makeMockCtx(), req);
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.userId).toBe("user42");
+});
+
 test("withPep: resposta 403 tem Content-Type application/json", async () => {
   const t = convexTest(schema, modules);
 
