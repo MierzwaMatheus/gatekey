@@ -251,3 +251,46 @@ test("withPep: retorna HTTP 401 quando formato do token API Key é inválido", a
   const res = await handler(makeMockCtx(), req);
   expect(res.status).toBe(401);
 });
+
+// ── withPep: PDP DENY retorna 403 ────────────────────────────────────────────
+
+test("withPep: retorna HTTP 403 com JSON quando pdpDecide retorna DENY", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run(async (ctx) => ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }));
+  const wsId = await t.run(async (ctx) => ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }));
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", { email: "u@test.com", passwordHash: "h", status: "suspended", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+
+  const payload = makeJwt({ sub: userId as string, orgId: orgId as string, sessionId: "", workspaceIds: [wsId as string], roles: {} });
+  const handler = withPep(noopHandler, { resourceType: "workspace", workspaceId: wsId as string });
+
+  const ctx = makeMockCtx(async (fn, args) => t.run(async (c) => c.runQuery(fn as never, args as never)));
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: payload } });
+  const res = await handler(ctx, req);
+
+  expect(res.status).toBe(403);
+  const body = await res.json();
+  expect(body).toMatchObject({ allowed: false, reason: expect.any(String) });
+});
+
+test("withPep: resposta 403 tem Content-Type application/json", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run(async (ctx) => ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }));
+  const wsId = await t.run(async (ctx) => ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }));
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", { email: "u2@test.com", passwordHash: "h", status: "suspended", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+
+  const payload = makeJwt({ sub: userId as string, orgId: orgId as string, sessionId: "", workspaceIds: [], roles: {} });
+  const handler = withPep(noopHandler, { resourceType: "workspace", workspaceId: wsId as string });
+
+  const ctx = makeMockCtx(async (fn, args) => t.run(async (c) => c.runQuery(fn as never, args as never)));
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: payload } });
+  const res = await handler(ctx, req);
+
+  expect(res.status).toBe(403);
+  expect(res.headers.get("Content-Type")).toContain("application/json");
+});

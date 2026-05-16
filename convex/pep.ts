@@ -113,7 +113,7 @@ export const verifyApiKey = internalAction({
 
 export function withPep(
   handler: (ctx: ActionCtx, req: Request, auth: AuthContext) => Promise<Response>,
-  _options: {
+  options: {
     requiredCapability?: string;
     requiredScope?: string;
     resourceType: string;
@@ -129,7 +129,32 @@ export function withPep(
       return new Response(null, { status: 401 });
     }
 
-    // PDP check will be added in Ciclo 7
+    if (options.workspaceId) {
+      const userId = auth.type === "jwt" ? auth.data.userId : auth.data.keyId;
+      const orgId = auth.type === "jwt" ? auth.data.orgId : auth.data.orgId;
+      const sessionId =
+        auth.type === "jwt" && auth.data.sessionId ? auth.data.sessionId : undefined;
+      const apiKeyPublicId = auth.type === "api_key" ? auth.data.publicId : undefined;
+
+      const decision = await ctx.runQuery(internal.pdp.pdpDecide, {
+        userId: userId as never,
+        orgId: orgId as never,
+        workspaceId: options.workspaceId as never,
+        capability: options.requiredCapability ?? "",
+        resourceType: options.resourceType,
+        sessionId: sessionId as never,
+        apiKeyPublicId,
+        requiredScope: options.requiredScope,
+      });
+
+      if (!decision.allowed) {
+        return new Response(JSON.stringify({ allowed: false, reason: decision.reason }), {
+          status: 403,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+    }
+
     return handler(ctx, req, auth);
   };
 }
