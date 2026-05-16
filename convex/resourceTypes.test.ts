@@ -386,6 +386,126 @@ test("POST /v1/resource-types: inheritsFrom inválido retorna 422", async () => 
   expect(resp.status).toBe(422);
 });
 
+// ── Ciclo 5: herança two-level via pdpDecide ──────────────────────────────────
+
+test("herança: binding no folder permite acesso ao document via pdpDecide", async () => {
+  const t = convexTest(schema, modules);
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  const workspaceId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Main WS",
+  });
+
+  // Registrar tipos com herança via a nova mutation
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId,
+    orgId,
+    name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId,
+    orgId,
+    name: "document",
+    inheritsFrom: "folder",
+    inheritanceMode: "auto",
+  });
+
+  // Role com capability document:read
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", {
+      name: "document:read",
+      description: "Read documents",
+      isBase: true,
+    }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: capId }));
+
+  // Adicionar user ao workspace
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: adminId, workspaceId, status: "active" }),
+  );
+
+  // Binding: user → editor → folder_1 (binding pai)
+  const folderBindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId,
+      resourceType: "folder",
+      resourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  // Binding: user → (role sem capability) → doc_1 com parentResourceId=folder_1
+  // Isso simula que doc_1 está dentro de folder_1
+  const noCapRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId: noCapRoleId,
+      resourceType: "document",
+      resourceId: "doc_1",
+      parentResourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  const session = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+
+  const result = await t.run((ctx) =>
+    ctx.runQuery(internal.pdp.pdpDecide, {
+      userId: adminId,
+      orgId,
+      capability: "document:read",
+      resourceType: "document",
+      resourceId: "doc_1",
+      workspaceId,
+      sessionId: session,
+    }),
+  );
+
+  expect(result.allowed).toBe(true);
+  expect(result.reason).toBe("parent_binding");
+
+  // Cleanup reference for unused variable
+  void folderBindingId;
+});
+
 test("createResourceType: registra evento no audit_log", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId } = await setupOrgWithAdmin(t);

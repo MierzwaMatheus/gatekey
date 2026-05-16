@@ -191,10 +191,10 @@
 
 ### 2.4 REST API — Resource Types — closes #6 (parcial)
 
-- [ ] Implementar `POST /v1/resource-types` — registra tipo com `{name, inheritsFrom?, inheritanceMode?}`; PEP requer `roles:write`
-- [ ] Implementar `GET /v1/resource-types` — lista tipos registrados na org; PEP requer `roles:read`
-- [ ] Validar que `inheritsFrom` referencia um `resource_type.name` existente na mesma org
-- [ ] Escrever teste: registrar tipo `document` com `inheritsFrom: "folder"`, criar binding no folder, verificar que `POST /v1/check` retorna ALLOW para o document
+- [x] Implementar `POST /v1/resource-types` — registra tipo com `{name, inheritsFrom?, inheritanceMode?}`; PEP requer `roles:write`
+- [x] Implementar `GET /v1/resource-types` — lista tipos registrados na org; PEP requer `roles:read`
+- [x] Validar que `inheritsFrom` referencia um `resource_type.name` existente na mesma org
+- [x] Escrever teste: registrar tipo `document` com `inheritsFrom: "folder"`, criar binding no folder, verificar que `POST /v1/check` retorna ALLOW para o document
 
 ### 2.5 REST API — Verificação de permissão — closes #6 (parcial)
 
