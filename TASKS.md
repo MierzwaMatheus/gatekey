@@ -136,7 +136,7 @@
 - [x] Criar Convex mutation `resetUserPassword({userId, newPassword})` — Org Admin (própria org) ou Root
 - [x] Criar Convex mutation `addWorkspaceMember({workspaceId, userId, roleId})` — WS Admin ou Org Admin
 - [x] Criar Convex mutation `removeWorkspaceMember({workspaceId, userId})` — WS Admin ou Org Admin
-- [ ] Criar Convex mutation `changeWorkspaceMemberRole({workspaceId, userId, newRoleId})` — WS Admin ou Org Admin
+- [x] Criar Convex mutation `changeWorkspaceMemberRole({workspaceId, userId, newRoleId})` — WS Admin ou Org Admin
 - [ ] Implementar herança automática ao designar Org Admin: criar binding de role `admin` para cada workspace existente da org
 - [ ] Implementar herança automática ao criar workspace: criar binding de role `admin` para cada Org Admin da org
 - [ ] Implementar verificação de cota `users_per_org` em `createUser` — retornar QuotaExceeded se atingido

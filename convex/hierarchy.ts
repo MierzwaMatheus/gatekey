@@ -127,6 +127,22 @@ export const createWorkspace = internalMutation({
       }
     }
 
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    const wsQuota = settings?.quotas["workspaces_per_org"] ?? DEFAULT_QUOTAS["workspaces_per_org"];
+    const wsCount = await ctx.db
+      .query("workspaces")
+      .filter((q) =>
+        q.and(q.eq(q.field("orgId"), args.orgId), q.eq(q.field("status"), "active")),
+      )
+      .collect()
+      .then((r) => r.length);
+    if (wsCount >= wsQuota) {
+      throw new Error("quota_exceeded: workspaces_per_org");
+    }
+
     return await ctx.db.insert("workspaces", {
       orgId: args.orgId,
       name: args.name,

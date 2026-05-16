@@ -728,6 +728,38 @@ test("suspendUser: Org Admin não pode suspender usuário de outra org", async (
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 12: workspaces_per_org quota ──────────────────────────────────────
+
+test("createWorkspace: org em cota máxima de workspaces retorna quota_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { workspaces_per_org: 1 },
+    }),
+  );
+  // Inserir 1 workspace existente para atingir cota
+  await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Existing", status: "active" }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.createWorkspace, {
+      callerId: rootId,
+      orgId,
+      name: "New WS",
+    }),
+  ).rejects.toThrow("quota_exceeded");
+});
+
 // ── Ciclo 11: changeWorkspaceMemberRole ─────────────────────────────────────
 
 async function setupOrgWorkspaceAndBinding(t: ReturnType<typeof convexTest>) {
