@@ -218,3 +218,55 @@ test("checkApiKeyScope: retorna false quando scope está ausente", async () => {
   });
   expect(result).toBe(false);
 });
+
+// ── checkWorkspaceMembership ──────────────────────────────────────────────────
+
+test("checkWorkspaceMembership: retorna true para membro ativo", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "member@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    await ctx.db.insert("workspace_members", { userId: uid, workspaceId: wsId, status: "active" });
+    return { userId: uid, workspaceId: wsId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkWorkspaceMembership, { userId, workspaceId });
+  });
+  expect(result).toBe(true);
+});
+
+test("checkWorkspaceMembership: retorna false quando não há registro", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "nomember@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    return { userId: uid, workspaceId: wsId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkWorkspaceMembership, { userId, workspaceId });
+  });
+  expect(result).toBe(false);
+});
+
+test("checkWorkspaceMembership: retorna false para membro removido", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "removed@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    await ctx.db.insert("workspace_members", { userId: uid, workspaceId: wsId, status: "removed" });
+    return { userId: uid, workspaceId: wsId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkWorkspaceMembership, { userId, workspaceId });
+  });
+  expect(result).toBe(false);
+});

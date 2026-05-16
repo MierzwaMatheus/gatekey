@@ -1,6 +1,20 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
+export const checkWorkspaceMembership = internalQuery({
+  args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
+  returns: v.boolean(),
+  handler: async (ctx, { userId, workspaceId }) => {
+    const member = await ctx.db
+      .query("workspace_members")
+      .withIndex("by_userId_and_workspaceId", (q) =>
+        q.eq("userId", userId).eq("workspaceId", workspaceId),
+      )
+      .unique();
+    return member?.status === "active";
+  },
+});
+
 export const checkApiKeyScope = internalQuery({
   args: { publicId: v.string(), requiredScope: v.string() },
   returns: v.boolean(),
