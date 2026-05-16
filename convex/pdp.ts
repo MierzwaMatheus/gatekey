@@ -1,6 +1,21 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
+export const checkSessionValid = internalQuery({
+  args: { sessionId: v.id("sessions") },
+  returns: v.boolean(),
+  handler: async (ctx, { sessionId }) => {
+    const session = await ctx.db.get(sessionId);
+    if (!session) return false;
+    if (session.expiresAt <= Date.now()) return false;
+    const blacklisted = await ctx.db
+      .query("session_blacklist")
+      .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+      .unique();
+    return blacklisted === null;
+  },
+});
+
 export const checkUserActive = internalQuery({
   args: { userId: v.id("users") },
   returns: v.boolean(),

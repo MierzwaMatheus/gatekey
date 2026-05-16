@@ -41,6 +41,73 @@ test("checkUserActive: retorna false para usuário suspenso", async () => {
   expect(result).toBe(false);
 });
 
+// ── checkSessionValid ────────────────────────────────────────────────────────
+
+test("checkSessionValid: retorna true para sessão válida e não blacklistada", async () => {
+  const t = convexTest(schema, modules);
+  const sessionId = await t.run(async (ctx) => {
+    return await ctx.db.insert("sessions", {
+      userId: await ctx.db.insert("users", {
+        email: "u@example.com",
+        passwordHash: "h",
+        status: "active",
+        loginAttempts: 0,
+        updatedAt: Date.now(),
+      }),
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() + 60_000,
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkSessionValid, { sessionId });
+  });
+  expect(result).toBe(true);
+});
+
+test("checkSessionValid: retorna false para sessão na blacklist", async () => {
+  const t = convexTest(schema, modules);
+  const sessionId = await t.run(async (ctx) => {
+    const sid = await ctx.db.insert("sessions", {
+      userId: await ctx.db.insert("users", {
+        email: "u2@example.com",
+        passwordHash: "h",
+        status: "active",
+        loginAttempts: 0,
+        updatedAt: Date.now(),
+      }),
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() + 60_000,
+    });
+    await ctx.db.insert("session_blacklist", { sessionId: sid, expiresAt: Date.now() + 60_000 });
+    return sid;
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkSessionValid, { sessionId });
+  });
+  expect(result).toBe(false);
+});
+
+test("checkSessionValid: retorna false para sessão expirada", async () => {
+  const t = convexTest(schema, modules);
+  const sessionId = await t.run(async (ctx) => {
+    return await ctx.db.insert("sessions", {
+      userId: await ctx.db.insert("users", {
+        email: "u3@example.com",
+        passwordHash: "h",
+        status: "active",
+        loginAttempts: 0,
+        updatedAt: Date.now(),
+      }),
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() - 1,
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkSessionValid, { sessionId });
+  });
+  expect(result).toBe(false);
+});
+
 test("checkUserActive: retorna false para usuário deletado", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.run(async (ctx) => {
