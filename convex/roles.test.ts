@@ -122,6 +122,82 @@ test("listRoles: throws forbidden quando caller não existe na org como admin", 
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 2: createRole ───────────────────────────────────────────────────────
+
+test("createRole: org_admin cria role customizado no workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const result = await t.mutation(internal.roles.createRole, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    name: "reviewer",
+  });
+
+  expect(result.id).toBeTruthy();
+  expect(result.name).toBe("reviewer");
+  expect(result.isBase).toBe(false);
+});
+
+test("createRole: throws quota_exceeded quando workspace está no limite de roles", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  await t.run(async (ctx) => {
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+    if (settings) {
+      await ctx.db.patch(settings._id, {
+        quotas: { ...settings.quotas, roles_per_workspace: 1 },
+      });
+    }
+    await ctx.db.insert("roles", { name: "existing", isBase: false, workspaceId });
+  });
+
+  await expect(
+    t.mutation(internal.roles.createRole, { callerId: adminId, orgId, workspaceId, name: "extra" }),
+  ).rejects.toThrow("quota_exceeded");
+});
+
+test("createRole: throws forbidden quando caller não é org_admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: memberId, orgId, role: "member", status: "active" }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.createRole, { callerId: memberId, orgId, workspaceId, name: "reviewer" }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("createRole: root pode criar role em qualquer workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const result = await t.mutation(internal.roles.createRole, {
+    callerId: rootId,
+    orgId,
+    workspaceId,
+    name: "devops",
+  });
+
+  expect(result.name).toBe("devops");
+});
+
 test("listRoles: throws forbidden quando caller não é org_admin", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
