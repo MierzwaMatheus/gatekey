@@ -1,6 +1,19 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
+export const checkApiKeyScope = internalQuery({
+  args: { publicId: v.string(), requiredScope: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, { publicId, requiredScope }) => {
+    const key = await ctx.db
+      .query("api_keys")
+      .withIndex("by_publicId", (q) => q.eq("publicId", publicId))
+      .unique();
+    if (!key) return false;
+    return key.scopes.includes(requiredScope);
+  },
+});
+
 export const checkApiKeyValid = internalQuery({
   args: { publicId: v.string() },
   returns: v.boolean(),

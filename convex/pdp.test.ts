@@ -172,3 +172,49 @@ test("checkApiKeyValid: retorna false para publicId inexistente", async () => {
   });
   expect(result).toBe(false);
 });
+
+// ── checkApiKeyScope ─────────────────────────────────────────────────────────
+
+test("checkApiKeyScope: retorna true quando scope está presente", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "gk_live_pk_scoped",
+      secretHash: "h",
+      scopes: ["check", "users:read"],
+      description: "scoped key",
+      status: "active",
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkApiKeyScope, {
+      publicId: "gk_live_pk_scoped",
+      requiredScope: "check",
+    });
+  });
+  expect(result).toBe(true);
+});
+
+test("checkApiKeyScope: retorna false quando scope está ausente", async () => {
+  const t = convexTest(schema, modules);
+  await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "gk_live_pk_limited",
+      secretHash: "h",
+      scopes: ["check"],
+      description: "limited key",
+      status: "active",
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.checkApiKeyScope, {
+      publicId: "gk_live_pk_limited",
+      requiredScope: "users:write",
+    });
+  });
+  expect(result).toBe(false);
+});
