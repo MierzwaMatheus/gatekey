@@ -155,15 +155,15 @@
 
 ### 2.1 REST API — Usuários — closes #6 (parcial)
 
-- [ ] Implementar `POST /v1/users` — cria usuário na org; PEP requer escopo `users:write`
-- [ ] Implementar `GET /v1/users/:id` — retorna dados do usuário sem `passwordHash`; PEP requer `users:read`
-- [ ] Implementar `PATCH /v1/users/:id` — atualiza email, nome ou senha; PEP requer `users:write`
-- [ ] Implementar `DELETE /v1/users/:id` — suspende ou remove usuário; PEP requer `users:write`
-- [ ] Implementar `GET /v1/users/:id/permissions` — lista todos os bindings do usuário com capabilities resolvidas; PEP requer `users:read`
-- [ ] Aplicar PEP em todos os 5 endpoints acima
-- [ ] Chamar `writeAuditEvent` em create, update e delete
-- [ ] Escrever teste: `POST /v1/users` com org em cota máxima retorna 429 com QuotaExceeded
-- [ ] Escrever teste: Org Admin com JWT de org_A não acessa `GET /v1/users/:id` de usuário da org_B
+- [x] Implementar `POST /v1/users` — cria usuário na org; PEP requer escopo `users:write`
+- [x] Implementar `GET /v1/users/:id` — retorna dados do usuário sem `passwordHash`; PEP requer `users:read`
+- [x] Implementar `PATCH /v1/users/:id` — atualiza email, nome ou senha; PEP requer `users:write`
+- [x] Implementar `DELETE /v1/users/:id` — suspende ou remove usuário; PEP requer `users:write`
+- [x] Implementar `GET /v1/users/:id/permissions` — lista todos os bindings do usuário com capabilities resolvidas; PEP requer `users:read`
+- [x] Aplicar PEP em todos os 5 endpoints acima
+- [x] Chamar `writeAuditEvent` em create, update e delete
+- [x] Escrever teste: `POST /v1/users` com org em cota máxima retorna 429 com QuotaExceeded
+- [x] Escrever teste: Org Admin com JWT de org_A não acessa `GET /v1/users/:id` de usuário da org_B
 
 ### 2.2 REST API — Roles e Capabilities — closes #6 (parcial)
 
