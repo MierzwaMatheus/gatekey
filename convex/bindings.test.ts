@@ -159,6 +159,112 @@ test("createBinding: permite roleId base (isBase=true) independente do workspace
   expect(result.id).toBeDefined();
 });
 
+// ── Ciclo 3: listBindings ─────────────────────────────────────────────────────
+
+test("listBindings: retorna todos os bindings do workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "m3@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.query(internal.bindings.listBindings, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+  });
+
+  expect(result.some((b) => b.userId === memberId)).toBe(true);
+});
+
+test("listBindings: filtra por userId quando fornecido", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberA = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "a@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const memberB = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "b@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberA, roleId, resourceType: "workspace", workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberB, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.query(internal.bindings.listBindings, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    userId: memberA,
+  });
+
+  expect(result.every((b) => b.userId === memberA)).toBe(true);
+  expect(result.some((b) => b.userId === memberB)).toBe(false);
+});
+
+test("listBindings: filtra por resourceType quando fornecido", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "c@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "document", workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "folder", workspaceId }),
+  );
+
+  const result = await t.query(internal.bindings.listBindings, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    resourceType: "document",
+  });
+
+  expect(result.every((b) => b.resourceType === "document")).toBe(true);
+});
+
+test("listBindings: lança forbidden se caller não é admin da org", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const nonAdminId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "x@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+
+  await expect(
+    t.query(internal.bindings.listBindings, {
+      callerId: nonAdminId,
+      orgId,
+      workspaceId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("createBinding: lança forbidden se caller não é admin da org", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);

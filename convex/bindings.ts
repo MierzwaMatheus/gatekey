@@ -28,6 +28,44 @@ async function assertOrgAdminOrRoot(
   }
 }
 
+// ── listBindings ──────────────────────────────────────────────────────────────
+
+export const listBindings = internalQuery({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    workspaceId: v.id("workspaces"),
+    userId: v.optional(v.id("users")),
+    resourceType: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    let bindings;
+    if (args.userId) {
+      bindings = await ctx.db
+        .query("bindings")
+        .withIndex("by_workspaceId_and_userId", (q) =>
+          q.eq("workspaceId", args.workspaceId).eq("userId", args.userId!),
+        )
+        .collect();
+    } else {
+      bindings = await ctx.db
+        .query("bindings")
+        .withIndex("by_workspaceId_and_userId", (q) =>
+          q.eq("workspaceId", args.workspaceId),
+        )
+        .collect();
+    }
+
+    if (args.resourceType) {
+      bindings = bindings.filter((b) => b.resourceType === args.resourceType);
+    }
+
+    return bindings;
+  },
+});
+
 // ── createBinding ─────────────────────────────────────────────────────────────
 
 export const createBinding = internalMutation({
