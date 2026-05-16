@@ -167,17 +167,17 @@
 
 ### 2.2 REST API — Roles e Capabilities — closes #6 (parcial)
 
-- [ ] Implementar `POST /v1/roles` — cria role customizado no workspace; PEP requer `roles:write`
-- [ ] Implementar `GET /v1/roles` — lista roles do workspace (base + custom); PEP requer `roles:read`
-- [ ] Implementar `DELETE /v1/roles/:id` — remove role customizado; bloquear se há bindings ativos usando o role; PEP requer `roles:write`
-- [ ] Implementar `GET /v1/capabilities` — lista catálogo (base global + custom da org); PEP requer `roles:read`
-- [ ] Implementar `POST /v1/capabilities` — adiciona capability customizada à org; PEP requer `roles:write` + role org_admin
-- [ ] Implementar verificação de cota `capabilities_per_org` em `POST /v1/capabilities`
-- [ ] Implementar verificação de cota `roles_per_workspace` em `POST /v1/roles`
-- [ ] Garantir que `GET /v1/capabilities` filtra por `orgId` — capabilities de outras orgs nunca aparecem
-- [ ] Chamar `writeAuditEvent` em create e delete de role e capability
-- [ ] Escrever teste: capability criada em org_A não aparece na listagem de org_B
-- [ ] Escrever teste: `DELETE /v1/roles/:id` com bindings ativos retorna 409 com mensagem clara
+- [x] Implementar `POST /v1/roles` — cria role customizado no workspace; PEP requer `roles:write`
+- [x] Implementar `GET /v1/roles` — lista roles do workspace (base + custom); PEP requer `roles:read`
+- [x] Implementar `DELETE /v1/roles/:id` — remove role customizado; bloquear se há bindings ativos usando o role; PEP requer `roles:write`
+- [x] Implementar `GET /v1/capabilities` — lista catálogo (base global + custom da org); PEP requer `roles:read`
+- [x] Implementar `POST /v1/capabilities` — adiciona capability customizada à org; PEP requer `roles:write` + role org_admin
+- [x] Implementar verificação de cota `capabilities_per_org` em `POST /v1/capabilities`
+- [x] Implementar verificação de cota `roles_per_workspace` em `POST /v1/roles`
+- [x] Garantir que `GET /v1/capabilities` filtra por `orgId` — capabilities de outras orgs nunca aparecem
+- [x] Chamar `writeAuditEvent` em create e delete de role e capability
+- [x] Escrever teste: capability criada em org_A não aparece na listagem de org_B
+- [x] Escrever teste: `DELETE /v1/roles/:id` com bindings ativos retorna 409 com mensagem clara
 
 ### 2.3 REST API — Bindings — closes #6 (parcial)
 
