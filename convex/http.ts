@@ -343,4 +343,186 @@ http.route({
   }),
 });
 
+// ── POST /v1/roles ────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/roles",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: { name?: string; workspaceId?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.name || !body.workspaceId) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    try {
+      const result = await ctx.runMutation(internal.roles.createRole, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: body.workspaceId as never,
+        name: body.name,
+      });
+      return jsonResponse(result, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) {
+        const match = msg.match(/limit=(\d+), current=(\d+)/);
+        return jsonResponse(
+          {
+            error: "QuotaExceeded",
+            message: "Workspace has reached the maximum number of roles.",
+            quota: "roles_per_workspace",
+            limit: match ? Number(match[1]) : null,
+            current: match ? Number(match[2]) : null,
+          },
+          429,
+        );
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/roles ─────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/roles",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const workspaceId = url.searchParams.get("workspaceId");
+    if (!workspaceId) return jsonResponse({ error: "missing_workspace_id" }, 400);
+
+    try {
+      const roles = await ctx.runQuery(internal.roles.listRoles, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: workspaceId as never,
+      });
+      return jsonResponse({ roles });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/roles/:id ──────────────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/roles/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const roleId = url.pathname.replace(/^\/v1\/roles\//, "").split("/")[0];
+    if (!roleId) return jsonResponse({ error: "missing_role_id" }, 400);
+
+    try {
+      await ctx.runMutation(internal.roles.deleteRole, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        roleId: roleId as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("role_has_active_bindings")) {
+        return jsonResponse(
+          { error: "RoleHasActiveBindings", message: "Role cannot be deleted while active bindings exist." },
+          409,
+        );
+      }
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/capabilities ──────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/capabilities",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    try {
+      const capabilities = await ctx.runQuery(internal.roles.listCapabilities, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse({ capabilities });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/capabilities ─────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/capabilities",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: { name?: string; description?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.name || !body.description) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    try {
+      const result = await ctx.runMutation(internal.roles.createCapability, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        name: body.name,
+        description: body.description,
+      });
+      return jsonResponse(result, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) {
+        const match = msg.match(/limit=(\d+), current=(\d+)/);
+        return jsonResponse(
+          {
+            error: "QuotaExceeded",
+            message: "Org has reached the maximum number of capabilities.",
+            quota: "capabilities_per_org",
+            limit: match ? Number(match[1]) : null,
+            current: match ? Number(match[2]) : null,
+          },
+          429,
+        );
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
