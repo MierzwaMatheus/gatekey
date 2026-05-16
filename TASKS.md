@@ -73,17 +73,17 @@
 
 ### 1.3 PEP (Policy Enforcement Point) — closes #2 (com 1.2)
 
-- [ ] Criar função `extractJwtContext(authHeader)` — valida Bearer token, retorna `{userId, orgId, sessionId, workspaceIds, roles}`
-- [ ] Criar função `extractApiKeyContext(authHeader)` — valida `gk_live_pk_...`, faz hash argon2id, compara com banco, retorna `{orgId, scopes, keyId}`
-- [ ] Criar função `resolveAuthContext(authHeader)` — escolhe entre JWT e API Key baseado no prefixo do token
-- [ ] Criar wrapper `withPep(handler, {requiredCapability?, requiredScope?})` para Convex HTTP Actions — extrai contexto, chama PDP, bloqueia se DENY
-- [ ] Criar wrapper `withPepMutation(mutationFn, requiredCapability)` para Convex mutations internas
-- [ ] Retornar HTTP 401 quando token ausente ou inválido
-- [ ] Retornar HTTP 403 com `{allowed: false, reason}` quando PDP retorna DENY
-- [ ] Garantir que nenhuma mutation ou query sensível executa sem passar pelo PEP
-- [ ] Escrever teste: requisição sem header Authorization retorna 401
-- [ ] Escrever teste: requisição com JWT malformado retorna 401
-- [ ] Escrever teste: requisição com permissão insuficiente retorna 403 com reason
+- [x] Criar função `extractJwtContext(authHeader)` — valida Bearer token, retorna `{userId, orgId, sessionId, workspaceIds, roles}`
+- [x] Criar função `extractApiKeyContext(authHeader)` — valida `gk_live_pk_...`, faz hash argon2id, compara com banco, retorna `{orgId, scopes, keyId}`
+- [x] Criar função `resolveAuthContext(authHeader)` — escolhe entre JWT e API Key baseado no prefixo do token
+- [x] Criar wrapper `withPep(handler, {requiredCapability?, requiredScope?})` para Convex HTTP Actions — extrai contexto, chama PDP, bloqueia se DENY
+- [x] Criar wrapper `withPepMutation(mutationFn, requiredCapability)` para Convex mutations internas
+- [x] Retornar HTTP 401 quando token ausente ou inválido
+- [x] Retornar HTTP 403 com `{allowed: false, reason}` quando PDP retorna DENY
+- [x] Garantir que nenhuma mutation ou query sensível executa sem passar pelo PEP
+- [x] Escrever teste: requisição sem header Authorization retorna 401
+- [x] Escrever teste: requisição com JWT malformado retorna 401
+- [x] Escrever teste: requisição com permissão insuficiente retorna 403 com reason
 
 ### 1.4 JWT RS256 + JWKS — closes #3
 
