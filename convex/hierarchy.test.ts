@@ -728,6 +728,105 @@ test("suspendUser: Org Admin não pode suspender usuário de outra org", async (
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 14: herança automática — designar Org Admin → bindings em workspaces existentes ─
+
+test("createUserForOrg com role admin: recebe binding admin em todos os workspaces existentes da org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { users_per_org: 50 },
+    }),
+  );
+  const adminRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "admin", isBase: true }),
+  );
+  const ws1Id = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "WS1", status: "active" }),
+  );
+  const ws2Id = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "WS2", status: "active" }),
+  );
+
+  const newAdminId = await t.mutation(internal.hierarchy.createUserForOrg, {
+    callerId: rootId,
+    orgId,
+    email: "newadmin@acme.io",
+    passwordHash: "hash",
+    role: "admin",
+  });
+
+  const binding1 = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", ws1Id).eq("userId", newAdminId),
+      )
+      .first(),
+  );
+  const binding2 = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", ws2Id).eq("userId", newAdminId),
+      )
+      .first(),
+  );
+
+  expect(binding1?.roleId).toBe(adminRoleId);
+  expect(binding2?.roleId).toBe(adminRoleId);
+});
+
+test("createUserForOrg com role member: não recebe bindings automáticos", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { users_per_org: 50 },
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "admin", isBase: true }),
+  );
+  const wsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "WS1", status: "active" }),
+  );
+
+  const memberId = await t.mutation(internal.hierarchy.createUserForOrg, {
+    callerId: rootId,
+    orgId,
+    email: "member@acme.io",
+    passwordHash: "hash",
+    role: "member",
+  });
+
+  const bindings = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", memberId),
+      )
+      .collect(),
+  );
+  expect(bindings).toHaveLength(0);
+});
+
 // ── Ciclo 13: herança automática — createWorkspace → bindings para Org Admins ─
 
 test("createWorkspace: Org Admins da org recebem binding admin automaticamente", async () => {

@@ -259,6 +259,32 @@ export const createUserForOrg = internalMutation({
       status: "active",
     });
 
+    if (args.role === "admin") {
+      const adminRole = await ctx.db
+        .query("roles")
+        .filter((q) => q.and(q.eq(q.field("isBase"), true), q.eq(q.field("name"), "admin")))
+        .first();
+      if (adminRole) {
+        const orgWorkspaces = await ctx.db
+          .query("workspaces")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("orgId"), args.orgId),
+              q.eq(q.field("status"), "active"),
+            ),
+          )
+          .collect();
+        for (const ws of orgWorkspaces) {
+          await ctx.db.insert("bindings", {
+            userId,
+            roleId: adminRole._id,
+            resourceType: "workspace",
+            workspaceId: ws._id,
+          });
+        }
+      }
+    }
+
     await ctx.runMutation(internal.auditLog.writeAuditEvent, {
       actorType: "user",
       actorId: args.callerId as string,
