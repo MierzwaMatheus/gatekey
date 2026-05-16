@@ -139,6 +139,43 @@ test("extractApiKeyContext: retorna contexto para key válida com secret correto
   expect(result).toMatchObject({ success: true, publicId: "validkey", scopes: ["read", "write"] });
 });
 
+// ── resolveAuthContext ───────────────────────────────────────────────────────
+
+test("resolveAuthContext: retorna type jwt para tokens Bearer eyJ...", async () => {
+  const t = convexTest(schema, modules);
+  const header = makeJwt({ sub: "user1", orgId: "org1" });
+  const result = await t.action(internal.pep.resolveAuth, { authHeader: header });
+  expect(result).toMatchObject({ success: true, type: "jwt" });
+});
+
+test("resolveAuthContext: retorna type api_key para tokens Bearer gk_live_pk_...", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await t.run(async (ctx) => {
+    return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+  });
+  const secretHash = await argon2.hash("mysecret");
+  await t.run(async (ctx) => {
+    await ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "mykey2",
+      secretHash,
+      scopes: ["read"],
+      description: "test",
+      status: "active",
+    });
+  });
+  const result = await t.action(internal.pep.resolveAuth, {
+    authHeader: "Bearer gk_live_pk_mykey2_mysecret",
+  });
+  expect(result).toMatchObject({ success: true, type: "api_key" });
+});
+
+test("resolveAuthContext: retorna erro quando header Authorization está ausente", async () => {
+  const t = convexTest(schema, modules);
+  const result = await t.action(internal.pep.resolveAuth, { authHeader: "" });
+  expect(result).toMatchObject({ success: false, error: "missing_bearer" });
+});
+
 test("extractApiKeyContext: lança api_key_invalid quando hash do secret não confere", async () => {
   const t = convexTest(schema, modules);
   const orgId = await t.run(async (ctx) => {

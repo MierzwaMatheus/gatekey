@@ -79,6 +79,22 @@ export async function resolveAuthContext(
   return { type: "jwt", data };
 }
 
+export const resolveAuth = internalAction({
+  args: { authHeader: v.string() },
+  returns: v.union(
+    v.object({ success: v.literal(true), type: v.union(v.literal("jwt"), v.literal("api_key")) }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, { authHeader }) => {
+    try {
+      const auth = await resolveAuthContext(authHeader, ctx);
+      return { success: true as const, type: auth.type };
+    } catch (e) {
+      return { success: false as const, error: (e as Error).message };
+    }
+  },
+});
+
 export const verifyApiKey = internalAction({
   args: { authHeader: v.string() },
   returns: v.union(
