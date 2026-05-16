@@ -219,6 +219,46 @@ test("checkApiKeyScope: retorna false quando scope está ausente", async () => {
   expect(result).toBe(false);
 });
 
+// ── findDirectBinding ────────────────────────────────────────────────────────
+
+test("findDirectBinding: retorna binding quando existe correspondência direta", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId, roleId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "bound@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    const rId = await ctx.db.insert("roles", { name: "editor", isBase: true });
+    await ctx.db.insert("bindings", {
+      userId: uid, roleId: rId, resourceType: "document", resourceId: "doc_1", workspaceId: wsId,
+    });
+    return { userId: uid, workspaceId: wsId, roleId: rId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findDirectBinding, {
+      userId, resourceType: "document", resourceId: "doc_1",
+    });
+  });
+  expect(result).not.toBeNull();
+  expect(result?.roleId).toBe(roleId);
+});
+
+test("findDirectBinding: retorna null quando não existe binding direto", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.run(async (ctx) => {
+    return await ctx.db.insert("users", {
+      email: "unbound@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findDirectBinding, {
+      userId, resourceType: "document", resourceId: "doc_999",
+    });
+  });
+  expect(result).toBeNull();
+});
+
 // ── checkWorkspaceMembership ──────────────────────────────────────────────────
 
 test("checkWorkspaceMembership: retorna true para membro ativo", async () => {

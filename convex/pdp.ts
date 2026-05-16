@@ -1,6 +1,19 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
+export const findDirectBinding = internalQuery({
+  args: { userId: v.id("users"), resourceType: v.string(), resourceId: v.string() },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, { userId, resourceType, resourceId }) => {
+    return await ctx.db
+      .query("bindings")
+      .withIndex("by_userId_and_resourceType_and_resourceId", (q) =>
+        q.eq("userId", userId).eq("resourceType", resourceType).eq("resourceId", resourceId),
+      )
+      .first();
+  },
+});
+
 export const checkWorkspaceMembership = internalQuery({
   args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
   returns: v.boolean(),
