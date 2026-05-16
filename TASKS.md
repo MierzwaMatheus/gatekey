@@ -237,13 +237,13 @@
 
 ### 2.9 Integração: PEP ↔ Todas as mutations e endpoints — closes #6 (com 2.1–2.6)
 
-- [ ] Auditar cada Convex mutation criada nas seções 1.6 e 2.x — confirmar que nenhuma executa sem wrapper PEP
-- [ ] Auditar cada HTTP Action endpoint — confirmar que `withPep` está aplicado
-- [ ] Criar checklist de cobertura PEP e mantê-la atualizada no repositório
-- [ ] Escrever teste de integração: chamada sem header `Authorization` retorna 401
-- [ ] Escrever teste de integração: chamada com JWT expirado retorna 401
-- [ ] Escrever teste de integração: chamada com sessionId na blacklist retorna 401
-- [ ] Escrever teste de integração: chamada com API Key revogada retorna 401
+- [x] Auditar cada Convex mutation criada nas seções 1.6 e 2.x — confirmar que nenhuma executa sem wrapper PEP
+- [x] Auditar cada HTTP Action endpoint — confirmar que `withPep` está aplicado
+- [x] Criar checklist de cobertura PEP e mantê-la atualizada no repositório
+- [x] Escrever teste de integração: chamada sem header `Authorization` retorna 401
+- [x] Escrever teste de integração: chamada com JWT expirado retorna 401
+- [x] Escrever teste de integração: chamada com sessionId na blacklist retorna 401
+- [x] Escrever teste de integração: chamada com API Key revogada retorna 401
 
 ---
 
