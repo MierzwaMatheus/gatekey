@@ -9,7 +9,7 @@ export default defineSchema({
     loginAttempts: v.number(),
     lockedUntil: v.optional(v.number()),
     updatedAt: v.number(),
-  }),
+  }).index("by_email", ["email"]),
 
   orgs: defineTable({
     name: v.string(),
@@ -158,6 +158,13 @@ export default defineSchema({
     backupCodes: v.array(v.string()),
     activatedAt: v.number(),
   }),
+
+  ip_rate_limits: defineTable({
+    ip: v.string(),
+    endpoint: v.string(),
+    count: v.number(),
+    windowStart: v.number(),
+  }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
 
   key_pairs: defineTable({
     kid: v.string(),
