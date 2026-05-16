@@ -137,17 +137,17 @@
 - [x] Criar Convex mutation `addWorkspaceMember({workspaceId, userId, roleId})` — WS Admin ou Org Admin
 - [x] Criar Convex mutation `removeWorkspaceMember({workspaceId, userId})` — WS Admin ou Org Admin
 - [x] Criar Convex mutation `changeWorkspaceMemberRole({workspaceId, userId, newRoleId})` — WS Admin ou Org Admin
-- [ ] Implementar herança automática ao designar Org Admin: criar binding de role `admin` para cada workspace existente da org
-- [ ] Implementar herança automática ao criar workspace: criar binding de role `admin` para cada Org Admin da org
-- [ ] Implementar verificação de cota `users_per_org` em `createUser` — retornar QuotaExceeded se atingido
-- [ ] Implementar verificação de cota `workspaces_per_org` em `createWorkspace` — retornar QuotaExceeded se atingido
-- [ ] Implementar verificação de cota `users_per_workspace` em `addWorkspaceMember` — retornar QuotaExceeded se atingido
-- [ ] Implementar verificação de cota `sessions_per_user` em `POST /v1/auth/login` — retornar QuotaExceeded se atingido
-- [ ] Chamar `writeAuditEvent` em cada mutation acima com o respectivo action name
-- [ ] Escrever teste: Root cria org, Org Admin designado recebe binding admin em workspaces futuros
-- [ ] Escrever teste: criar workspace → todos os Org Admins da org recebem binding admin automaticamente
-- [ ] Escrever teste: `createUser` com org em quota máxima retorna `{error: "QuotaExceeded", quota: "users_per_org", limit: N, current: N}`
-- [ ] Escrever teste: Org Admin não consegue criar usuário em outra org
+- [x] Implementar herança automática ao designar Org Admin: criar binding de role `admin` para cada workspace existente da org
+- [x] Implementar herança automática ao criar workspace: criar binding de role `admin` para cada Org Admin da org
+- [x] Implementar verificação de cota `users_per_org` em `createUser` — retornar QuotaExceeded se atingido
+- [x] Implementar verificação de cota `workspaces_per_org` em `createWorkspace` — retornar QuotaExceeded se atingido
+- [x] Implementar verificação de cota `users_per_workspace` em `addWorkspaceMember` — retornar QuotaExceeded se atingido
+- [x] Implementar verificação de cota `sessions_per_user` em `POST /v1/auth/login` — retornar QuotaExceeded se atingido
+- [x] Chamar `writeAuditEvent` em cada mutation acima com o respectivo action name
+- [x] Escrever teste: Root cria org, Org Admin designado recebe binding admin em workspaces futuros
+- [x] Escrever teste: criar workspace → todos os Org Admins da org recebem binding admin automaticamente
+- [x] Escrever teste: `createUser` com org em quota máxima retorna `{error: "QuotaExceeded", quota: "users_per_org", limit: N, current: N}`
+- [x] Escrever teste: Org Admin não consegue criar usuário em outra org
 
 ---
 
