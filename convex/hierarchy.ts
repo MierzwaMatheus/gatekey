@@ -1,4 +1,5 @@
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -131,6 +132,100 @@ export const createWorkspace = internalMutation({
       name: args.name,
       status: "active",
     });
+  },
+});
+
+export const isOrgAdminOrRoot = internalQuery({
+  args: { callerId: v.id("users"), orgId: v.id("orgs") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) return false;
+    if (caller.isRoot) return true;
+    const membership = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.callerId),
+          q.eq(q.field("orgId"), args.orgId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first();
+    return !!(membership && membership.role === "admin");
+  },
+});
+
+export const createUserForOrg = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    email: v.string(),
+    passwordHash: v.string(),
+    role: v.string(),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    if (!caller.isRoot) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    const quota = settings?.quotas["users_per_org"] ?? DEFAULT_QUOTAS["users_per_org"];
+    const currentCount = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(q.eq(q.field("orgId"), args.orgId), q.eq(q.field("status"), "active")),
+      )
+      .collect()
+      .then((r) => r.length);
+    if (currentCount >= quota) {
+      throw new Error("quota_exceeded: users_per_org");
+    }
+
+    const userId = await ctx.db.insert("users", {
+      email: args.email,
+      passwordHash: args.passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.insert("org_members", {
+      userId,
+      orgId: args.orgId,
+      role: args.role,
+      status: "active",
+    });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "user.create",
+      target: { type: "users", id: userId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+
+    return userId;
   },
 });
 

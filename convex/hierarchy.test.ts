@@ -290,3 +290,117 @@ test("suspendWorkspace: usuário sem role admin não pode suspender workspace", 
     t.mutation(internal.hierarchy.suspendWorkspace, { callerId: userId, workspaceId: wsId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 6: createUser ──────────────────────────────────────────────────────
+
+async function setupOrgWithSettings(
+  t: ReturnType<typeof convexTest>,
+  usersPerOrgQuota = 50,
+) {
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { users_per_org: usersPerOrgQuota },
+    }),
+  );
+  return orgId;
+}
+
+test("createUser: Org Admin cria usuário e retorna userId", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme",
+    adminEmail: "admin@acme.io",
+  });
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+
+  const userId = await t.action(internal.auth.createUser, {
+    callerId: adminUser!._id,
+    orgId,
+    email: "newuser@acme.io",
+    password: "secret123",
+    role: "member",
+  });
+
+  expect(userId).toBeTruthy();
+  const user = await t.run((ctx) => ctx.db.get(userId));
+  expect(user?.email).toBe("newuser@acme.io");
+  expect(user?.status).toBe("active");
+});
+
+test("createUser: Root pode criar usuário em qualquer org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await setupOrgWithSettings(t);
+
+  const userId = await t.action(internal.auth.createUser, {
+    callerId: rootId,
+    orgId,
+    email: "newuser@acme.io",
+    password: "secret123",
+    role: "member",
+  });
+
+  expect(userId).toBeTruthy();
+});
+
+test("createUser: não-admin não pode criar usuário", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await createRegularUser(t);
+  const orgId = await setupOrgWithSettings(t);
+
+  await expect(
+    t.action(internal.auth.createUser, {
+      callerId: userId,
+      orgId,
+      email: "new@acme.io",
+      password: "secret",
+      role: "member",
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("createUser: org em cota máxima retorna erro quota_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await setupOrgWithSettings(t, 1);
+
+  const existingUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "existing@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: existingUserId,
+      orgId,
+      role: "member",
+      status: "active",
+    }),
+  );
+
+  await expect(
+    t.action(internal.auth.createUser, {
+      callerId: rootId,
+      orgId,
+      email: "second@acme.io",
+      password: "secret",
+      role: "member",
+    }),
+  ).rejects.toThrow("quota_exceeded");
+});

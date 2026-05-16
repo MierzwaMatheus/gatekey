@@ -3,6 +3,7 @@
 import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 
 const LOCK_THRESHOLD = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -269,5 +270,28 @@ export const logoutSession = internalAction({
     });
 
     return null;
+  },
+});
+
+export const createUser = internalAction({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    email: v.string(),
+    password: v.string(),
+    role: v.string(),
+  },
+  returns: v.id("users"),
+  handler: async (ctx, args): Promise<Id<"users">> => {
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.password);
+
+    return await ctx.runMutation(internal.hierarchy.createUserForOrg, {
+      callerId: args.callerId,
+      orgId: args.orgId,
+      email: args.email,
+      passwordHash,
+      role: args.role,
+    });
   },
 });
