@@ -564,6 +564,65 @@ test("HTTP roles: GET listRoles retorna roles base e customizados do workspace",
   expect(roles.some((r) => r.name === "http-custom")).toBe(true);
 });
 
+// ── Ciclo 7: isolamento cross-org e 409 ──────────────────────────────────────
+
+test("capability criada em org_A não aparece em listCapabilities da org_B", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId: adminA, orgId: orgA, rootId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const orgB = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Org B",
+    adminEmail: "adminb@b.io",
+  });
+  const adminB = await t.run((ctx) =>
+    ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "adminb@b.io"))
+      .first()
+      .then((u) => u!._id),
+  );
+
+  // Criar capability na org_A
+  await t.mutation(internal.roles.createCapability, {
+    callerId: adminA,
+    orgId: orgA,
+    name: "orga:exclusive",
+    description: "Only for org A",
+  });
+
+  // Listar capabilities da org_B — não deve conter a capability da org_A
+  const capsB = await t.query(internal.roles.listCapabilities, { callerId: adminB, orgId: orgB });
+  expect(capsB.some((c) => c.name === "orga:exclusive")).toBe(false);
+});
+
+test("DELETE /v1/roles/:id com bindings ativos retorna error role_has_active_bindings", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const { id: roleId } = await t.mutation(internal.roles.createRole, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    name: "role-with-binding",
+  });
+
+  // Criar binding referenciando o role
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId: roleId as never,
+      resourceType: "workspace",
+      workspaceId,
+    }),
+  );
+
+  // Tentar deletar o role com binding ativo deve falhar com mensagem clara
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId: roleId as never }),
+  ).rejects.toThrow("role_has_active_bindings");
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
