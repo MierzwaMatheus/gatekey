@@ -61,6 +61,24 @@ test("PEP integração: chamada sem header Authorization retorna 401", async () 
   expect(res.status).toBe(401);
 });
 
+// ── Ciclo 3: sessionId na blacklist → 401 ────────────────────────────────────
+
+test("PEP integração: chamada com sessionId na blacklist retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  const { token, sessionId } = await setupOrgWithToken(t);
+
+  await t.mutation(internal.jwtStore.blacklistSession, {
+    sessionId: sessionId as never,
+    expiresAt: Date.now() + 3600000,
+  });
+
+  const res = await t.fetch("/v1/sessions", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(401);
+});
+
 // ── Ciclo 2: JWT expirado → 401 ───────────────────────────────────────────────
 
 test("PEP integração: chamada com JWT expirado retorna 401", async () => {
