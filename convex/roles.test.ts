@@ -282,6 +282,79 @@ test("deleteRole: throws not_found quando roleId não existe", async () => {
   ).rejects.toThrow();
 });
 
+// ── Ciclo 4: listCapabilities ─────────────────────────────────────────────────
+
+test("listCapabilities: retorna capabilities base globais (isBase=true)", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "document:read", description: "Read docs", isBase: true }),
+  );
+
+  const caps = await t.query(internal.roles.listCapabilities, { callerId: adminId, orgId });
+  expect(caps.some((c) => c.name === "document:read" && c.isBase)).toBe(true);
+});
+
+test("listCapabilities: retorna capabilities customizadas da org do caller", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("capabilities", {
+      orgId,
+      name: "pipeline:deploy",
+      description: "Deploy pipelines",
+      isBase: false,
+    }),
+  );
+
+  const caps = await t.query(internal.roles.listCapabilities, { callerId: adminId, orgId });
+  expect(caps.some((c) => c.name === "pipeline:deploy")).toBe(true);
+});
+
+test("listCapabilities: NÃO retorna capabilities de outra org", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const orgB = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Other Corp",
+    adminEmail: "admin@other.io",
+  });
+
+  await t.run((ctx) =>
+    ctx.db.insert("capabilities", {
+      orgId: orgB,
+      name: "secret:access",
+      description: "Secret",
+      isBase: false,
+    }),
+  );
+
+  const caps = await t.query(internal.roles.listCapabilities, { callerId: adminId, orgId });
+  expect(caps.some((c) => c.name === "secret:access")).toBe(false);
+});
+
+test("listCapabilities: throws forbidden quando caller não é org_admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.query(internal.roles.listCapabilities, { callerId: memberId, orgId }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("listRoles: throws forbidden quando caller não é org_admin", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
