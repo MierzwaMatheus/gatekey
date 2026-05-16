@@ -14,6 +14,43 @@ export const findDirectBinding = internalQuery({
   },
 });
 
+export const findParentBinding = internalQuery({
+  args: {
+    userId: v.id("users"),
+    resourceType: v.string(),
+    resourceId: v.string(),
+    orgId: v.id("orgs"),
+  },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, { userId, resourceType, resourceId, orgId }) => {
+    const childBinding = await ctx.db
+      .query("bindings")
+      .withIndex("by_userId_and_resourceType_and_resourceId", (q) =>
+        q.eq("userId", userId).eq("resourceType", resourceType).eq("resourceId", resourceId),
+      )
+      .first();
+    if (!childBinding?.parentResourceId) return null;
+
+    const rt = await ctx.db
+      .query("resource_types")
+      .filter((q) =>
+        q.and(q.eq(q.field("orgId"), orgId), q.eq(q.field("name"), resourceType)),
+      )
+      .first();
+    if (!rt?.inheritsFrom) return null;
+
+    return await ctx.db
+      .query("bindings")
+      .withIndex("by_userId_and_resourceType_and_resourceId", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("resourceType", rt.inheritsFrom!)
+          .eq("resourceId", childBinding.parentResourceId!),
+      )
+      .first();
+  },
+});
+
 export const resolveRole = internalQuery({
   args: { roleId: v.id("roles") },
   returns: v.array(v.string()),

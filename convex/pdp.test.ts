@@ -329,6 +329,56 @@ test("resolveRole: retorna array vazio quando role não tem capabilities", async
   expect(result).toEqual([]);
 });
 
+// ── findParentBinding ────────────────────────────────────────────────────────
+
+test("findParentBinding: retorna binding do tipo pai quando existe herança configurada", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, orgId, roleId } = await t.run(async (ctx) => {
+    const oId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "parent@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId: oId, name: "WS", status: "active" });
+    const rId = await ctx.db.insert("roles", { name: "editor", isBase: true });
+    await ctx.db.insert("resource_types", {
+      orgId: oId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+    });
+    await ctx.db.insert("bindings", {
+      userId: uid, roleId: rId, resourceType: "folder", resourceId: "folder_1", workspaceId: wsId,
+    });
+    await ctx.db.insert("bindings", {
+      userId: uid, roleId: rId, resourceType: "document", resourceId: "doc_1",
+      parentResourceId: "folder_1", workspaceId: wsId,
+    });
+    return { userId: uid, orgId: oId, roleId: rId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findParentBinding, {
+      userId, resourceType: "document", resourceId: "doc_1", orgId,
+    });
+  });
+  expect(result).not.toBeNull();
+  expect(result?.roleId).toBe(roleId);
+});
+
+test("findParentBinding: retorna null quando tipo não tem herança configurada", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, orgId } = await t.run(async (ctx) => {
+    const oId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "noparent@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    await ctx.db.insert("resource_types", { orgId: oId, name: "document" });
+    return { userId: uid, orgId: oId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findParentBinding, {
+      userId, resourceType: "document", resourceId: "doc_1", orgId,
+    });
+  });
+  expect(result).toBeNull();
+});
+
 // ── checkWorkspaceMembership ──────────────────────────────────────────────────
 
 test("checkWorkspaceMembership: retorna true para membro ativo", async () => {
