@@ -66,6 +66,40 @@ export const listBindings = internalQuery({
   },
 });
 
+// ── deleteBinding ─────────────────────────────────────────────────────────────
+
+export const deleteBinding = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    workspaceId: v.id("workspaces"),
+    bindingId: v.id("bindings"),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const binding = await ctx.db.get(args.bindingId);
+    if (!binding) throw new Error("not_found: binding");
+    if (binding.workspaceId !== args.workspaceId) {
+      throw new Error("forbidden: binding_not_in_workspace");
+    }
+
+    await ctx.db.delete(args.bindingId);
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "binding.delete",
+      target: { type: "bindings", id: args.bindingId as string },
+      orgId: args.orgId,
+      workspaceId: args.workspaceId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 // ── createBinding ─────────────────────────────────────────────────────────────
 
 export const createBinding = internalMutation({

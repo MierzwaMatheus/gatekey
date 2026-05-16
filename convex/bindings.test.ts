@@ -265,6 +265,84 @@ test("listBindings: lança forbidden se caller não é admin da org", async () =
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 4: deleteBinding ────────────────────────────────────────────────────
+
+test("deleteBinding: remove binding existente e retorna null", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "del@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.mutation(internal.bindings.deleteBinding, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    bindingId,
+  });
+
+  expect(result).toBeNull();
+
+  const gone = await t.run((ctx) => ctx.db.get(bindingId));
+  expect(gone).toBeNull();
+});
+
+test("deleteBinding: lança not_found se binding não existe", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "temp", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "temp@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+  await t.run((ctx) => ctx.db.delete(bindingId));
+
+  await expect(
+    t.mutation(internal.bindings.deleteBinding, {
+      callerId: adminId,
+      orgId,
+      workspaceId,
+      bindingId,
+    }),
+  ).rejects.toThrow("not_found");
+});
+
+test("deleteBinding: lança forbidden se binding pertence a outro workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const otherWsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Other", status: "active" }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId: otherWsId }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: adminId, roleId, resourceType: "workspace", workspaceId: otherWsId }),
+  );
+
+  await expect(
+    t.mutation(internal.bindings.deleteBinding, {
+      callerId: adminId,
+      orgId,
+      workspaceId,
+      bindingId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("createBinding: lança forbidden se caller não é admin da org", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
