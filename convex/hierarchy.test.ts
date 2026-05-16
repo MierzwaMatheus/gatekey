@@ -728,6 +728,166 @@ test("suspendUser: Org Admin não pode suspender usuário de outra org", async (
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 11: changeWorkspaceMemberRole ─────────────────────────────────────
+
+async function setupOrgWorkspaceAndBinding(t: ReturnType<typeof convexTest>) {
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root2@gk.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: { users_per_workspace: 30 },
+    }),
+  );
+  const wsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Dev", status: "active" }),
+  );
+  const editorRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: true }),
+  );
+  const viewerRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: true }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: memberId, workspaceId: wsId, status: "active" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: memberId,
+      roleId: editorRoleId,
+      resourceType: "workspace",
+      workspaceId: wsId,
+    }),
+  );
+  return { rootId, orgId, wsId, memberId, editorRoleId, viewerRoleId };
+}
+
+test("changeWorkspaceMemberRole: Org Admin muda role de membro", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, wsId, memberId, viewerRoleId } = await setupOrgWorkspaceAndBinding(t);
+  const adminId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "admin@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: adminId, orgId, role: "admin", status: "active" }),
+  );
+
+  await t.mutation(internal.hierarchy.changeWorkspaceMemberRole, {
+    callerId: adminId,
+    workspaceId: wsId,
+    userId: memberId,
+    newRoleId: viewerRoleId,
+  });
+
+  const binding = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", memberId),
+      )
+      .first(),
+  );
+  expect(binding?.roleId).toBe(viewerRoleId);
+});
+
+test("changeWorkspaceMemberRole: Root muda role de qualquer membro", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, wsId, memberId, viewerRoleId } = await setupOrgWorkspaceAndBinding(t);
+
+  await t.mutation(internal.hierarchy.changeWorkspaceMemberRole, {
+    callerId: rootId,
+    workspaceId: wsId,
+    userId: memberId,
+    newRoleId: viewerRoleId,
+  });
+
+  const binding = await t.run((ctx) =>
+    ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", wsId).eq("userId", memberId),
+      )
+      .first(),
+  );
+  expect(binding?.roleId).toBe(viewerRoleId);
+});
+
+test("changeWorkspaceMemberRole: não-admin não pode mudar role", async () => {
+  const t = convexTest(schema, modules);
+  const { wsId, memberId, viewerRoleId } = await setupOrgWorkspaceAndBinding(t);
+  const regularId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "regular@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.changeWorkspaceMemberRole, {
+      callerId: regularId,
+      workspaceId: wsId,
+      userId: memberId,
+      newRoleId: viewerRoleId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("changeWorkspaceMemberRole: membro sem binding existente retorna not_found", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, wsId, viewerRoleId } = await setupOrgWorkspaceAndBinding(t);
+  const noBindingUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "nobinding@acme.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.changeWorkspaceMemberRole, {
+      callerId: rootId,
+      workspaceId: wsId,
+      userId: noBindingUserId,
+      newRoleId: viewerRoleId,
+    }),
+  ).rejects.toThrow("not_found");
+});
+
 test("createUser: org em cota máxima retorna erro quota_exceeded", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);

@@ -449,6 +449,61 @@ export const removeWorkspaceMember = internalMutation({
   },
 });
 
+export const changeWorkspaceMemberRole = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    workspaceId: v.id("workspaces"),
+    userId: v.id("users"),
+    newRoleId: v.id("roles"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("not_found: workspace");
+
+    if (!caller.isRoot) {
+      const orgMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), workspace.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!orgMembership || orgMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    const binding = await ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", args.workspaceId).eq("userId", args.userId),
+      )
+      .first();
+    if (!binding) throw new Error("not_found: binding");
+
+    await ctx.db.patch(binding._id, { roleId: args.newRoleId });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "workspace.member.role_change",
+      target: { type: "bindings", id: args.userId as string },
+      orgId: workspace.orgId,
+      workspaceId: args.workspaceId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 export const suspendWorkspace = internalMutation({
   args: {
     callerId: v.id("users"),
