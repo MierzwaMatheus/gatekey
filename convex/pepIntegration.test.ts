@@ -60,3 +60,46 @@ test("PEP integração: chamada sem header Authorization retorna 401", async () 
   const res = await t.fetch("/v1/sessions", { method: "GET" });
   expect(res.status).toBe(401);
 });
+
+// ── Ciclo 2: JWT expirado → 401 ───────────────────────────────────────────────
+
+test("PEP integração: chamada com JWT expirado retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "expired@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 86400000,
+    }),
+  );
+
+  const expiredToken = await t.action(internal.jwt.signJwt, {
+    sub: userId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionId as string,
+    expiresInSeconds: -3600,
+  });
+
+  const res = await t.fetch("/v1/sessions", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${expiredToken}` },
+  });
+  expect(res.status).toBe(401);
+});
