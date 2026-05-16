@@ -355,6 +355,94 @@ test("listCapabilities: throws forbidden quando caller não é org_admin", async
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 5: createCapability ─────────────────────────────────────────────────
+
+test("createCapability: org_admin cria capability customizada", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const result = await t.mutation(internal.roles.createCapability, {
+    callerId: adminId,
+    orgId,
+    name: "pipeline:deploy",
+    description: "Deploy pipelines",
+  });
+
+  expect(result.id).toBeTruthy();
+  expect(result.name).toBe("pipeline:deploy");
+  expect(result.isBase).toBe(false);
+});
+
+test("createCapability: throws quota_exceeded quando org está no limite", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  await t.run(async (ctx) => {
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+    if (settings) {
+      await ctx.db.patch(settings._id, {
+        quotas: { ...settings.quotas, capabilities_per_org: 1 },
+      });
+    }
+    await ctx.db.insert("capabilities", {
+      orgId,
+      name: "existing:cap",
+      description: "Existing",
+      isBase: false,
+    });
+  });
+
+  await expect(
+    t.mutation(internal.roles.createCapability, {
+      callerId: adminId,
+      orgId,
+      name: "extra:cap",
+      description: "Extra",
+    }),
+  ).rejects.toThrow("quota_exceeded");
+});
+
+test("createCapability: throws forbidden quando caller não é org_admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.createCapability, {
+      callerId: memberId,
+      orgId,
+      name: "doc:read",
+      description: "Read docs",
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("createCapability: root pode criar capability em qualquer org", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const result = await t.mutation(internal.roles.createCapability, {
+    callerId: rootId,
+    orgId,
+    name: "report:export",
+    description: "Export reports",
+  });
+
+  expect(result.name).toBe("report:export");
+});
+
 test("listRoles: throws forbidden quando caller não é org_admin", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
