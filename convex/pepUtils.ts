@@ -23,7 +23,33 @@ function base64urlDecode(str: string): string {
   return atob(padded);
 }
 
-export function extractJwtContext(authHeader: string): JwtContext {
+export function extractJwtContext(
+  authHeader: string,
+  verifiedPayload?: Record<string, unknown>,
+): JwtContext {
+  if (verifiedPayload) {
+    if (!verifiedPayload.sub || typeof verifiedPayload.sub !== "string") {
+      throw new Error("missing_sub");
+    }
+    if (!verifiedPayload.orgId || typeof verifiedPayload.orgId !== "string") {
+      throw new Error("missing_orgId");
+    }
+    return {
+      userId: verifiedPayload.sub,
+      orgId: verifiedPayload.orgId as string,
+      sessionId: typeof verifiedPayload.sessionId === "string" ? verifiedPayload.sessionId : "",
+      workspaceIds: Array.isArray(verifiedPayload.workspaceIds)
+        ? (verifiedPayload.workspaceIds as string[])
+        : [],
+      roles:
+        verifiedPayload.roles &&
+        typeof verifiedPayload.roles === "object" &&
+        !Array.isArray(verifiedPayload.roles)
+          ? (verifiedPayload.roles as Record<string, string>)
+          : {},
+    };
+  }
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new Error("missing_bearer");
   }
