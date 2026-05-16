@@ -273,6 +273,27 @@ export const logoutSession = internalAction({
   },
 });
 
+export const resetUserPassword = internalAction({
+  args: {
+    callerId: v.id("users"),
+    userId: v.id("users"),
+    newPassword: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.newPassword);
+
+    await ctx.runMutation(internal.hierarchy.patchUserPasswordHash, {
+      callerId: args.callerId,
+      userId: args.userId,
+      passwordHash,
+    });
+
+    return null;
+  },
+});
+
 export const createUser = internalAction({
   args: {
     callerId: v.id("users"),

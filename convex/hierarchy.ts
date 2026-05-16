@@ -229,6 +229,55 @@ export const createUserForOrg = internalMutation({
   },
 });
 
+export const patchUserPasswordHash = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    userId: v.id("users"),
+    passwordHash: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    if (!caller.isRoot) {
+      const targetMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(q.eq(q.field("userId"), args.userId), q.eq(q.field("status"), "active")),
+        )
+        .first();
+      if (!targetMembership) throw new Error("forbidden: target_not_in_org");
+
+      const callerMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), targetMembership.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!callerMembership || callerMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    await ctx.db.patch(args.userId, { passwordHash: args.passwordHash, updatedAt: Date.now() });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "user.password_reset",
+      target: { type: "users", id: args.userId as string },
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 export const suspendUser = internalMutation({
   args: {
     callerId: v.id("users"),

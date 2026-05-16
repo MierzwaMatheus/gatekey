@@ -291,6 +291,79 @@ test("suspendWorkspace: usuário sem role admin não pode suspender workspace", 
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 8: resetUserPassword ───────────────────────────────────────────────
+
+test("resetUserPassword: Org Admin reseta senha de usuário da própria org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme",
+    adminEmail: "admin@acme.io",
+  });
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const targetId = await createRegularUser(t, "target@acme.io");
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: targetId,
+      orgId,
+      role: "member",
+      status: "active",
+    }),
+  );
+  const oldHash = (await t.run((ctx) => ctx.db.get(targetId)))?.passwordHash;
+
+  await t.action(internal.auth.resetUserPassword, {
+    callerId: adminUser!._id,
+    userId: targetId,
+    newPassword: "newSecret456",
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(targetId));
+  expect(user?.passwordHash).not.toBe(oldHash);
+  expect(user?.passwordHash).not.toBe("newSecret456");
+});
+
+test("resetUserPassword: Root pode resetar senha de qualquer usuário", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const targetId = await createRegularUser(t, "target@other.io");
+
+  await t.action(internal.auth.resetUserPassword, {
+    callerId: rootId,
+    userId: targetId,
+    newPassword: "newPass789",
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(targetId));
+  expect(user?.passwordHash).not.toBe("hash");
+});
+
+test("resetUserPassword: Org Admin não pode resetar senha de usuário de outra org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme",
+    adminEmail: "admin@acme.io",
+  });
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const targetId = await createRegularUser(t, "target@other.io");
+  void orgId;
+
+  await expect(
+    t.action(internal.auth.resetUserPassword, {
+      callerId: adminUser!._id,
+      userId: targetId,
+      newPassword: "hack",
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 // ── Ciclo 6: createUser ──────────────────────────────────────────────────────
 
 async function setupOrgWithSettings(
