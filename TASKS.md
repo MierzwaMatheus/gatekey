@@ -126,11 +126,11 @@
 
 ### 1.6 Hierarquia Root → Org → Workspace → Member — closes #5
 
-- [ ] Criar Convex mutation `createOrg({name, adminEmail})` — apenas Root; cria org + org_settings padrão + primeiro Org Admin
-- [ ] Criar Convex mutation `suspendOrg({orgId})` — apenas Root; muda status para suspended
-- [ ] Criar Convex mutation `deleteOrg({orgId})` — apenas Root; soft delete (status = deleted)
-- [ ] Criar Convex mutation `createWorkspace({orgId, name})` — Org Admin da org ou Root
-- [ ] Criar Convex mutation `suspendWorkspace({workspaceId})` — Org Admin da org ou Root
+- [x] Criar Convex mutation `createOrg({name, adminEmail})` — apenas Root; cria org + org_settings padrão + primeiro Org Admin
+- [x] Criar Convex mutation `suspendOrg({orgId})` — apenas Root; muda status para suspended
+- [x] Criar Convex mutation `deleteOrg({orgId})` — apenas Root; soft delete (status = deleted)
+- [x] Criar Convex mutation `createWorkspace({orgId, name})` — Org Admin da org ou Root
+- [x] Criar Convex mutation `suspendWorkspace({workspaceId})` — Org Admin da org ou Root
 - [ ] Criar Convex mutation `createUser({orgId, email, password, role})` — Org Admin da org ou WS Admin (sem self-service)
 - [ ] Criar Convex mutation `suspendUser({userId})` — Org Admin (apenas usuários da própria org) ou Root
 - [ ] Criar Convex mutation `resetUserPassword({userId, newPassword})` — Org Admin (própria org) ou Root
