@@ -156,8 +156,23 @@ test("extractApiKeyContext: retorna contexto para key válida com secret correto
 
 test("resolveAuthContext: retorna type jwt para tokens Bearer eyJ...", async () => {
   const t = convexTest(schema, modules);
-  const header = makeJwt({ sub: "user1", orgId: "org1" });
-  const result = await t.action(internal.pep.resolveAuth, { authHeader: header });
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", { email: "u@e.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }),
+  );
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+  const result = await t.action(internal.pep.resolveAuth, { authHeader: `Bearer ${token}` });
   expect(result).toMatchObject({ success: true, type: "jwt" });
 });
 
@@ -256,6 +271,7 @@ test("withPep: retorna HTTP 401 quando formato do token API Key é inválido", a
 
 test("withPep: retorna HTTP 403 com JSON quando pdpDecide retorna DENY", async () => {
   const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
 
   const orgId = await t.run(async (ctx) => ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }));
   const wsId = await t.run(async (ctx) => ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }));
@@ -263,11 +279,19 @@ test("withPep: retorna HTTP 403 com JSON quando pdpDecide retorna DENY", async (
     ctx.db.insert("users", { email: "u@test.com", passwordHash: "h", status: "suspended", loginAttempts: 0, updatedAt: Date.now() }),
   );
 
-  const payload = makeJwt({ sub: userId as string, orgId: orgId as string, sessionId: "", workspaceIds: [wsId as string], roles: {} });
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [wsId as unknown as string],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
   const handler = withPep(noopHandler, { resourceType: "workspace", workspaceId: wsId as string });
 
   const ctx = makeMockCtx(async (fn, args) => t.run(async (c) => c.runQuery(fn as never, args as never)));
-  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: payload } });
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: `Bearer ${token}` } });
   const res = await handler(ctx, req);
 
   expect(res.status).toBe(403);
@@ -316,21 +340,42 @@ test("withPepMutation: pode ser registrada como internalMutation", () => {
 // ── withPep: PDP ALLOW delega ao handler ────────────────────────────────────
 
 test("withPep: chama handler e retorna sua Response quando PDP permite (sem workspaceId)", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", { email: "allow@test.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
   const handler = withPep(
     async (_ctx, _req, auth) =>
       new Response(JSON.stringify({ userId: auth.type === "jwt" ? auth.data.userId : null }), { status: 200 }),
     { resourceType: "workspace" },
   );
-  const jwtHeader = makeJwt({ sub: "user42", orgId: "org1" });
-  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: jwtHeader } });
-  const res = await handler(makeMockCtx(), req);
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: `Bearer ${token}` } });
+  const ctx = makeMockCtx(async (fn, args) => t.run(async (c) => c.runQuery(fn as never, args as never)));
+  const res = await handler(ctx, req);
   expect(res.status).toBe(200);
   const body = await res.json();
-  expect(body.userId).toBe("user42");
+  expect(body.userId).toBe(userId as unknown as string);
 });
 
 test("withPep: resposta 403 tem Content-Type application/json", async () => {
   const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
 
   const orgId = await t.run(async (ctx) => ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }));
   const wsId = await t.run(async (ctx) => ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }));
@@ -338,11 +383,19 @@ test("withPep: resposta 403 tem Content-Type application/json", async () => {
     ctx.db.insert("users", { email: "u2@test.com", passwordHash: "h", status: "suspended", loginAttempts: 0, updatedAt: Date.now() }),
   );
 
-  const payload = makeJwt({ sub: userId as string, orgId: orgId as string, sessionId: "", workspaceIds: [], roles: {} });
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
   const handler = withPep(noopHandler, { resourceType: "workspace", workspaceId: wsId as string });
 
   const ctx = makeMockCtx(async (fn, args) => t.run(async (c) => c.runQuery(fn as never, args as never)));
-  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: payload } });
+  const req = new Request("https://example.com/api", { method: "GET", headers: { Authorization: `Bearer ${token}` } });
   const res = await handler(ctx, req);
 
   expect(res.status).toBe(403);

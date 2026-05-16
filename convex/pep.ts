@@ -5,6 +5,7 @@ import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { type AuthContext, type ApiKeyContext, extractJwtContext } from "./pepUtils";
+import { verifyJwtToken } from "./jwt";
 
 const API_KEY_PREFIX = "gk_live_pk_";
 
@@ -75,7 +76,11 @@ export async function resolveAuthContext(
     const data = await extractApiKeyContext(authHeader, ctx);
     return { type: "api_key", data };
   }
-  const data = extractJwtContext(authHeader);
+  const activeKeys = (await ctx.runQuery(internal.jwtStore.getAllActivePublicKeys, {})) as Array<{
+    publicKeyJwk: string;
+  }>;
+  const verifiedPayload = await verifyJwtToken(token, activeKeys);
+  const data = extractJwtContext(authHeader, verifiedPayload as Record<string, unknown>);
   return { type: "jwt", data };
 }
 

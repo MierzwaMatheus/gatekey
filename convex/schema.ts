@@ -158,4 +158,12 @@ export default defineSchema({
     backupCodes: v.array(v.string()),
     activatedAt: v.number(),
   }),
+
+  key_pairs: defineTable({
+    kid: v.string(),
+    privateKeyJwk: v.string(),
+    publicKeyJwk: v.string(),
+    createdAt: v.number(),
+    status: v.union(v.literal("active"), v.literal("retired")),
+  }).index("by_status_and_createdAt", ["status", "createdAt"]),
 });
