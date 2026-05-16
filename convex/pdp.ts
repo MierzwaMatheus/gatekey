@@ -14,6 +14,20 @@ export const findDirectBinding = internalQuery({
   },
 });
 
+export const findWorkspaceBinding = internalQuery({
+  args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, { userId, workspaceId }) => {
+    return await ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", workspaceId).eq("userId", userId),
+      )
+      .filter((q) => q.eq(q.field("resourceId"), undefined))
+      .first();
+  },
+});
+
 export const checkWorkspaceMembership = internalQuery({
   args: { userId: v.id("users"), workspaceId: v.id("workspaces") },
   returns: v.boolean(),

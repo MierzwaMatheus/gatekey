@@ -259,6 +259,45 @@ test("findDirectBinding: retorna null quando não existe binding direto", async 
   expect(result).toBeNull();
 });
 
+// ── findWorkspaceBinding ─────────────────────────────────────────────────────
+
+test("findWorkspaceBinding: retorna binding de workspace quando existe", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId, roleId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "wsmember@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    const rId = await ctx.db.insert("roles", { name: "viewer", isBase: true });
+    await ctx.db.insert("bindings", {
+      userId: uid, roleId: rId, resourceType: "workspace", workspaceId: wsId,
+    });
+    return { userId: uid, workspaceId: wsId, roleId: rId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findWorkspaceBinding, { userId, workspaceId });
+  });
+  expect(result).not.toBeNull();
+  expect(result?.roleId).toBe(roleId);
+});
+
+test("findWorkspaceBinding: retorna null quando não existe binding de workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { userId, workspaceId } = await t.run(async (ctx) => {
+    const orgId = await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
+    const uid = await ctx.db.insert("users", {
+      email: "nowsbinding@example.com", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now(),
+    });
+    const wsId = await ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" });
+    return { userId: uid, workspaceId: wsId };
+  });
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.findWorkspaceBinding, { userId, workspaceId });
+  });
+  expect(result).toBeNull();
+});
+
 // ── checkWorkspaceMembership ──────────────────────────────────────────────────
 
 test("checkWorkspaceMembership: retorna true para membro ativo", async () => {
