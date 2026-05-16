@@ -8,13 +8,23 @@
  * @module
  */
 
+import type * as pdp from "../pdp.js";
+import type * as pep from "../pep.js";
+import type * as pepUtils from "../pepUtils.js";
+import type * as seed from "../seed.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  pdp: typeof pdp;
+  pep: typeof pep;
+  pepUtils: typeof pepUtils;
+  seed: typeof seed;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

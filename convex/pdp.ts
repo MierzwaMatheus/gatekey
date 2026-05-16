@@ -282,3 +282,33 @@ export const checkUserActive = internalQuery({
     return user.status === "active";
   },
 });
+
+export const findApiKey = internalQuery({
+  args: { publicId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      _id: v.id("api_keys"),
+      orgId: v.id("orgs"),
+      publicId: v.string(),
+      secretHash: v.string(),
+      scopes: v.array(v.string()),
+      status: v.union(v.literal("active"), v.literal("revoked")),
+    }),
+  ),
+  handler: async (ctx, { publicId }) => {
+    const key = await ctx.db
+      .query("api_keys")
+      .withIndex("by_publicId", (q) => q.eq("publicId", publicId))
+      .unique();
+    if (!key) return null;
+    return {
+      _id: key._id,
+      orgId: key.orgId,
+      publicId: key.publicId,
+      secretHash: key.secretHash,
+      scopes: key.scopes,
+      status: key.status,
+    };
+  },
+});

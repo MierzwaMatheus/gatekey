@@ -62,3 +62,19 @@ test("extractJwtContext: lança erro quando campo sub está ausente", () => {
 test("extractJwtContext: lança erro quando campo orgId está ausente", () => {
   expect(() => extractJwtContext(makeJwt({ sub: "user1" }))).toThrow();
 });
+
+// ── extractApiKeyContext: validação de formato ───────────────────────────────
+
+import { extractApiKeyContextFormat } from "./pep";
+
+test("extractApiKeyContext: lança erro quando header não tem prefixo Bearer", () => {
+  expect(() => extractApiKeyContextFormat("gk_live_pk_abc123_secret")).toThrow("missing_bearer");
+});
+
+test("extractApiKeyContext: lança erro quando token não começa com gk_live_pk_", () => {
+  expect(() => extractApiKeyContextFormat("Bearer someOtherToken")).toThrow("invalid_api_key_format");
+});
+
+test("extractApiKeyContext: lança erro quando token não tem separador de publicId", () => {
+  expect(() => extractApiKeyContextFormat("Bearer gk_live_pk_nosseparator")).toThrow("invalid_api_key_format");
+});
