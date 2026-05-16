@@ -93,6 +93,72 @@ test("createBinding: cria binding e retorna id, userId, roleId, resourceType, wo
   expect(result.id).toBeDefined();
 });
 
+// ── Ciclo 2: validação cross-workspace ───────────────────────────────────────
+
+test("createBinding: lança invalid_role_workspace se roleId pertence a outro workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const otherWorkspaceId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "Other WS", status: "active" }),
+  );
+
+  const roleInOtherWs = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId: otherWorkspaceId }),
+  );
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "m@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.bindings.createBinding, {
+      callerId: adminId,
+      orgId,
+      workspaceId,
+      userId: memberId,
+      roleId: roleInOtherWs,
+      resourceType: "workspace",
+    }),
+  ).rejects.toThrow("invalid_role_workspace");
+});
+
+test("createBinding: permite roleId base (isBase=true) independente do workspace", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const baseRoleId = await t.run((ctx) =>
+    ctx.db.query("roles").filter((q) => q.eq(q.field("isBase"), true)).first().then((r) => r!._id),
+  );
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "m2@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const result = await t.mutation(internal.bindings.createBinding, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    userId: memberId,
+    roleId: baseRoleId,
+    resourceType: "workspace",
+  });
+
+  expect(result.id).toBeDefined();
+});
+
 test("createBinding: lança forbidden se caller não é admin da org", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
