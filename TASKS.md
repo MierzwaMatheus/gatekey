@@ -206,11 +206,11 @@
 
 ### 2.6 REST API — Sessões — closes #6 (parcial)
 
-- [ ] Implementar `GET /v1/sessions` — lista sessões ativas; aceita filtro `?userId=`; PEP requer `sessions:write`
-- [ ] Implementar `DELETE /v1/sessions/:id` — insere sessionId na blacklist com TTL correto; PEP requer `sessions:write`
-- [ ] Garantir que Org Admin só visualiza e revoga sessões de usuários da própria org
-- [ ] Garantir que Root visualiza e revoga sessões de qualquer usuário
-- [ ] Chamar `writeAuditEvent` com action `session.revoke` em cada revogação
+- [x] Implementar `GET /v1/sessions` — lista sessões ativas; aceita filtro `?userId=`; PEP requer `sessions:write`
+- [x] Implementar `DELETE /v1/sessions/:id` — insere sessionId na blacklist com TTL correto; PEP requer `sessions:write`
+- [x] Garantir que Org Admin só visualiza e revoga sessões de usuários da própria org
+- [x] Garantir que Root visualiza e revoga sessões de qualquer usuário
+- [x] Chamar `writeAuditEvent` com action `session.revoke` em cada revogação
 
 ### 2.7 API Keys com escopos — closes #7
 

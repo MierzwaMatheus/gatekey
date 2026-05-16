@@ -6,20 +6,32 @@ export const listSessions = internalQuery({
   args: {
     orgId: v.id("orgs"),
     userId: v.optional(v.id("users")),
+    callerId: v.optional(v.id("users")),
   },
   returns: v.array(v.any()),
-  handler: async (ctx, { orgId, userId }) => {
+  handler: async (ctx, { orgId, userId, callerId }) => {
     const now = Date.now();
 
-    // Determinar quais userIds pertencem à org
+    // Root pode visualizar qualquer sessão
+    const isRoot = callerId ? (await ctx.db.get(callerId))?.isRoot === true : false;
+
     let userIds: string[];
     if (userId) {
-      const membership = await ctx.db
-        .query("org_members")
-        .filter((q) => q.and(q.eq(q.field("orgId"), orgId), q.eq(q.field("userId"), userId)))
-        .first();
-      if (!membership) return [];
+      if (!isRoot) {
+        const membership = await ctx.db
+          .query("org_members")
+          .filter((q) => q.and(q.eq(q.field("orgId"), orgId), q.eq(q.field("userId"), userId)))
+          .first();
+        if (!membership) return [];
+      }
       userIds = [userId];
+    } else if (isRoot) {
+      // Root sem filtro: buscar membros da org especificada
+      const members = await ctx.db
+        .query("org_members")
+        .filter((q) => q.eq(q.field("orgId"), orgId))
+        .collect();
+      userIds = members.map((m) => m.userId);
     } else {
       const members = await ctx.db
         .query("org_members")
@@ -61,12 +73,15 @@ export const revokeSession = internalAction({
     const session = await ctx.runQuery(internal.jwtStore.getSession, { sessionId });
     if (!session) throw new Error("session_not_found");
 
-    // Verificar que o userId da sessão pertence à org do caller
-    const membership = await ctx.runQuery(internal.sessions.checkOrgMembership, {
-      userId: session.userId,
-      orgId,
-    });
-    if (!membership) throw new Error("forbidden");
+    // Root pode revogar qualquer sessão
+    const caller = await ctx.runQuery(internal.sessions.getCallerIsRoot, { callerId });
+    if (!caller) {
+      const membership = await ctx.runQuery(internal.sessions.checkOrgMembership, {
+        userId: session.userId,
+        orgId,
+      });
+      if (!membership) throw new Error("forbidden");
+    }
 
     await ctx.runMutation(internal.jwtStore.blacklistSession, {
       sessionId,
@@ -96,5 +111,14 @@ export const checkOrgMembership = internalQuery({
       .filter((q) => q.and(q.eq(q.field("userId"), userId), q.eq(q.field("orgId"), orgId)))
       .first();
     return membership !== null;
+  },
+});
+
+export const getCallerIsRoot = internalQuery({
+  args: { callerId: v.id("users") },
+  returns: v.boolean(),
+  handler: async (ctx, { callerId }) => {
+    const user = await ctx.db.get(callerId);
+    return user?.isRoot === true;
   },
 });

@@ -144,6 +144,102 @@ test("listSessions: não retorna sessões de usuários de outra org", async () =
   expect(result).toHaveLength(0);
 });
 
+// ── Root access ──────────────────────────────────────────────────────────────
+
+test("listSessions: Root visualiza sessões de qualquer org", async () => {
+  const t = convexTest(schema, modules);
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@system.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "AnyOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user@anyorg.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId, orgId, role: "admin", status: "active" }),
+  );
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", { userId, refreshTokenHash: "rth", expiresAt: Date.now() + 60_000 }),
+  );
+
+  // Root passes a special "root" orgId sentinel; implementation should detect isRoot
+  const result = await t.query(internal.sessions.listSessions, {
+    orgId,
+    callerId: rootId,
+  });
+  expect(result.map((s: { _id: string }) => s._id)).toContain(sessionId);
+});
+
+test("revokeSession: Root pode revogar sessão de qualquer org", async () => {
+  const t = convexTest(schema, modules);
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@system.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const otherOrgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Other", status: "active", updatedAt: Date.now() }),
+  );
+  const otherUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "other@other.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: otherUserId, orgId: otherOrgId, role: "admin", status: "active" }),
+  );
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: otherUserId,
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() + 60_000,
+    }),
+  );
+
+  // Root uses any orgId (e.g. the session's user's org) — should not throw
+  await expect(
+    t.action(internal.sessions.revokeSession, {
+      sessionId,
+      callerId: rootId,
+      orgId: otherOrgId,
+    }),
+  ).resolves.toBeNull();
+
+  const blacklisted = await t.run((ctx) =>
+    ctx.db.query("session_blacklist").withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId)).first(),
+  );
+  expect(blacklisted).not.toBeNull();
+});
+
 // ── Ciclo 3: revokeSession ────────────────────────────────────────────────────
 
 test("revokeSession: insere sessionId na blacklist com TTL correto", async () => {
