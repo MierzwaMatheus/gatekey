@@ -51,7 +51,7 @@ export default defineSchema({
     userId: v.id("users"),
     workspaceId: v.id("workspaces"),
     status: v.union(v.literal("active"), v.literal("removed")),
-  }),
+  }).index("by_userId_and_workspaceId", ["userId", "workspaceId"]),
 
   roles: defineTable({
     workspaceId: v.optional(v.id("workspaces")),
@@ -99,7 +99,9 @@ export default defineSchema({
     lastUsedAt: v.optional(v.number()),
     lastUsedIp: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("revoked")),
-  }).index("by_orgId_and_status", ["orgId", "status"]),
+  })
+    .index("by_orgId_and_status", ["orgId", "status"])
+    .index("by_publicId", ["publicId"]),
 
   sessions: defineTable({
     userId: v.id("users"),
