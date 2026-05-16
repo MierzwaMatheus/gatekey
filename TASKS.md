@@ -87,17 +87,17 @@
 
 ### 1.4 JWT RS256 + JWKS — closes #3
 
-- [ ] Implementar Convex Action `initializeKeyPair` — gera par RS256 com `jose`, armazena chave privada e pública no Convex (privada nunca retornada em resposta)
-- [ ] Implementar função `signJwt(payload)` — assina com chave privada usando `jose`, algoritmo RS256
-- [ ] Implementar payload completo: `sub` (userId), `orgId`, `workspaceIds[]`, `roles{}`, `capabilities[]`, `sessionId`, `iat`, `exp`
-- [ ] Implementar função `verifyJwt(token)` — valida assinatura com chave pública e verifica `exp`
-- [ ] Implementar endpoint `GET /v1/auth/.well-known/jwks` — retorna chave pública em formato JWKS (sem autenticação)
-- [ ] Implementar geração de refresh token: 32 bytes aleatórios, hash argon2id armazenado em `sessions.refreshTokenHash`
-- [ ] Implementar rotação de refresh token: ao usar, invalidar sessão atual (inserir na blacklist) e criar nova sessão com novo token
-- [ ] Implementar leitura de `org_settings.jwtExpiryAccess` e `jwtExpiryRefresh` para configurar `exp` do token
-- [ ] Escrever teste: JWT emitido é verificável usando a chave pública retornada pelo JWKS
-- [ ] Escrever teste: JWT com `exp` no passado é rejeitado por `verifyJwt`
-- [ ] Escrever teste: refresh token rotacionado — apresentar o token antigo após rotação retorna erro
+- [x] Implementar Convex Action `initializeKeyPair` — gera par RS256 com `jose`, armazena chave privada e pública no Convex (privada nunca retornada em resposta)
+- [x] Implementar função `signJwt(payload)` — assina com chave privada usando `jose`, algoritmo RS256
+- [x] Implementar payload completo: `sub` (userId), `orgId`, `workspaceIds[]`, `roles{}`, `capabilities[]`, `sessionId`, `iat`, `exp`
+- [x] Implementar função `verifyJwt(token)` — valida assinatura com chave pública e verifica `exp`
+- [x] Implementar endpoint `GET /v1/auth/.well-known/jwks` — retorna chave pública em formato JWKS (sem autenticação)
+- [x] Implementar geração de refresh token: 32 bytes aleatórios, hash argon2id armazenado em `sessions.refreshTokenHash`
+- [x] Implementar rotação de refresh token: ao usar, invalidar sessão atual (inserir na blacklist) e criar nova sessão com novo token
+- [x] Implementar leitura de `org_settings.jwtExpiryAccess` e `jwtExpiryRefresh` para configurar `exp` do token
+- [x] Escrever teste: JWT emitido é verificável usando a chave pública retornada pelo JWKS
+- [x] Escrever teste: JWT com `exp` no passado é rejeitado por `verifyJwt`
+- [x] Escrever teste: refresh token rotacionado — apresentar o token antigo após rotação retorna erro
 
 ### 1.5 Login por email + senha — closes #4
 
