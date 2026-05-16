@@ -703,4 +703,53 @@ http.route({
   }),
 });
 
+// ── POST /v1/check ────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/check",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: {
+      userId?: string;
+      capability?: string;
+      resourceType?: string;
+      resourceId?: string;
+      workspaceId?: string;
+    };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.userId || !body.capability || !body.resourceType || !body.workspaceId) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    const ip = req.headers.get("x-forwarded-for") ?? undefined;
+    const userAgent = req.headers.get("user-agent") ?? undefined;
+
+    try {
+      const result = await ctx.runAction(internal.check.performCheck, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        userId: body.userId as never,
+        capability: body.capability,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        workspaceId: body.workspaceId as never,
+        ip,
+        userAgent,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
