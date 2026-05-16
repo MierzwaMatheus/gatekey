@@ -19,7 +19,10 @@ import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
 import type * as pepMutation from "../pepMutation.js";
 import type * as pepUtils from "../pepUtils.js";
+import type * as roles from "../roles.js";
 import type * as seed from "../seed.js";
+import type * as users from "../users.js";
+import type * as usersActions from "../usersActions.js";
 
 import type {
   ApiFromModules,
@@ -39,7 +42,10 @@ declare const fullApi: ApiFromModules<{
   pep: typeof pep;
   pepMutation: typeof pepMutation;
   pepUtils: typeof pepUtils;
+  roles: typeof roles;
   seed: typeof seed;
+  users: typeof users;
+  usersActions: typeof usersActions;
 }>;
 
 /**
