@@ -1,0 +1,262 @@
+"use node";
+
+import { internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { v } from "convex/values";
+
+const LOCK_THRESHOLD = 5;
+const LOCK_DURATION_MS = 15 * 60 * 1000;
+
+export const loginWithPassword = internalAction({
+  args: {
+    email: v.string(),
+    password: v.string(),
+    ip: v.optional(v.string()),
+    deviceInfo: v.optional(v.string()),
+  },
+  returns: v.union(
+    v.object({
+      success: v.literal(true),
+      accessToken: v.string(),
+      refreshToken: v.string(),
+      sessionId: v.string(),
+    }),
+    v.object({
+      success: v.literal(false),
+      error: v.string(),
+      lockedUntil: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx, args): Promise<
+    | { success: true; accessToken: string; refreshToken: string; sessionId: string }
+    | { success: false; error: string; lockedUntil?: number }
+  > => {
+    const argon2 = await import("argon2");
+
+    const user = (await ctx.runQuery(internal.authStore.getUserByEmail, {
+      email: args.email,
+    })) as {
+      _id: string;
+      email: string;
+      passwordHash: string;
+      status: string;
+      loginAttempts: number;
+      lockedUntil?: number;
+    } | null;
+
+    if (!user) {
+      return { success: false as const, error: "invalid_credentials" };
+    }
+
+    // Verificar se conta está bloqueada
+    if (user.lockedUntil && user.lockedUntil > Date.now()) {
+      await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+        actorType: "user",
+        actorId: user._id as string,
+        action: "auth.login.blocked",
+        target: { type: "session" },
+        ip: args.ip,
+        result: "deny",
+        reason: "account_locked",
+      });
+      return { success: false as const, error: "account_locked", lockedUntil: user.lockedUntil };
+    }
+
+    const passwordValid = await argon2.verify(user.passwordHash, args.password);
+
+    if (!passwordValid) {
+      const newAttempts = (await ctx.runMutation(internal.authStore.incrementLoginAttempts, {
+        userId: user._id as never,
+      })) as number;
+
+      if (newAttempts >= LOCK_THRESHOLD) {
+        const lockedUntil = Date.now() + LOCK_DURATION_MS;
+        await ctx.runMutation(internal.authStore.lockAccount, { userId: user._id as never, lockedUntil });
+        await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+          actorType: "user",
+          actorId: user._id as string,
+          action: "auth.login.blocked",
+          target: { type: "session" },
+          ip: args.ip,
+          result: "deny",
+          reason: "account_locked",
+        });
+        return { success: false as const, error: "account_locked", lockedUntil };
+      }
+
+      await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+        actorType: "user",
+        actorId: user._id as string,
+        action: "auth.login.failure",
+        target: { type: "session" },
+        ip: args.ip,
+        result: "deny",
+        reason: "invalid_credentials",
+      });
+      return { success: false as const, error: "invalid_credentials" };
+    }
+
+    // Login bem-sucedido — zerar tentativas
+    await ctx.runMutation(internal.authStore.resetLoginAttempts, { userId: user._id as never });
+
+    // Obter orgId do usuário (primeira org ativa)
+    const orgMembership = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+      userId: user._id as never,
+    })) as { orgId: string } | null;
+    const orgId = orgMembership?.orgId;
+
+    // Obter configurações de expiração
+    let accessExpirySeconds = 3600;
+    if (orgId) {
+      const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+        orgId: orgId as never,
+      })) as { jwtExpiryAccess: number } | null;
+      if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+    }
+
+    // Criar sessão com refresh token
+    const sessionResult = (await ctx.runAction(internal.jwt.createSessionWithRefreshToken, {
+      userId: user._id as never,
+      orgId: (orgId ?? user._id) as never,
+      ip: args.ip,
+      deviceInfo: args.deviceInfo,
+    })) as { sessionId: string; refreshToken: string };
+    const { sessionId, refreshToken } = sessionResult;
+
+    // Assinar JWT de acesso
+    const accessToken = (await ctx.runAction(internal.jwt.signJwt, {
+      sub: user._id as unknown as string,
+      orgId: orgId ?? "",
+      workspaceIds: [],
+      roles: {},
+      capabilities: [],
+      sessionId: sessionId as unknown as string,
+      expiresInSeconds: accessExpirySeconds,
+    })) as string;
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: user._id as string,
+      action: "auth.login.success",
+      target: { type: "session", id: sessionId as string },
+      orgId: orgId as never,
+      ip: args.ip,
+      result: "allow",
+    });
+
+    return {
+      success: true as const,
+      accessToken,
+      refreshToken,
+      sessionId,
+    };
+  },
+});
+
+export const createUserWithPassword = internalAction({
+  args: {
+    email: v.string(),
+    password: v.string(),
+  },
+  returns: v.string(),
+  handler: async (ctx, args): Promise<string> => {
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.password);
+    return (await ctx.runMutation(internal.authStore.createUserRecord, {
+      email: args.email,
+      passwordHash,
+    })) as string;
+  },
+});
+
+export const refreshTokens = internalAction({
+  args: {
+    sessionId: v.id("sessions"),
+    refreshToken: v.string(),
+    orgId: v.string(),
+    ip: v.optional(v.string()),
+    deviceInfo: v.optional(v.string()),
+  },
+  returns: v.union(
+    v.object({
+      success: v.literal(true),
+      accessToken: v.string(),
+      refreshToken: v.string(),
+      sessionId: v.string(),
+    }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, args): Promise<
+    | { success: true; accessToken: string; refreshToken: string; sessionId: string }
+    | { success: false; error: string }
+  > => {
+    const result = (await ctx.runAction(internal.jwt.rotateRefreshToken, {
+      sessionId: args.sessionId,
+      refreshToken: args.refreshToken,
+      orgId: args.orgId as never,
+      ip: args.ip,
+      deviceInfo: args.deviceInfo,
+    })) as
+      | { valid: true; newSessionId: string; newRefreshToken: string }
+      | { valid: false; error: string };
+
+    if (!result.valid) {
+      return { success: false as const, error: result.error };
+    }
+
+    const session = (await ctx.runQuery(internal.jwtStore.getSession, {
+      sessionId: result.newSessionId as never,
+    })) as { userId: string } | null;
+
+    let accessExpirySeconds = 3600;
+    const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+      orgId: args.orgId as never,
+    })) as { jwtExpiryAccess: number } | null;
+    if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+
+    const accessToken = (await ctx.runAction(internal.jwt.signJwt, {
+      sub: session?.userId ?? "",
+      orgId: args.orgId,
+      workspaceIds: [],
+      roles: {},
+      capabilities: [],
+      sessionId: result.newSessionId,
+      expiresInSeconds: accessExpirySeconds,
+    })) as string;
+
+    return {
+      success: true as const,
+      accessToken,
+      refreshToken: result.newRefreshToken,
+      sessionId: result.newSessionId,
+    };
+  },
+});
+
+export const logoutSession = internalAction({
+  args: {
+    sessionId: v.id("sessions"),
+    accessTokenExp: v.number(),
+    userId: v.optional(v.string()),
+    ip: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const expiresAt = args.accessTokenExp * 1000;
+    await ctx.runMutation(internal.jwtStore.blacklistSession, {
+      sessionId: args.sessionId,
+      expiresAt,
+    });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.userId ?? "unknown",
+      action: "auth.logout",
+      target: { type: "session", id: args.sessionId as string },
+      ip: args.ip,
+      result: "allow",
+    });
+
+    return null;
+  },
+});

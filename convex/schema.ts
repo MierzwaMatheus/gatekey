@@ -9,7 +9,7 @@ export default defineSchema({
     loginAttempts: v.number(),
     lockedUntil: v.optional(v.number()),
     updatedAt: v.number(),
-  }),
+  }).index("by_email", ["email"]),
 
   orgs: defineTable({
     name: v.string(),
