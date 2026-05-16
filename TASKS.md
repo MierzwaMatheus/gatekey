@@ -8,33 +8,33 @@
 
 ### 1.1 Schema Convex — closes #1
 
-- [ ] Criar tabela `users` com campos: id, email, passwordHash, status, createdAt, updatedAt
-- [ ] Criar tabela `orgs` com campos: id, name, status, createdAt, updatedAt
-- [ ] Criar tabela `org_settings` com campos: orgId, loginMethods[], mfaRequired, jwtExpiryAccess, jwtExpiryRefresh, quotas{}
-- [ ] Criar tabela `workspaces` com campos: id, orgId, name, status, createdAt
-- [ ] Criar tabela `org_members` com campos: userId, orgId, role, status
-- [ ] Criar tabela `workspace_members` com campos: userId, workspaceId, status
-- [ ] Criar tabela `roles` com campos: id, workspaceId, name, isBase, createdAt
-- [ ] Criar tabela `capabilities` com campos: id, orgId (nullable para base), name, description, isBase
-- [ ] Criar tabela `role_capabilities` com campos: roleId, capabilityId
-- [ ] Criar tabela `resource_types` com campos: id, orgId, name, inheritsFrom (nullable), inheritanceMode (nullable)
-- [ ] Criar tabela `bindings` com campos: id, userId, roleId, resourceType, resourceId (nullable), parentResourceId (nullable), workspaceId
-- [ ] Criar tabela `api_keys` com campos: id, orgId, publicId, secretHash, scopes[], description, lastUsedAt, lastUsedIp, status, createdAt
-- [ ] Criar tabela `sessions` com campos: id, userId, refreshTokenHash, expiresAt, deviceInfo, ip, createdAt
-- [ ] Criar tabela `session_blacklist` com campos: sessionId, expiresAt
-- [ ] Criar tabela `audit_log` com campos: id, timestamp, actorType, actorId, actorRole, action, target{}, orgId, workspaceId, ip, userAgent, result, reason
-- [ ] Criar tabela `audit_exports` com campos: id, orgId, period{start, end}, storagePath, createdAt
-- [ ] Criar índice `bindings_by_workspace_user` em `(workspaceId, userId)`
-- [ ] Criar índice `bindings_by_resource` em `(resourceType, resourceId)`
-- [ ] Criar índice `bindings_by_user_resource` em `(userId, resourceType, resourceId)`
-- [ ] Criar índice `audit_log_by_org_time` em `(orgId, timestamp)`
-- [ ] Criar índice `audit_log_by_workspace_time` em `(workspaceId, timestamp)`
-- [ ] Criar índice `session_blacklist_by_sessionId` em `sessionId`
-- [ ] Criar índice `sessions_by_userId` em `userId`
-- [ ] Criar índice `api_keys_by_org_status` em `(orgId, status)`
-- [ ] Inserir seed dos 4 roles base: `owner`, `admin`, `editor`, `viewer` (isBase=true, workspaceId=null)
-- [ ] Inserir seed do catálogo base de capabilities: `document:read`, `document:write`, `user:invite`, `billing:view`, `report:export` (isBase=true)
-- [ ] Validar deploy do schema sem erros em ambiente local
+- [x] Criar tabela `users` com campos: id, email, passwordHash, status, createdAt, updatedAt
+- [x] Criar tabela `orgs` com campos: id, name, status, createdAt, updatedAt
+- [x] Criar tabela `org_settings` com campos: orgId, loginMethods[], mfaRequired, jwtExpiryAccess, jwtExpiryRefresh, quotas{}
+- [x] Criar tabela `workspaces` com campos: id, orgId, name, status, createdAt
+- [x] Criar tabela `org_members` com campos: userId, orgId, role, status
+- [x] Criar tabela `workspace_members` com campos: userId, workspaceId, status
+- [x] Criar tabela `roles` com campos: id, workspaceId, name, isBase, createdAt
+- [x] Criar tabela `capabilities` com campos: id, orgId (nullable para base), name, description, isBase
+- [x] Criar tabela `role_capabilities` com campos: roleId, capabilityId
+- [x] Criar tabela `resource_types` com campos: id, orgId, name, inheritsFrom (nullable), inheritanceMode (nullable)
+- [x] Criar tabela `bindings` com campos: id, userId, roleId, resourceType, resourceId (nullable), parentResourceId (nullable), workspaceId
+- [x] Criar tabela `api_keys` com campos: id, orgId, publicId, secretHash, scopes[], description, lastUsedAt, lastUsedIp, status, createdAt
+- [x] Criar tabela `sessions` com campos: id, userId, refreshTokenHash, expiresAt, deviceInfo, ip, createdAt
+- [x] Criar tabela `session_blacklist` com campos: sessionId, expiresAt
+- [x] Criar tabela `audit_log` com campos: id, timestamp, actorType, actorId, actorRole, action, target{}, orgId, workspaceId, ip, userAgent, result, reason
+- [x] Criar tabela `audit_exports` com campos: id, orgId, period{start, end}, storagePath, createdAt
+- [x] Criar índice `bindings_by_workspace_user` em `(workspaceId, userId)`
+- [x] Criar índice `bindings_by_resource` em `(resourceType, resourceId)`
+- [x] Criar índice `bindings_by_user_resource` em `(userId, resourceType, resourceId)`
+- [x] Criar índice `audit_log_by_org_time` em `(orgId, timestamp)`
+- [x] Criar índice `audit_log_by_workspace_time` em `(workspaceId, timestamp)`
+- [x] Criar índice `session_blacklist_by_sessionId` em `sessionId`
+- [x] Criar índice `sessions_by_userId` em `userId`
+- [x] Criar índice `api_keys_by_org_status` em `(orgId, status)`
+- [x] Inserir seed dos 4 roles base: `owner`, `admin`, `editor`, `viewer` (isBase=true, workspaceId=null)
+- [x] Inserir seed do catálogo base de capabilities: `document:read`, `document:write`, `user:invite`, `billing:view`, `report:export` (isBase=true)
+- [x] Validar deploy do schema sem erros em ambiente local
 
 ### 1.2 PDP (Policy Decision Point) — closes #2 (parcial)
 
