@@ -47,29 +47,29 @@
 - [x] Criar função `findParentBinding(userId, resourceType, resourceId)` — busca `resource_types.inheritsFrom` para o tipo, depois lookup binding no tipo pai
 - [x] Criar função `findWorkspaceBinding(userId, workspaceId)` — lookup binding no nível de workspace (resourceId = null)
 - [x] Criar função `resolveRole(roleId)` — retorna array de capability names via join `roles → role_capabilities → capabilities`
-- [ ] Criar função `pdpDecide(context: {userId, orgId, capability, resourceType, resourceId, workspaceId, sessionId?, apiKeyId?})` — orquestra os 8 passos em ordem, retorna `{allowed: boolean, reason: string}`
-- [ ] Implementar passo 1 no PDP: verificar `checkUserActive`
-- [ ] Implementar passo 2 no PDP: verificar `checkSessionValid` (quando autenticação por JWT)
-- [ ] Implementar passo 3 no PDP: verificar `checkApiKeyValid` (quando autenticação por API Key)
-- [ ] Implementar passo 4 no PDP: verificar `checkApiKeyScope` (quando autenticação por API Key)
-- [ ] Implementar passo 5 no PDP: verificar `checkWorkspaceMembership`
-- [ ] Implementar passo 6 no PDP: `findDirectBinding` — se encontrar, resolver role e verificar capability
-- [ ] Implementar passo 7 no PDP: `findParentBinding` — se tipo tem `inheritanceMode` configurado
-- [ ] Implementar passo 8 no PDP: `findWorkspaceBinding` — fallback para nível de workspace
-- [ ] Garantir que qualquer exceção não tratada no PDP resulta em `{allowed: false, reason: "internal_error"}` (fail closed)
+- [x] Criar função `pdpDecide(context: {userId, orgId, capability, resourceType, resourceId, workspaceId, sessionId?, apiKeyId?})` — orquestra os 8 passos em ordem, retorna `{allowed: boolean, reason: string}`
+- [x] Implementar passo 1 no PDP: verificar `checkUserActive`
+- [x] Implementar passo 2 no PDP: verificar `checkSessionValid` (quando autenticação por JWT)
+- [x] Implementar passo 3 no PDP: verificar `checkApiKeyValid` (quando autenticação por API Key)
+- [x] Implementar passo 4 no PDP: verificar `checkApiKeyScope` (quando autenticação por API Key)
+- [x] Implementar passo 5 no PDP: verificar `checkWorkspaceMembership`
+- [x] Implementar passo 6 no PDP: `findDirectBinding` — se encontrar, resolver role e verificar capability
+- [x] Implementar passo 7 no PDP: `findParentBinding` — se tipo tem `inheritanceMode` configurado
+- [x] Implementar passo 8 no PDP: `findWorkspaceBinding` — fallback para nível de workspace
+- [x] Garantir que qualquer exceção não tratada no PDP resulta em `{allowed: false, reason: "internal_error"}` (fail closed)
 - [x] Escrever teste unitário para `checkUserActive` — usuário ativo retorna true, suspenso retorna false
 - [x] Escrever teste unitário para `checkSessionValid` — sessão na blacklist retorna false
 - [x] Escrever teste unitário para `checkApiKeyScope` — escopo ausente retorna false
 - [x] Escrever teste unitário para `findDirectBinding` — binding existente é encontrado
 - [x] Escrever teste unitário para `findParentBinding` — binding no container pai é encontrado
 - [x] Escrever teste unitário para `resolveRole` — capabilities do role são retornadas corretamente
-- [ ] Escrever teste de integração: ALLOW por binding direto no recurso
+- [x] Escrever teste de integração: ALLOW por binding direto no recurso
 - [ ] Escrever teste de integração: ALLOW por herança de container pai (inheritanceMode configurado)
-- [ ] Escrever teste de integração: ALLOW por herança de workspace (sem binding direto)
-- [ ] Escrever teste de integração: DENY quando nenhum binding existe em nenhum nível
-- [ ] Escrever teste de integração: DENY quando usuário está suspenso (mesmo com binding válido)
-- [ ] Escrever teste de integração: DENY quando sessão está na blacklist
-- [ ] Escrever teste de integração: DENY quando API Key não tem o escopo necessário
+- [x] Escrever teste de integração: ALLOW por herança de workspace (sem binding direto)
+- [x] Escrever teste de integração: DENY quando nenhum binding existe em nenhum nível
+- [x] Escrever teste de integração: DENY quando usuário está suspenso (mesmo com binding válido)
+- [x] Escrever teste de integração: DENY quando sessão está na blacklist
+- [x] Escrever teste de integração: DENY quando API Key não tem o escopo necessário
 
 ### 1.3 PEP (Policy Enforcement Point) — closes #2 (com 1.2)
 

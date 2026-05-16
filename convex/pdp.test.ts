@@ -539,6 +539,19 @@ test("pdpDecide: DENY quando nenhum binding existe em nenhum nível", async () =
   expect(result.reason).toBe("no_binding_found");
 });
 
+test("pdpDecide: ALLOW por herança de container pai (inheritanceMode configurado)", async () => {
+  const t = convexTest(schema, modules);
+  const args = await t.run(async (ctx) => setupPdpContext(ctx, { bindingLevel: "parent" }));
+  const result = await t.run(async (ctx) => {
+    return await ctx.runQuery(internal.pdp.pdpDecide, {
+      userId: args.userId, orgId: args.orgId, capability: "document:read",
+      resourceType: "document", resourceId: "doc_1", workspaceId: args.workspaceId,
+      sessionId: args.sessionId,
+    });
+  });
+  expect(result.allowed).toBe(true);
+});
+
 // ── checkWorkspaceMembership ──────────────────────────────────────────────────
 
 test("checkWorkspaceMembership: retorna true para membro ativo", async () => {
