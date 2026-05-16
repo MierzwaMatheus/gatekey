@@ -800,4 +800,97 @@ http.route({
   }),
 });
 
+// ── POST /v1/api-keys ────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/api-keys",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: { scopes?: string[]; description?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // body permanece vazio, defaults serão usados
+    }
+
+    const ip = req.headers.get("x-forwarded-for") ?? undefined;
+
+    try {
+      const result = await ctx.runAction(internal.apiKeysActions.createApiKey, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        scopes: body.scopes ?? [],
+        description: body.description ?? "",
+        ip,
+      });
+      return jsonResponse(result, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) {
+        return jsonResponse({ error: "QuotaExceeded", quota: "api_keys_per_org" }, 429);
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/api-keys ─────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/api-keys",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    try {
+      const keys = await ctx.runQuery(internal.apiKeys.listApiKeys, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse(keys);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/api-keys/:id ──────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/api-keys/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const keyId = url.pathname.replace(/^\/v1\/api-keys\//, "").split("/")[0];
+    if (!keyId) return jsonResponse({ error: "missing_key_id" }, 400);
+
+    const ip = req.headers.get("x-forwarded-for") ?? undefined;
+
+    try {
+      await ctx.runMutation(internal.apiKeys.revokeApiKey, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        keyId: keyId as never,
+        ip,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
