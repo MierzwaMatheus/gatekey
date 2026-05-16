@@ -198,6 +198,90 @@ test("createRole: root pode criar role em qualquer workspace", async () => {
   expect(result.name).toBe("devops");
 });
 
+// ── Ciclo 3: deleteRole ───────────────────────────────────────────────────────
+
+test("deleteRole: org_admin deleta role customizado sem bindings ativos", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+
+  const result = await t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId });
+  expect(result).toBeNull();
+
+  const deleted = await t.run((ctx) => ctx.db.get(roleId));
+  expect(deleted).toBeNull();
+});
+
+test("deleteRole: throws role_has_active_bindings quando existem bindings", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId,
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId }),
+  ).rejects.toThrow("role_has_active_bindings");
+});
+
+test("deleteRole: throws forbidden quando caller não é org_admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: memberId, orgId, roleId }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("deleteRole: throws forbidden ao tentar deletar role base", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const baseRoleId = await t.run((ctx) =>
+    ctx.db.query("roles").filter((q) => q.eq(q.field("isBase"), true)).first().then((r) => r!._id),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId: baseRoleId }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("deleteRole: throws not_found quando roleId não existe", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const fakeRoleId = workspaceId as unknown as import("./_generated/dataModel").Id<"roles">;
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId: fakeRoleId }),
+  ).rejects.toThrow();
+});
+
 test("listRoles: throws forbidden quando caller não é org_admin", async () => {
   const t = convexTest(schema, modules);
   const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
