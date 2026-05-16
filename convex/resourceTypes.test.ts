@@ -197,6 +197,195 @@ test("createResourceType: rejeita inheritsFrom de outra org", async () => {
   ).rejects.toThrow("invalid_inherits_from");
 });
 
+// ── Ciclo 4: HTTP endpoints ───────────────────────────────────────────────────
+
+test("POST /v1/resource-types: cria via endpoint e retorna 201", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  // Gera token válido para o admin
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+  const tokenResult = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionId as string,
+    expiresInSeconds: 3600,
+  });
+
+  const resp = await t.fetch("/v1/resource-types", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${tokenResult}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: "folder" }),
+  });
+
+  expect(resp.status).toBe(201);
+  const body = await resp.json();
+  expect(body.id).toBeDefined();
+  expect(body.name).toBe("folder");
+});
+
+test("GET /v1/resource-types: lista tipos da org via endpoint", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId,
+    orgId,
+    name: "folder",
+  });
+
+  const sessionGet = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionGet as string,
+    expiresInSeconds: 3600,
+  });
+
+  const resp = await t.fetch("/v1/resource-types", {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+
+  expect(resp.status).toBe(200);
+  const body = await resp.json();
+  expect(body.resourceTypes).toHaveLength(1);
+  expect(body.resourceTypes[0].name).toBe("folder");
+});
+
+test("POST /v1/resource-types: sem Authorization retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const resp = await t.fetch("/v1/resource-types", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "folder" }),
+  });
+
+  expect(resp.status).toBe(401);
+});
+
+test("POST /v1/resource-types: inheritsFrom inválido retorna 422", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  const sessionPost = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionPost as string,
+    expiresInSeconds: 3600,
+  });
+
+  const resp = await t.fetch("/v1/resource-types", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "document", inheritsFrom: "nonexistent" }),
+  });
+
+  expect(resp.status).toBe(422);
+});
+
 test("createResourceType: registra evento no audit_log", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId } = await setupOrgWithAdmin(t);
