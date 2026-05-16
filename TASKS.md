@@ -44,7 +44,7 @@
 - [x] Criar função `checkApiKeyScope(publicId, requiredScope)` — verifica se `scopes[]` contém o escopo requerido
 - [x] Criar função `checkWorkspaceMembership(userId, workspaceId)` — verifica existência de registro ativo em `workspace_members`
 - [x] Criar função `findDirectBinding(userId, resourceType, resourceId)` — lookup em `bindings` pelo índice `bindings_by_user_resource`
-- [ ] Criar função `findParentBinding(userId, resourceType, resourceId)` — busca `resource_types.inheritsFrom` para o tipo, depois lookup binding no tipo pai
+- [x] Criar função `findParentBinding(userId, resourceType, resourceId)` — busca `resource_types.inheritsFrom` para o tipo, depois lookup binding no tipo pai
 - [x] Criar função `findWorkspaceBinding(userId, workspaceId)` — lookup binding no nível de workspace (resourceId = null)
 - [x] Criar função `resolveRole(roleId)` — retorna array de capability names via join `roles → role_capabilities → capabilities`
 - [ ] Criar função `pdpDecide(context: {userId, orgId, capability, resourceType, resourceId, workspaceId, sessionId?, apiKeyId?})` — orquestra os 8 passos em ordem, retorna `{allowed: boolean, reason: string}`
@@ -61,7 +61,7 @@
 - [x] Escrever teste unitário para `checkSessionValid` — sessão na blacklist retorna false
 - [x] Escrever teste unitário para `checkApiKeyScope` — escopo ausente retorna false
 - [x] Escrever teste unitário para `findDirectBinding` — binding existente é encontrado
-- [ ] Escrever teste unitário para `findParentBinding` — binding no container pai é encontrado
+- [x] Escrever teste unitário para `findParentBinding` — binding no container pai é encontrado
 - [x] Escrever teste unitário para `resolveRole` — capabilities do role são retornadas corretamente
 - [ ] Escrever teste de integração: ALLOW por binding direto no recurso
 - [ ] Escrever teste de integração: ALLOW por herança de container pai (inheritanceMode configurado)
