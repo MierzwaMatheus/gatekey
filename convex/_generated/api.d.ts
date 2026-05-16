@@ -11,6 +11,7 @@
 import type * as auditLog from "../auditLog.js";
 import type * as auth from "../auth.js";
 import type * as authStore from "../authStore.js";
+import type * as bindings from "../bindings.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as http from "../http.js";
 import type * as jwt from "../jwt.js";
@@ -19,6 +20,7 @@ import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
 import type * as pepMutation from "../pepMutation.js";
 import type * as pepUtils from "../pepUtils.js";
+import type * as resourceTypes from "../resourceTypes.js";
 import type * as roles from "../roles.js";
 import type * as seed from "../seed.js";
 import type * as users from "../users.js";
@@ -34,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   auditLog: typeof auditLog;
   auth: typeof auth;
   authStore: typeof authStore;
+  bindings: typeof bindings;
   hierarchy: typeof hierarchy;
   http: typeof http;
   jwt: typeof jwt;
@@ -42,6 +45,7 @@ declare const fullApi: ApiFromModules<{
   pep: typeof pep;
   pepMutation: typeof pepMutation;
   pepUtils: typeof pepUtils;
+  resourceTypes: typeof resourceTypes;
   roles: typeof roles;
   seed: typeof seed;
   users: typeof users;

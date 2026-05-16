@@ -641,4 +641,66 @@ http.route({
   }),
 });
 
+// ── POST /v1/resource-types ───────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/resource-types",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    let body: { name?: string; inheritsFrom?: string; inheritanceMode?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.name) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    try {
+      const id = await ctx.runMutation(internal.resourceTypes.createResourceType, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        name: body.name,
+        inheritsFrom: body.inheritsFrom,
+        inheritanceMode: body.inheritanceMode,
+      });
+      return jsonResponse({ id, name: body.name, inheritsFrom: body.inheritsFrom, inheritanceMode: body.inheritanceMode }, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("invalid_inherits_from")) {
+        return jsonResponse({ error: "InvalidInheritsFrom", message: "inheritsFrom references a resource type that does not exist in this org." }, 422);
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/resource-types ────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/resource-types",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    try {
+      const resourceTypes = await ctx.runQuery(internal.resourceTypes.listResourceTypes, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse({ resourceTypes });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;

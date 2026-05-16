@@ -77,7 +77,7 @@ export default defineSchema({
     name: v.string(),
     inheritsFrom: v.optional(v.string()),
     inheritanceMode: v.optional(v.string()),
-  }),
+  }).index("by_orgId", ["orgId"]),
 
   bindings: defineTable({
     userId: v.id("users"),
