@@ -101,28 +101,28 @@
 
 ### 1.5 Login por email + senha — closes #4
 
-- [ ] Implementar `POST /v1/auth/login` — recebe `{email, password}`, valida credenciais, cria sessão, emite access + refresh token
-- [ ] Implementar hash de senha com argon2id via Convex Action (Node runtime) na criação de usuário
-- [ ] Implementar verificação de hash argon2id no login: `argon2.verify(storedHash, inputPassword)`
-- [ ] Implementar criação de registro em `sessions` a cada login bem-sucedido: userId, refreshTokenHash, expiresAt, ip, deviceInfo
-- [ ] Implementar `POST /v1/auth/refresh` — valida refresh token (hash comparison), insere sessionId antigo na blacklist, cria nova sessão, emite novo par
-- [ ] Implementar `POST /v1/auth/logout` — extrai sessionId do JWT, insere na `session_blacklist` com TTL = `exp` do token
-- [ ] Implementar campo `loginAttempts` e `lockedUntil` na tabela `users` para controle de bloqueio
-- [ ] Implementar incremento de `loginAttempts` a cada falha de senha
-- [ ] Implementar bloqueio temporário: quando `loginAttempts >= 5`, setar `lockedUntil = now + 15min`
-- [ ] Implementar verificação de `lockedUntil` no início do fluxo de login — retornar 429 se ainda bloqueado
-- [ ] Implementar reset de `loginAttempts` para 0 após login bem-sucedido
-- [ ] Implementar rate limiting por IP nos endpoints de auth via Convex Scheduler (contador por IP + TTL)
-- [ ] Chamar `writeAuditEvent` com action `auth.login.success` após login bem-sucedido
-- [ ] Chamar `writeAuditEvent` com action `auth.login.failure` após senha incorreta
-- [ ] Chamar `writeAuditEvent` com action `auth.login.blocked` quando conta está bloqueada
-- [ ] Chamar `writeAuditEvent` com action `auth.logout` após logout
-- [ ] Escrever teste: login com email e senha corretos retorna access token e refresh token válidos
-- [ ] Escrever teste: login com senha incorreta retorna 401 e incrementa contador de falhas
-- [ ] Escrever teste: na 5ª falha consecutiva, login retorna 429 com `lockedUntil`
-- [ ] Escrever teste: após bloqueio, login bem-sucedido ainda retorna 429 até `lockedUntil` expirar
-- [ ] Escrever teste: refresh token rotacionado — apresentar o token anterior retorna 401
-- [ ] Escrever teste: logout insere sessionId na blacklist, chamada seguinte com mesmo token retorna 401
+- [x] Implementar `POST /v1/auth/login` — recebe `{email, password}`, valida credenciais, cria sessão, emite access + refresh token
+- [x] Implementar hash de senha com argon2id via Convex Action (Node runtime) na criação de usuário
+- [x] Implementar verificação de hash argon2id no login: `argon2.verify(storedHash, inputPassword)`
+- [x] Implementar criação de registro em `sessions` a cada login bem-sucedido: userId, refreshTokenHash, expiresAt, ip, deviceInfo
+- [x] Implementar `POST /v1/auth/refresh` — valida refresh token (hash comparison), insere sessionId antigo na blacklist, cria nova sessão, emite novo par
+- [x] Implementar `POST /v1/auth/logout` — extrai sessionId do JWT, insere na `session_blacklist` com TTL = `exp` do token
+- [x] Implementar campo `loginAttempts` e `lockedUntil` na tabela `users` para controle de bloqueio
+- [x] Implementar incremento de `loginAttempts` a cada falha de senha
+- [x] Implementar bloqueio temporário: quando `loginAttempts >= 5`, setar `lockedUntil = now + 15min`
+- [x] Implementar verificação de `lockedUntil` no início do fluxo de login — retornar 429 se ainda bloqueado
+- [x] Implementar reset de `loginAttempts` para 0 após login bem-sucedido
+- [x] Implementar rate limiting por IP nos endpoints de auth via Convex Scheduler (contador por IP + TTL)
+- [x] Chamar `writeAuditEvent` com action `auth.login.success` após login bem-sucedido
+- [x] Chamar `writeAuditEvent` com action `auth.login.failure` após senha incorreta
+- [x] Chamar `writeAuditEvent` com action `auth.login.blocked` quando conta está bloqueada
+- [x] Chamar `writeAuditEvent` com action `auth.logout` após logout
+- [x] Escrever teste: login com email e senha corretos retorna access token e refresh token válidos
+- [x] Escrever teste: login com senha incorreta retorna 401 e incrementa contador de falhas
+- [x] Escrever teste: na 5ª falha consecutiva, login retorna 429 com `lockedUntil`
+- [x] Escrever teste: após bloqueio, login bem-sucedido ainda retorna 429 até `lockedUntil` expirar
+- [x] Escrever teste: refresh token rotacionado — apresentar o token anterior retorna 401
+- [x] Escrever teste: logout insere sessionId na blacklist, chamada seguinte com mesmo token retorna 401
 
 ### 1.6 Hierarquia Root → Org → Workspace → Member — closes #5
 
