@@ -205,4 +205,29 @@ async function verifyMagicLink(token: string): Promise<MagicLinkVerifyResult> {
   return { ...tokens, orgId }
 }
 
-export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink, challengeMfa }
+async function setupMfa(mfaSetupToken: string): Promise<{ secret: string; qrCodeUrl: string }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/mfa/setup`, {
+    method: 'POST',
+    headers: { Authorization: `MfaSetup ${mfaSetupToken}` },
+  })
+  if (!res.ok) throw new AuthError('setup_failed')
+  return res.json() as Promise<{ secret: string; qrCodeUrl: string }>
+}
+
+async function verifyMfaSetup(mfaSetupToken: string, totpCode: string): Promise<{ backupCodes: string[] }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/mfa/verify-setup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `MfaSetup ${mfaSetupToken}`,
+    },
+    body: JSON.stringify({ totpCode }),
+  })
+  if (!res.ok) {
+    const data = await res.json() as { error?: string }
+    throw new AuthError(data.error ?? 'invalid_code')
+  }
+  return res.json() as Promise<{ backupCodes: string[] }>
+}
+
+export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink, challengeMfa, setupMfa, verifyMfaSetup }
