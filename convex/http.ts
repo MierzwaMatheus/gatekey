@@ -63,7 +63,9 @@ http.route({
         ip,
       });
       if (!result.success) {
-        const status = result.error === "account_locked" ? 429 : 401;
+        const status = result.error === "account_locked" ? 429
+          : result.error === "method_disabled" ? 403
+          : 401;
         return withCors({ error: result.error, lockedUntil: result.lockedUntil }, status);
       }
       return withCors({
@@ -1403,7 +1405,8 @@ http.route({
       const ip = req.headers.get("x-forwarded-for") ?? undefined;
       const result = await ctx.runAction(internal.auth.verifyMagicLink, { token, ip });
       if (!result.success) {
-        return withCors({ error: result.error }, 401);
+        const status = result.error === "method_disabled" ? 403 : 401;
+        return withCors({ error: result.error }, status);
       }
       return withCors({
         accessToken: result.accessToken,
