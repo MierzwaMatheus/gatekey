@@ -374,3 +374,73 @@ export const createUser = internalAction({
     });
   },
 });
+
+const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
+
+export const requestMagicLink = internalAction({
+  args: {
+    email: v.string(),
+    orgId: v.id("orgs"),
+    ip: v.optional(v.string()),
+    baseUrl: v.optional(v.string()),
+  },
+  returns: v.object({ ok: v.literal(true) }),
+  handler: async (ctx, args): Promise<{ ok: true }> => {
+    const crypto = await import("crypto");
+
+    const orgSettings = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+      orgId: args.orgId,
+    })) as { loginMethods?: string[] } | null;
+
+    if (!orgSettings?.loginMethods?.includes("magic_link")) {
+      throw new Error("method_disabled");
+    }
+
+    const user = (await ctx.runQuery(internal.authStore.getUserByEmail, {
+      email: args.email,
+    })) as { _id: string; email: string } | null;
+
+    if (!user) {
+      return { ok: true };
+    }
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = Date.now() + MAGIC_LINK_TTL_MS;
+
+    await ctx.runMutation(internal.authStore.storeMagicLinkToken, {
+      tokenHash,
+      userId: user._id as never,
+      expiresAt,
+    });
+
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      if (resendApiKey) {
+        const { Resend } = await import("resend");
+        const resend = new Resend(resendApiKey);
+        const link = `${args.baseUrl ?? "https://app.gatekey.dev"}/auth/magic-link/verify?token=${rawToken}`;
+        await resend.emails.send({
+          from: "GateKey <noreply@gatekey.dev>",
+          to: args.email,
+          subject: "Your magic link",
+          html: `<p>Click <a href="${link}">here</a> to sign in. This link expires in 15 minutes.</p>`,
+        });
+      }
+    } catch {
+      // falha de email não interrompe o fluxo
+    }
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: user._id as string,
+      action: "auth.magiclink.sent",
+      target: { type: "session" },
+      orgId: args.orgId,
+      ip: args.ip,
+      result: "allow",
+    });
+
+    return { ok: true };
+  },
+});

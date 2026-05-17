@@ -387,6 +387,86 @@ test("loginWithPassword: sessions_per_user atingido retorna quota_exceeded", asy
 
 // ── Ciclo: mustChangePassword no login ───────────────────────────────────────
 
+// ── Ciclo Magic Link: requestMagicLink ───────────────────────────────────────
+
+test("requestMagicLink: retorna ok:true quando magic_link está habilitado na org", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  const userId = await createUser(t, "magic@test.com", "irrelevant");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["magic_link"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 7 * 24 * 3600,
+      quotas: {},
+    });
+    await ctx.db.insert("org_members", {
+      userId: userId as never,
+      orgId: orgId as never,
+      role: "member",
+      status: "active",
+    });
+  });
+
+  const result = await t.action(internal.auth.requestMagicLink, {
+    email: "magic@test.com",
+    orgId: orgId as string,
+  });
+
+  expect(result).toMatchObject({ ok: true });
+});
+
+test("requestMagicLink: retorna ok:true mesmo quando email não existe (não revela existência)", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["magic_link"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 7 * 24 * 3600,
+      quotas: {},
+    });
+  });
+
+  const result = await t.action(internal.auth.requestMagicLink, {
+    email: "naoexiste@test.com",
+    orgId: orgId as string,
+  });
+
+  expect(result).toMatchObject({ ok: true });
+});
+
+test("requestMagicLink: lança erro method_disabled quando magic_link não está nos loginMethods", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+  await createUser(t, "blocked@test.com", "irrelevant");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 7 * 24 * 3600,
+      quotas: {},
+    });
+  });
+
+  await expect(
+    t.action(internal.auth.requestMagicLink, {
+      email: "blocked@test.com",
+      orgId: orgId as string,
+    }),
+  ).rejects.toThrow("method_disabled");
+});
+
 test("loginWithPassword: usuário com mustChangePassword=true retorna flag no resultado", async () => {
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
