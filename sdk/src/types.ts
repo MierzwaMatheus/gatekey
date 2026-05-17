@@ -87,3 +87,20 @@ export interface BindingResponse {
   workspaceId: string;
   [key: string]: unknown;
 }
+
+export interface CreateApiKeyData {
+  scopes?: string[];
+  description?: string;
+}
+
+export interface ApiKeyResponse {
+  id: string;
+  scopes: string[];
+  description?: string;
+  createdAt?: number;
+  [key: string]: unknown;
+}
+
+export interface ApiKeyCreatedResponse extends ApiKeyResponse {
+  key: string;
+}
