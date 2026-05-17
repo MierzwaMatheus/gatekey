@@ -272,20 +272,20 @@
 
 ### 3.3 Painel Root — closes #9
 
-- [ ] Implementar rota `/root` protegida — redireciona para `/login` se usuário não tem role Root
-- [ ] Implementar listagem de orgs: tabela com nome, status, contagem de usuários, contagem de workspaces, última atividade
-- [ ] Implementar formulário de criação de org: campos nome e email do Org Admin inicial
-- [ ] Implementar modal de confirmação para suspender org
-- [ ] Implementar modal de confirmação para deletar org (campo de texto para confirmar o nome)
-- [ ] Implementar tela de configuração de cotas por org: campos para os 7 limites do PRD seção 7
-- [ ] Implementar listagem de sessões ativas com filtros por org e usuário
-- [ ] Implementar botão de revogar sessão individual com confirmação
-- [ ] Implementar audit log global com tabela paginada e filtros por org, período, action e result
-- [ ] Implementar paginação do audit log via cursor
-- [ ] Implementar listagem de capabilities base do catálogo global
-- [ ] Implementar formulário de adição de capability ao catálogo base
-- [ ] Implementar tela de configuração de cold storage: campos para tipo (R2/S3), bucket, credenciais
-- [ ] Implementar listagem de API Keys de qualquer org (navegando por org)
+- [x] Implementar rota `/root` protegida — redireciona para `/login` se usuário não tem role Root
+- [x] Implementar listagem de orgs: tabela com nome, status, contagem de usuários, contagem de workspaces, última atividade
+- [x] Implementar formulário de criação de org: campos nome e email do Org Admin inicial
+- [x] Implementar modal de confirmação para suspender org
+- [x] Implementar modal de confirmação para deletar org (campo de texto para confirmar o nome)
+- [x] Implementar tela de configuração de cotas por org: campos para os 7 limites do PRD seção 7
+- [x] Implementar listagem de sessões ativas com filtros por org e usuário
+- [x] Implementar botão de revogar sessão individual com confirmação
+- [x] Implementar audit log global com tabela paginada e filtros por org, período, action e result
+- [x] Implementar paginação do audit log via cursor
+- [x] Implementar listagem de capabilities base do catálogo global
+- [x] Implementar formulário de adição de capability ao catálogo base
+- [x] Implementar tela de configuração de cold storage: campos para tipo (R2/S3), bucket, credenciais
+- [x] Implementar listagem de API Keys de qualquer org (navegando por org)
 
 ### 3.4 Painel Org Admin — closes #10
 
