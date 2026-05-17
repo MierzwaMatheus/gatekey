@@ -30,7 +30,7 @@ async function setupOrgWithToken(t: ReturnType<typeof convexTest>) {
   const PASSWORD = "admin-secret-123";
   const passwordHash = await argon2.hash(PASSWORD);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",

@@ -24,7 +24,7 @@ async function setupOrgWithAdmin(t: ReturnType<typeof convexTest>) {
     ctx.db.insert("roles", { name: "admin", isBase: true }),
   );
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -103,7 +103,7 @@ test("listResourceTypes: retorna apenas tipos da própria org", async () => {
       isRoot: true,
     }),
   );
-  const orgId2 = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: orgId2 } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId2,
     name: "Other Corp",
     adminEmail: "admin2@other.io",
@@ -175,7 +175,7 @@ test("createResourceType: rejeita inheritsFrom de outra org", async () => {
       isRoot: true,
     }),
   );
-  const orgId2 = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: orgId2 } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId2,
     name: "Other Corp",
     adminEmail: "admin2@other.io",
@@ -215,7 +215,7 @@ test("POST /v1/resource-types: cria via endpoint e retorna 201", async () => {
   );
   await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -275,7 +275,7 @@ test("GET /v1/resource-types: lista tipos da org via endpoint", async () => {
   );
   await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -349,7 +349,7 @@ test("POST /v1/resource-types: inheritsFrom inválido retorna 422", async () => 
   );
   await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -403,7 +403,7 @@ test("herança: binding no folder permite acesso ao document via pdpDecide", asy
   );
   await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",

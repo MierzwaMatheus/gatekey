@@ -21,6 +21,7 @@ export const loginWithPassword = internalAction({
       accessToken: v.string(),
       refreshToken: v.string(),
       sessionId: v.string(),
+      mustChangePassword: v.boolean(),
     }),
     v.object({
       success: v.literal(false),
@@ -29,7 +30,7 @@ export const loginWithPassword = internalAction({
     }),
   ),
   handler: async (ctx, args): Promise<
-    | { success: true; accessToken: string; refreshToken: string; sessionId: string }
+    | { success: true; accessToken: string; refreshToken: string; sessionId: string; mustChangePassword: boolean }
     | { success: false; error: string; lockedUntil?: number }
   > => {
     const bcrypt = await import("bcryptjs");
@@ -54,6 +55,7 @@ export const loginWithPassword = internalAction({
       status: string;
       loginAttempts: number;
       lockedUntil?: number;
+      mustChangePassword?: boolean;
     } | null;
 
     if (!user) {
@@ -179,6 +181,7 @@ export const loginWithPassword = internalAction({
       accessToken,
       refreshToken,
       sessionId,
+      mustChangePassword: user.mustChangePassword ?? false,
     };
   },
 });
@@ -306,9 +309,46 @@ export const resetUserPassword = internalAction({
       callerId: args.callerId,
       userId: args.userId,
       passwordHash,
+      clearMustChangePassword: true,
     });
 
     return null;
+  },
+});
+
+function generateTempPassword(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map((b) => chars[b % chars.length]).join("");
+}
+
+export const createOrgWithBootstrap = internalAction({
+  args: {
+    callerId: v.id("users"),
+    name: v.string(),
+    adminEmail: v.string(),
+  },
+  returns: v.object({
+    orgId: v.id("orgs"),
+    adminTempPassword: v.union(v.string(), v.null()),
+  }),
+  handler: async (ctx, args): Promise<{ orgId: Id<"orgs">; adminTempPassword: string | null }> => {
+    const bcrypt = await import("bcryptjs");
+    const tempPassword = generateTempPassword();
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const result = (await ctx.runMutation(internal.hierarchy.createOrg, {
+      callerId: args.callerId,
+      name: args.name,
+      adminEmail: args.adminEmail,
+      adminPasswordHash: passwordHash,
+    })) as { orgId: Id<"orgs">; isNewAdmin: boolean };
+
+    return {
+      orgId: result.orgId,
+      adminTempPassword: result.isNewAdmin ? tempPassword : null,
+    };
   },
 });
 

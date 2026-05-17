@@ -68,6 +68,7 @@ http.route({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         sessionId: result.sessionId,
+        mustChangePassword: result.mustChangePassword,
       });
     } catch (e) {
       return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
@@ -224,12 +225,12 @@ http.route({
       return jsonResponse({ error: "missing_fields" }, 400);
     }
     try {
-      const orgId = await ctx.runMutation(internal.hierarchy.createOrg, {
+      const result = await ctx.runAction(internal.auth.createOrgWithBootstrap, {
         callerId: caller.callerId as never,
         name: body.name,
         adminEmail: body.adminEmail,
       });
-      return jsonResponse({ orgId });
+      return jsonResponse({ orgId: result.orgId, adminTempPassword: result.adminTempPassword });
     } catch (e) {
       const msg = (e as Error).message ?? "";
       if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);

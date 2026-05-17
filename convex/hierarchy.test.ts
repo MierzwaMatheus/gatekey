@@ -39,7 +39,7 @@ test("createOrg: Root cria org e retorna orgId", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -55,7 +55,7 @@ test("createOrg: cria org_settings padrão associada à org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -76,7 +76,7 @@ test("createOrg: cria usuário admin e o vincula à org como org_member", async 
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -177,7 +177,7 @@ test("deleteOrg: não-Root não pode deletar org", async () => {
 test("createWorkspace: Org Admin cria workspace na sua org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -232,7 +232,7 @@ test("createWorkspace: usuário sem role admin não pode criar workspace", async
 test("suspendWorkspace: Org Admin suspende workspace da sua org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -296,7 +296,7 @@ test("suspendWorkspace: usuário sem role admin não pode suspender workspace", 
 test("resetUserPassword: Org Admin reseta senha de usuário da própria org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -341,10 +341,34 @@ test("resetUserPassword: Root pode resetar senha de qualquer usuário", async ()
   expect(user?.passwordHash).not.toBe("hash");
 });
 
+test("resetUserPassword: limpa mustChangePassword após reset de senha", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const targetId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "newadmin@acme.io",
+      passwordHash: "temphash",
+      mustChangePassword: true,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.action(internal.auth.resetUserPassword, {
+    callerId: rootId,
+    userId: targetId,
+    newPassword: "novasenha123",
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(targetId));
+  expect(user?.mustChangePassword).toBe(false);
+});
+
 test("resetUserPassword: Org Admin não pode resetar senha de usuário de outra org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -389,7 +413,7 @@ async function setupOrgWithSettings(
 test("createUser: Org Admin cria usuário e retorna userId", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -664,7 +688,7 @@ test("addWorkspaceMember: workspace em cota máxima retorna erro quota_exceeded"
 test("suspendUser: Org Admin suspende usuário da própria org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -708,7 +732,7 @@ test("suspendUser: Root pode suspender qualquer usuário", async () => {
 test("suspendUser: Org Admin não pode suspender usuário de outra org", async () => {
   const t = convexTest(schema, modules);
   const rootId = await createRootUser(t);
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme",
     adminEmail: "admin@acme.io",
@@ -1141,4 +1165,47 @@ test("createUser: org em cota máxima retorna erro quota_exceeded", async () => 
       role: "member",
     }),
   ).rejects.toThrow("quota_exceeded");
+});
+
+// ── Ciclo 15: bootstrap de senha — createOrgWithBootstrap ────────────────────
+
+test("createOrgWithBootstrap: admin novo recebe tempPassword e mustChangePassword=true", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+
+  const result = await t.action(internal.auth.createOrgWithBootstrap, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  expect(result.orgId).toBeTruthy();
+  expect(result.adminTempPassword).toBeTypeOf("string");
+  expect(result.adminTempPassword!.length).toBeGreaterThan(0);
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  expect(adminUser?.mustChangePassword).toBe(true);
+  expect(adminUser?.passwordHash).not.toBe("");
+});
+
+test("createOrgWithBootstrap: admin já existente não recebe tempPassword nem altera senha", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const existingId = await createRegularUser(t, "existing@acme.io");
+  const originalHash = (await t.run((ctx) => ctx.db.get(existingId)))?.passwordHash;
+
+  const result = await t.action(internal.auth.createOrgWithBootstrap, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "existing@acme.io",
+  });
+
+  expect(result.orgId).toBeTruthy();
+  expect(result.adminTempPassword).toBeNull();
+
+  const user = await t.run((ctx) => ctx.db.get(existingId));
+  expect(user?.passwordHash).toBe(originalHash);
+  expect(user?.mustChangePassword).toBeFalsy();
 });

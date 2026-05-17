@@ -25,8 +25,9 @@ export const createOrg = internalMutation({
     callerId: v.id("users"),
     name: v.string(),
     adminEmail: v.string(),
+    adminPasswordHash: v.optional(v.string()),
   },
-  returns: v.id("orgs"),
+  returns: v.object({ orgId: v.id("orgs"), isNewAdmin: v.boolean() }),
   handler: async (ctx, args) => {
     await assertRoot(ctx, args.callerId);
 
@@ -51,16 +52,20 @@ export const createOrg = internalMutation({
       .first();
 
     let adminUserId: Id<"users">;
+    let isNewAdmin: boolean;
     if (adminUser) {
       adminUserId = adminUser._id;
+      isNewAdmin = false;
     } else {
       adminUserId = await ctx.db.insert("users", {
         email: args.adminEmail,
-        passwordHash: "",
+        passwordHash: args.adminPasswordHash ?? "",
+        mustChangePassword: args.adminPasswordHash ? true : undefined,
         status: "active",
         loginAttempts: 0,
         updatedAt: Date.now(),
       });
+      isNewAdmin = true;
     }
 
     await ctx.db.insert("org_members", {
@@ -70,7 +75,7 @@ export const createOrg = internalMutation({
       status: "active",
     });
 
-    return orgId;
+    return { orgId, isNewAdmin };
   },
 });
 
@@ -335,6 +340,7 @@ export const patchUserPasswordHash = internalMutation({
     callerId: v.id("users"),
     userId: v.id("users"),
     passwordHash: v.string(),
+    clearMustChangePassword: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -365,7 +371,11 @@ export const patchUserPasswordHash = internalMutation({
       }
     }
 
-    await ctx.db.patch(args.userId, { passwordHash: args.passwordHash, updatedAt: Date.now() });
+    await ctx.db.patch(args.userId, {
+      passwordHash: args.passwordHash,
+      updatedAt: Date.now(),
+      ...(args.clearMustChangePassword ? { mustChangePassword: false } : {}),
+    });
 
     await ctx.runMutation(internal.auditLog.writeAuditEvent, {
       actorType: "user",

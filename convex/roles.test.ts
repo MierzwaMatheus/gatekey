@@ -24,7 +24,7 @@ async function setupOrgWithAdminAndWorkspace(t: ReturnType<typeof convexTest>) {
     ctx.db.insert("roles", { name: "admin", isBase: true }),
   );
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -317,7 +317,7 @@ test("listCapabilities: NÃO retorna capabilities de outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
 
-  const orgB = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: orgB } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Other Corp",
     adminEmail: "admin@other.io",
@@ -570,7 +570,7 @@ test("capability criada em org_A não aparece em listCapabilities da org_B", asy
   const t = convexTest(schema, modules);
   const { adminId: adminA, orgId: orgA, rootId } = await setupOrgWithAdminAndWorkspace(t);
 
-  const orgB = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: orgB } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Org B",
     adminEmail: "adminb@b.io",
@@ -627,7 +627,7 @@ test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra or
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
 
-  const orgB = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: orgB } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "OrgB",
     adminEmail: "adminb@other.io",
