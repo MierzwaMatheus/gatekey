@@ -14,7 +14,7 @@ export class BindingsModule {
     const res = await this.request(`/v1/bindings?${params.toString()}`, { method: "GET" });
     const body = await res.json() as { bindings: BindingResponse[] };
     if (!res.ok) throw new GatekeyApiError(res.status, "unknown");
-    return body.bindings;
+    return body.bindings as BindingResponse<TRes>[];
   }
 
   async create<TRes extends string = string>(data: CreateBindingData<TRes>): Promise<BindingResponse<TRes>> {
@@ -25,7 +25,7 @@ export class BindingsModule {
     });
     const body = await res.json() as Record<string, unknown>;
     if (!res.ok) throw new GatekeyApiError(res.status, String(body.error ?? "unknown"));
-    return body as BindingResponse;
+    return body as BindingResponse<TRes>;
   }
 
   async delete(id: string, workspaceId: string): Promise<{ success: true }> {
