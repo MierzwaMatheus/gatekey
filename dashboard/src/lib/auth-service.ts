@@ -24,12 +24,14 @@ export interface AuthTokens {
 }
 
 export class AuthError extends Error {
-  constructor(
-    public readonly reason: string,
-    public readonly lockedUntil?: number
-  ) {
+  readonly reason: string
+  readonly lockedUntil?: number
+
+  constructor(reason: string, lockedUntil?: number) {
     super(reason)
     this.name = 'AuthError'
+    this.reason = reason
+    this.lockedUntil = lockedUntil
   }
 }
 

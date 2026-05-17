@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Navigate } from '@tanstack/react-router'
 import { useAuth, type UserRole } from '../lib/auth-context'
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -19,7 +20,7 @@ export function ProtectedRoute({ requiredRole, children }: ProtectedRouteProps) 
   const hasAccess = token && role && ROLE_HIERARCHY[role] >= ROLE_HIERARCHY[requiredRole]
 
   if (!hasAccess) {
-    return <div data-testid="redirect-to-login" />
+    return <Navigate to="/login" />
   }
 
   return <>{children}</>

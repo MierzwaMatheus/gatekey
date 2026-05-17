@@ -1,8 +1,18 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ProtectedRoute } from '../components/protected-route'
 import { AuthProvider } from '../lib/auth-context'
 import type { UserRole } from '../lib/auth-context'
+
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return {
+    ...actual,
+    Navigate: ({ to }: { to: string }) => (
+      <div data-testid="navigate-to-login" data-to={to} />
+    ),
+  }
+})
 
 function renderWithAuth(role: UserRole | null, children: React.ReactNode) {
   return render(
@@ -22,23 +32,25 @@ describe('ProtectedRoute', () => {
     expect(screen.getByTestId('protected-content')).toBeDefined()
   })
 
-  it('renders redirect when user has no role (unauthenticated)', () => {
+  it('renders Navigate to /login when user has no role (unauthenticated)', () => {
     renderWithAuth(null, (
       <ProtectedRoute requiredRole="root">
         <div data-testid="protected-content">secret</div>
       </ProtectedRoute>
     ))
     expect(screen.queryByTestId('protected-content')).toBeNull()
-    expect(screen.getByTestId('redirect-to-login')).toBeDefined()
+    const nav = screen.getByTestId('navigate-to-login')
+    expect(nav.getAttribute('data-to')).toBe('/login')
   })
 
-  it('renders redirect when user has insufficient role', () => {
+  it('renders Navigate to /login when user has insufficient role', () => {
     renderWithAuth('org_admin', (
       <ProtectedRoute requiredRole="root">
         <div data-testid="protected-content">secret</div>
       </ProtectedRoute>
     ))
     expect(screen.queryByTestId('protected-content')).toBeNull()
-    expect(screen.getByTestId('redirect-to-login')).toBeDefined()
+    const nav = screen.getByTestId('navigate-to-login')
+    expect(nav.getAttribute('data-to')).toBe('/login')
   })
 })
