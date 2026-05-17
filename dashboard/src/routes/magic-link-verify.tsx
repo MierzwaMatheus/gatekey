@@ -9,9 +9,23 @@ export function MagicLinkVerifyPage() {
   const { setAuth } = useAuth()
   const navigate = useNavigate()
   const search = useSearch({ from: Route.id }) as { token?: string }
-  const [status, setStatus] = useState<'verifying' | 'error'>('verifying')
+  const [status, setStatus] = useState<'verifying' | 'error' | 'mfa_challenge'>('verifying')
   const [errorMsg, setErrorMsg] = useState('')
+  const [mfaToken, setMfaToken] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
   const didVerify = useRef(false)
+
+  function navigateAfterLogin(accessToken: string, orgId: string) {
+    const payload = parseJwtPayload(accessToken)
+    const role = payload.orgId ? 'org_admin' : 'root'
+    setAuth({ token: accessToken, role, orgId })
+    if (role === 'root') {
+      navigate({ to: '/root' })
+    } else {
+      navigate({ to: '/org/$orgId', params: { orgId } })
+    }
+  }
 
   useEffect(() => {
     if (didVerify.current) return
@@ -25,14 +39,16 @@ export function MagicLinkVerifyPage() {
     }
 
     authService.verifyMagicLink(token).then((result) => {
-      const payload = parseJwtPayload(result.accessToken)
-      const role = payload.orgId ? 'org_admin' : 'root'
-      setAuth({ token: result.accessToken, role, orgId: result.orgId })
-      if (role === 'root') {
-        navigate({ to: '/root' })
-      } else {
-        navigate({ to: '/org/$orgId', params: { orgId: result.orgId } })
+      if ('mfa_required' in result) {
+        setMfaToken(result.mfa_token)
+        setStatus('mfa_challenge')
+        return
       }
+      if ('mfa_setup_required' in result) {
+        navigate({ to: '/login' })
+        return
+      }
+      navigateAfterLogin(result.accessToken, result.orgId)
     }).catch((err) => {
       if (err instanceof AuthError && err.reason === 'invalid_or_expired') {
         setErrorMsg('LINK EXPIRADO OU JÁ UTILIZADO.')
@@ -43,6 +59,20 @@ export function MagicLinkVerifyPage() {
     })
   }, [])
 
+  async function onMfaChallenge(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+    try {
+      const result = await authService.challengeMfa(mfaToken, mfaCode)
+      navigateAfterLogin(result.accessToken, result.orgId)
+    } catch {
+      setErrorMsg('CÓDIGO INVÁLIDO OU EXPIRADO.')
+      setStatus('error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface-page flex items-center justify-center p-4">
       <div className="w-full max-w-[480px] bg-surface-card border border-border-default p-8 text-center space-y-4">
@@ -50,12 +80,14 @@ export function MagicLinkVerifyPage() {
           <span className="text-accent-primary">//</span> MAGIC LINK / VERIFICAÇÃO
         </p>
 
-        {status === 'verifying' ? (
+        {status === 'verifying' && (
           <>
             <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="font-mono text-[13px] text-text-secondary">VALIDANDO CREDENCIAL…</p>
           </>
-        ) : (
+        )}
+
+        {status === 'error' && (
           <>
             <p className="font-mono text-[13px] text-status-deny uppercase">{errorMsg}</p>
             <button
@@ -65,6 +97,36 @@ export function MagicLinkVerifyPage() {
               ← SOLICITAR NOVO LINK
             </button>
           </>
+        )}
+
+        {status === 'mfa_challenge' && (
+          <form onSubmit={onMfaChallenge} noValidate className="space-y-4 text-left">
+            <p className="font-mono text-[11px] text-text-muted">
+              Informe o código TOTP ou código de backup para concluir o acesso.
+            </p>
+            <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
+              <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={32}
+                value={mfaCode}
+                onChange={e => setMfaCode(e.target.value)}
+                className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none tracking-widest"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isLoading || !mfaCode}
+              className="w-full py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 hover:brightness-90"
+              style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
+            >
+              {isLoading ? 'VERIFICANDO…' : 'CONFIRMAR CÓDIGO →'}
+            </button>
+          </form>
         )}
       </div>
     </div>
