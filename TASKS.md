@@ -321,8 +321,8 @@
 - [x] Implementar listagem de bindings: tabela com userId, role, resourceType, resourceId (ou "workspace inteiro")
 - [x] Implementar formulário de criação de binding: seletor usuário + seletor role + campo resourceType + campo resourceId (opcional)
 - [x] Implementar ação de revogar binding (modal de confirmação)
-- [ ] Implementar listagem de resource types registrados: nome, inheritsFrom, inheritanceMode
-- [ ] Implementar formulário de registro de resource type: nome + toggle de herança + seletor do tipo pai
+- [x] Implementar listagem de resource types registrados: nome, inheritsFrom, inheritanceMode
+- [x] Implementar formulário de registro de resource type: nome + toggle de herança + seletor do tipo pai
 - [ ] Implementar audit log do workspace: tabela paginada com filtros (hot tier)
 
 ### 3.6 Playground interativo — closes #11 (com 3.5)
