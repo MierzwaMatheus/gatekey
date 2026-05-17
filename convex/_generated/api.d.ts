@@ -21,6 +21,8 @@ import type * as http from "../http.js";
 import type * as jwt from "../jwt.js";
 import type * as jwtStore from "../jwtStore.js";
 import type * as jwtVerify from "../jwtVerify.js";
+import type * as mfa from "../mfa.js";
+import type * as mfaStore from "../mfaStore.js";
 import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
 import type * as pepMutation from "../pepMutation.js";
@@ -54,6 +56,8 @@ declare const fullApi: ApiFromModules<{
   jwt: typeof jwt;
   jwtStore: typeof jwtStore;
   jwtVerify: typeof jwtVerify;
+  mfa: typeof mfa;
+  mfaStore: typeof mfaStore;
   pdp: typeof pdp;
   pep: typeof pep;
   pepMutation: typeof pepMutation;

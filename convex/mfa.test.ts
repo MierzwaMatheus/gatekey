@@ -164,3 +164,62 @@ test("invalidateBackupCode: remove código da lista após uso", async () => {
 
   expect(config?.backupCodes).toEqual(["bbb222"]);
 });
+
+// ── Ciclo 3: verifyMfaSetup ───────────────────────────────────────────────────
+
+test("verifyMfaSetup: código TOTP válido ativa MFA e retorna 10 backup codes", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await setupUser(t);
+
+  const { TOTP, Secret } = await import("otpauth");
+  const pendingSecret = new Secret({ size: 20 }).base32;
+
+  await t.mutation(internal.mfaStore.upsertPendingMfaConfig, {
+    userId: userId as never,
+    pendingSecret,
+    pendingSecretExpiresAt: Date.now() + 600_000,
+  });
+
+  const totp = new TOTP({ algorithm: "SHA1", digits: 6, period: 30, secret: Secret.fromBase32(pendingSecret) });
+  const code = totp.generate();
+
+  const result = await t.action(internal.mfa.verifyMfaSetup, {
+    userId: userId as never,
+    totpCode: code,
+  });
+
+  expect(result.success).toBe(true);
+  if (result.success) {
+    expect(result.backupCodes.length).toBe(10);
+  }
+
+  const config = await t.query(internal.mfaStore.getActiveMfaConfig, {
+    userId: userId as never,
+  });
+  expect(config?.activatedAt).toBeTypeOf("number");
+  expect(config?.secret).toBe(pendingSecret);
+});
+
+test("verifyMfaSetup: código TOTP inválido retorna erro", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await setupUser(t);
+
+  const { Secret } = await import("otpauth");
+  const pendingSecret = new Secret({ size: 20 }).base32;
+
+  await t.mutation(internal.mfaStore.upsertPendingMfaConfig, {
+    userId: userId as never,
+    pendingSecret,
+    pendingSecretExpiresAt: Date.now() + 600_000,
+  });
+
+  const result = await t.action(internal.mfa.verifyMfaSetup, {
+    userId: userId as never,
+    totpCode: "000000",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("invalid_code");
+  }
+});
