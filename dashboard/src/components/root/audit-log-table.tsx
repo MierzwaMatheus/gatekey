@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { usePaginatedQuery } from 'convex/react'
 import {
   Plus,
   Link,
@@ -11,7 +12,9 @@ import {
   Building2,
   ScrollText,
 } from 'lucide-react'
-import { listAuditLog, type AuditEvent } from '../../lib/root-api'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import type { AuditEvent } from '../../lib/root-api'
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts
@@ -95,52 +98,30 @@ interface AuditLogTableProps {
 }
 
 export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
-  const [logs, setLogs] = useState<AuditEvent[] | null>(null)
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [isDone, setIsDone] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-
   // Filtros
   const [filterAction, setFilterAction] = useState('')
   const [filterResult, setFilterResult] = useState<'' | 'allow' | 'deny'>('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
 
-  useEffect(() => {
-    setLogs(null)
-    setCursor(null)
-    listAuditLog(token, {
-      orgId,
-      action: filterAction || undefined,
-      result: filterResult || undefined,
-      from: filterFrom ? new Date(filterFrom).getTime() : undefined,
-      to: filterTo ? new Date(filterTo).getTime() : undefined,
-      numItems: 50,
-    }).then(({ logs: page, isDone: done, cursor: cur }) => {
-      setLogs(page)
-      setIsDone(done)
-      setCursor(cur)
-    }).catch(() => setLogs([]))
-  }, [token, orgId, filterAction, filterResult, filterFrom, filterTo])
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.auditLog.listAuditLogQuery,
+    token
+      ? {
+          token,
+          orgId: (orgId as Id<'orgs'>) ?? undefined,
+          action: filterAction || undefined,
+          result: (filterResult || undefined) as 'allow' | 'deny' | undefined,
+          from: filterFrom ? new Date(filterFrom).getTime() : undefined,
+          to: filterTo ? new Date(filterTo).getTime() : undefined,
+        }
+      : 'skip',
+    { initialNumItems: 50 },
+  )
 
-  async function loadMore() {
-    if (!cursor) return
-    setLoadingMore(true)
-    try {
-      const { logs: page, isDone: done, cursor: cur } = await listAuditLog(token, {
-        orgId,
-        action: filterAction || undefined,
-        result: filterResult || undefined,
-        cursor,
-        numItems: 50,
-      })
-      setLogs((prev) => [...(prev ?? []), ...page])
-      setIsDone(done)
-      setCursor(cur)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
+  const logs = results as AuditEvent[] | undefined
+  const isDone = status === 'Exhausted'
+  const isLoading = status === 'LoadingFirstPage'
 
   return (
     <div className="space-y-3">
@@ -181,9 +162,9 @@ export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
       </div>
 
       {/* Timeline */}
-      {logs === null ? (
+      {isLoading ? (
         <LoadingSkeleton />
-      ) : logs.length === 0 ? (
+      ) : !logs || logs.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="relative">
@@ -251,15 +232,15 @@ export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
       )}
 
       {/* Carregar mais */}
-      {!isDone && logs !== null && logs.length > 0 && (
+      {!isDone && logs && logs.length > 0 && (
         <div className="flex justify-center pt-2">
           <button
             data-testid="btn-load-more"
-            onClick={loadMore}
-            disabled={loadingMore}
+            onClick={() => loadMore(50)}
+            disabled={status === 'LoadingMore'}
             className="px-4 py-2 text-sm text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
           >
-            {loadingMore ? 'Carregando…' : 'Carregar mais'}
+            {status === 'LoadingMore' ? 'Carregando…' : 'Carregar mais'}
           </button>
         </div>
       )}

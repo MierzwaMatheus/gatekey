@@ -114,7 +114,7 @@ export function WorkspacePage() {
         )
 
       case 'audit-log':
-        return <AuditLogWorkspace token={tok} wsId={wsId} />
+        return <AuditLogWorkspace token={tok} orgId={orgId ?? ''} wsId={wsId} />
 
       case 'playground':
         return <PlaygroundPanel token={tok} wsId={wsId} orgId={orgId ?? ''} />

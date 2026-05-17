@@ -1,6 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
+import { usePaginatedQuery } from 'convex/react'
 import { UserCheck, UserX, Key, Shield, Settings, Trash2 } from 'lucide-react'
-import { listAuditLog, type AuditEvent, type AuditLogPage } from '../../lib/org-api'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import type { AuditEvent } from '../../lib/org-api'
 
 function getEventIcon(action: string) {
   if (action.includes('login') || action.includes('auth')) return UserCheck
@@ -83,44 +86,25 @@ interface AuditLogOrgProps {
 }
 
 export function AuditLogOrg({ token, orgId }: AuditLogOrgProps) {
-  const [page, setPage] = useState<AuditLogPage | null>(null)
-  const [error, setError] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [actionFilter, setActionFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<'' | 'allow' | 'deny'>('')
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
 
-  const load = useCallback((cursor?: string) => {
-    abortRef.current?.abort()
-    const ac = new AbortController()
-    abortRef.current = ac
-    setError(false)
-    setLoading(true)
-
-    const params: Parameters<typeof listAuditLog>[1] = { orgId, numItems: 50 }
-    if (actionFilter) params.action = actionFilter
-    if (resultFilter) params.result = resultFilter as 'allow' | 'deny'
-    if (cursor) params.cursor = cursor
-
-    listAuditLog(token, params)
-      .then((data) => {
-        if (ac.signal.aborted) return
-        if (cursor) {
-          setPage((prev) => prev ? { ...data, logs: [...prev.logs, ...data.logs] } : data)
-        } else {
-          setPage(data)
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.auditLog.listAuditLogQuery,
+    token
+      ? {
+          token,
+          orgId: orgId as Id<'orgs'>,
+          action: actionFilter || undefined,
+          result: (resultFilter || undefined) as 'allow' | 'deny' | undefined,
         }
-      })
-      .catch(() => { if (!ac.signal.aborted) setError(true) })
-      .finally(() => { if (!ac.signal.aborted) setLoading(false) })
-  }, [token, orgId, actionFilter, resultFilter])
+      : 'skip',
+    { initialNumItems: 50 },
+  )
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => load(), 300)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [load])
+  const logs = results as AuditEvent[]
+  const isLoading = status === 'LoadingFirstPage'
+  const isDone = status === 'Exhausted'
 
   return (
     <div className="space-y-4">
@@ -145,44 +129,40 @@ export function AuditLogOrg({ token, orgId }: AuditLogOrgProps) {
       </div>
 
       {/* Timeline */}
-      {error && <div className="py-8 text-center text-sm text-status-deny">Erro ao carregar audit log.</div>}
+      <div className="border border-border-default rounded-card overflow-hidden shadow-card divide-y divide-border-default relative">
+        {/* Linha do tempo vertical */}
+        <div className="absolute left-[18px] top-0 bottom-0 w-px bg-border-default" aria-hidden="true" />
 
-      {!error && (
-        <div className="border border-border-default rounded-card overflow-hidden shadow-card divide-y divide-border-default relative">
-          {/* Linha do tempo vertical */}
-          <div className="absolute left-[18px] top-0 bottom-0 w-px bg-border-default" aria-hidden="true" />
+        {isLoading && (
+          <div className="space-y-0">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-12 bg-surface-elevated animate-pulse" />
+            ))}
+          </div>
+        )}
 
-          {page === null && (
-            <div className="space-y-0">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-12 bg-surface-elevated animate-pulse" />
-              ))}
-            </div>
-          )}
+        {!isLoading && logs.length === 0 && (
+          <div className="py-12 text-center text-sm text-text-secondary">
+            Nenhum evento encontrado com os filtros atuais.
+          </div>
+        )}
 
-          {page && page.logs.length === 0 && (
-            <div className="py-12 text-center text-sm text-text-secondary">
-              Nenhum evento encontrado com os filtros atuais.
-            </div>
-          )}
+        {logs.map((event) => (
+          <EventRow key={event._id} event={event} />
+        ))}
 
-          {page && page.logs.map((event) => (
-            <EventRow key={event._id} event={event} />
-          ))}
-
-          {page && !page.isDone && (
-            <div className="p-4 text-center">
-              <button
-                onClick={() => load(page.cursor ?? undefined)}
-                disabled={loading}
-                className="px-4 py-2 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
-              >
-                {loading ? 'Carregando…' : 'Carregar mais'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        {!isDone && logs.length > 0 && (
+          <div className="p-4 text-center">
+            <button
+              onClick={() => loadMore(50)}
+              disabled={status === 'LoadingMore'}
+              className="px-4 py-2 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
+            >
+              {status === 'LoadingMore' ? 'Carregando…' : 'Carregar mais'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

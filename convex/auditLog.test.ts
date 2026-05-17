@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import argon2 from "argon2";
 
@@ -334,4 +334,109 @@ test("listAuditLog: filtros action e result funcionam corretamente", async () =>
 
   expect(result.page.every((e) => e.action === "binding.create")).toBe(true);
   expect(result.page.every((e) => e.result === "allow")).toBe(true);
+});
+
+// ── listAuditLogQuery (real-time, public query) ───────────────────────────────
+
+async function setupForAuditLogQuery(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root2@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Audit Corp",
+    adminEmail: "audit-admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "audit-admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "test-session",
+    expiresInSeconds: 3600,
+  });
+
+  return { rootId, orgId, adminId, token };
+}
+
+test("listAuditLogQuery: retorna eventos paginados da org com JWT válido", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, token } = await setupForAuditLogQuery(t);
+
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "user",
+    actorId: adminId as string,
+    action: "user.create",
+    target: { type: "users", id: "some-id" },
+    orgId,
+    result: "allow",
+  });
+
+  const result = await t.query(api.auditLog.listAuditLogQuery, {
+    token,
+    orgId,
+    paginationOpts: { numItems: 10, cursor: null },
+  });
+
+  expect(result.page.length).toBeGreaterThan(0);
+  expect(result.page[0]).not.toHaveProperty("passwordHash");
+});
+
+test("listAuditLogQuery: novo evento aparece sem refresh manual", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, token } = await setupForAuditLogQuery(t);
+
+  const before = await t.query(api.auditLog.listAuditLogQuery, {
+    token,
+    orgId,
+    paginationOpts: { numItems: 50, cursor: null },
+  });
+  const countBefore = before.page.length as number;
+
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "user",
+    actorId: adminId as string,
+    action: "test.event",
+    target: { type: "test", id: "t1" },
+    orgId,
+    result: "allow",
+  });
+
+  const after = await t.query(api.auditLog.listAuditLogQuery, {
+    token,
+    orgId,
+    paginationOpts: { numItems: 50, cursor: null },
+  });
+  expect(after.page.length).toBe(countBefore + 1);
+});
+
+test("listAuditLogQuery: retorna página vazia com token inválido", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupForAuditLogQuery(t);
+
+  const result = await t.query(api.auditLog.listAuditLogQuery, {
+    token: "invalid.token.here",
+    orgId,
+    paginationOpts: { numItems: 10, cursor: null },
+  });
+  expect(result.page).toEqual([]);
+  expect(result.isDone).toBe(true);
 });
