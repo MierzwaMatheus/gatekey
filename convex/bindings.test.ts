@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 import argon2 from "argon2";
 
@@ -570,4 +570,105 @@ test("DELETE /v1/bindings/:id: remove binding e retorna success", async () => {
   expect(res.status).toBe(200);
   const body = await res.json() as { success: boolean };
   expect(body.success).toBe(true);
+});
+
+// ── listBindingsQuery (real-time, public query) ───────────────────────────────
+
+async function setupForBindingsQuery(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  const workspaceId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Main Workspace",
+  });
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [workspaceId as string],
+    roles: {},
+    capabilities: [],
+    sessionId: "test-session",
+    expiresInSeconds: 3600,
+  });
+
+  return { orgId, workspaceId, adminId, token };
+}
+
+test("listBindingsQuery: retorna bindings do workspace com JWT válido", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupForBindingsQuery(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer-rt", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "member-rt@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.query(api.bindings.listBindingsQuery, { token, orgId, workspaceId });
+
+  expect(Array.isArray(result)).toBe(true);
+  const found = result.find((b: { _id: string }) => b._id === bindingId);
+  expect(found).toBeDefined();
+});
+
+test("listBindingsQuery: novo binding aparece instantaneamente após criação", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, token } = await setupForBindingsQuery(t);
+
+  const before = await t.query(api.bindings.listBindingsQuery, { token, orgId, workspaceId });
+  const countBefore = before.length as number;
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer-new", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "new-rt@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: memberId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const after = await t.query(api.bindings.listBindingsQuery, { token, orgId, workspaceId });
+  expect(after.length).toBe(countBefore + 1);
+});
+
+test("listBindingsQuery: retorna array vazio com token inválido", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId } = await setupForBindingsQuery(t);
+
+  const result = await t.query(api.bindings.listBindingsQuery, {
+    token: "invalid.token.here",
+    orgId,
+    workspaceId,
+  });
+  expect(result).toEqual([]);
 });

@@ -1,6 +1,9 @@
-import { useEffect, useState, useRef } from 'react'
-import { UserRound, Plus } from 'lucide-react'
-import { listUsers, suspendUser, resetUserPassword, type UserSummary } from '../../lib/org-api'
+import { useState } from 'react'
+import { useQuery } from 'convex/react'
+import { Plus } from 'lucide-react'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import { suspendUser, resetUserPassword, type UserSummary } from '../../lib/org-api'
 
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts
@@ -153,31 +156,21 @@ function ResetPasswordModal({
 
 interface UsersListProps {
   token: string
+  orgId: string
   onAddUser: () => void
 }
 
-export function UsersList({ token, onAddUser }: UsersListProps) {
-  const [users, setUsers] = useState<UserSummary[] | null>(null)
-  const [error, setError] = useState(false)
+export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
   const [suspendTarget, setSuspendTarget] = useState<UserSummary | null>(null)
   const [resetTarget, setResetTarget] = useState<UserSummary | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
 
-  function load() {
-    abortRef.current?.abort()
-    const ac = new AbortController()
-    abortRef.current = ac
-    setError(false)
-    listUsers(token)
-      .then((data) => { if (!ac.signal.aborted) setUsers(data) })
-      .catch(() => { if (!ac.signal.aborted) setError(true) })
-  }
+  const queryResult = useQuery(
+    api.users.listUsersQuery,
+    token ? { token, orgId: orgId as Id<'orgs'> } : 'skip',
+  )
 
-  useEffect(() => {
-    load()
-    return () => abortRef.current?.abort()
-  }, [token])
+  const users = queryResult as UserSummary[] | undefined
 
   async function handleSuspend() {
     if (!suspendTarget) return
@@ -185,7 +178,6 @@ export function UsersList({ token, onAddUser }: UsersListProps) {
     try {
       await suspendUser(token, suspendTarget._id)
       setSuspendTarget(null)
-      load()
     } catch {
       // noop
     } finally {
@@ -206,16 +198,7 @@ export function UsersList({ token, onAddUser }: UsersListProps) {
     }
   }
 
-  if (error) {
-    return (
-      <div className="py-8 text-center text-sm text-status-deny">
-        Erro ao carregar usuários.
-        <button onClick={load} className="ml-2 underline cursor-pointer">Tentar novamente</button>
-      </div>
-    )
-  }
-
-  if (users === null) {
+  if (users === undefined) {
     return (
       <div className="space-y-2" data-testid="users-loading">
         {[1, 2, 3].map((i) => (

@@ -1,8 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { listWorkspaceAuditLog, type AuditEvent } from '../../lib/workspace-api'
+import { useState } from 'react'
+import { usePaginatedQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import type { AuditEvent } from '../../lib/workspace-api'
 
 interface AuditLogWorkspaceProps {
   token: string
+  orgId: string
   wsId: string
 }
 
@@ -15,53 +19,29 @@ function relativeTime(ts: number): string {
   return `${Math.floor(h / 24)}d`
 }
 
-export function AuditLogWorkspace({ token, wsId }: AuditLogWorkspaceProps) {
-  const [logs, setLogs] = useState<AuditEvent[] | null>(null)
-  const [isDone, setIsDone] = useState(true)
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
+export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps) {
   const [actionFilter, setActionFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<'allow' | 'deny' | ''>('')
 
-  const load = useCallback(
-    async (params: { action?: string; result?: 'allow' | 'deny'; cursor?: string } = {}) => {
-      const page = await listWorkspaceAuditLog(token, wsId, params)
-      return page
-    },
-    [token, wsId],
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.auditLog.listAuditLogQuery,
+    token
+      ? {
+          token,
+          orgId: orgId as Id<'orgs'>,
+          workspaceId: wsId as Id<'workspaces'>,
+          action: actionFilter || undefined,
+          result: (resultFilter || undefined) as 'allow' | 'deny' | undefined,
+        }
+      : 'skip',
+    { initialNumItems: 50 },
   )
 
-  useEffect(() => {
-    setLogs(null)
-    const params: Parameters<typeof listWorkspaceAuditLog>[2] = {}
-    if (actionFilter) params.action = actionFilter
-    if (resultFilter) params.result = resultFilter
-    load(params)
-      .then((page) => {
-        setLogs(page.logs)
-        setIsDone(page.isDone)
-        setCursor(page.cursor)
-      })
-      .catch(() => setLogs([]))
-  }, [load, actionFilter, resultFilter])
+  const logs = results as AuditEvent[]
+  const isLoading = status === 'LoadingFirstPage'
+  const isDone = status === 'Exhausted'
 
-  async function loadMore() {
-    if (!cursor) return
-    setLoadingMore(true)
-    try {
-      const params: Parameters<typeof listWorkspaceAuditLog>[2] = { cursor }
-      if (actionFilter) params.action = actionFilter
-      if (resultFilter) params.result = resultFilter
-      const page = await listWorkspaceAuditLog(token, wsId, params)
-      setLogs((prev) => [...(prev ?? []), ...page.logs])
-      setIsDone(page.isDone)
-      setCursor(page.cursor)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  if (logs === null) {
+  if (isLoading) {
     return (
       <div data-testid="audit-log-loading" className="space-y-2">
         {[1, 2, 3].map((i) => (
@@ -142,11 +122,11 @@ export function AuditLogWorkspace({ token, wsId }: AuditLogWorkspaceProps) {
             <div className="flex justify-center pt-2">
               <button
                 data-testid="btn-load-more"
-                onClick={loadMore}
-                disabled={loadingMore}
+                onClick={() => loadMore(50)}
+                disabled={status === 'LoadingMore'}
                 className="px-4 py-2 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover disabled:opacity-60 cursor-pointer"
               >
-                {loadingMore ? 'Carregando…' : 'Carregar mais'}
+                {status === 'LoadingMore' ? 'Carregando…' : 'Carregar mais'}
               </button>
             </div>
           )}

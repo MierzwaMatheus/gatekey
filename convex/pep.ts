@@ -5,7 +5,7 @@ import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { type AuthContext, type ApiKeyContext, extractJwtContext } from "./pepUtils";
-import { verifyJwtToken } from "./jwt";
+import { verifyJwtToken } from "./jwtVerify";
 
 const API_KEY_PREFIX = "gk_live_pk_";
 

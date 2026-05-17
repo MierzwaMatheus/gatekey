@@ -1,7 +1,8 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { verifyJwtToken } from "./jwtVerify";
 
 const DEFAULT_QUOTA_USERS_PER_ORG = 50;
 
@@ -313,6 +314,69 @@ export const getUserPermissions = internalQuery({
     }
 
     return result;
+  },
+});
+
+// ── listUsersQuery — query pública para real-time via useQuery ────────────────
+
+export const listUsersQuery = query({
+  args: {
+    token: v.string(),
+    orgId: v.id("orgs"),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const keys = await ctx.db
+      .query("key_pairs")
+      .withIndex("by_status_and_createdAt", (q) => q.eq("status", "active"))
+      .take(10);
+
+    let callerId: Id<"users">;
+    try {
+      const payload = await verifyJwtToken(
+        args.token,
+        keys.map((k) => ({ publicKeyJwk: k.publicKeyJwk })),
+      );
+      callerId = payload.sub as Id<"users">;
+    } catch {
+      return [];
+    }
+
+    const caller = await ctx.db.get(callerId);
+    if (!caller) return [];
+
+    if (!caller.isRoot) {
+      const callerMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!callerMembership || callerMembership.role !== "admin") return [];
+    }
+
+    const members = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("orgId"), args.orgId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .take(200);
+
+    const users = [];
+    for (const m of members) {
+      const user = await ctx.db.get(m.userId);
+      if (!user) continue;
+      const { passwordHash: _pw, ...safeUser } = user;
+      users.push({ ...safeUser, orgRole: m.role, orgStatus: m.status });
+    }
+    return users;
   },
 });
 

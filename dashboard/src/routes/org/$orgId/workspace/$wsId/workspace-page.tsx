@@ -81,7 +81,7 @@ export function WorkspacePage() {
       case 'bindings':
         return (
           <div className="space-y-6">
-            <BindingsList key={bindingsKey} token={tok} wsId={wsId} />
+            <BindingsList token={tok} orgId={orgId} wsId={wsId} />
             {showCreateBinding && (
               <div className="border-t border-border-default pt-6">
                 <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">Novo Binding</p>
@@ -114,7 +114,7 @@ export function WorkspacePage() {
         )
 
       case 'audit-log':
-        return <AuditLogWorkspace token={tok} wsId={wsId} />
+        return <AuditLogWorkspace token={tok} orgId={orgId ?? ''} wsId={wsId} />
 
       case 'playground':
         return <PlaygroundPanel token={tok} wsId={wsId} orgId={orgId ?? ''} />
