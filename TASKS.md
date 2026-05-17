@@ -74,7 +74,7 @@
 ### 1.3 PEP (Policy Enforcement Point) — closes #2 (com 1.2)
 
 - [x] Criar função `extractJwtContext(authHeader)` — valida Bearer token, retorna `{userId, orgId, sessionId, workspaceIds, roles}`
-- [x] Criar função `extractApiKeyContext(authHeader)` — valida `gk_live_pk_...`, faz hash argon2id, compara com banco, retorna `{orgId, scopes, keyId}`
+- [x] Criar função `extractApiKeyContext(authHeader)` — valida `gk_live_pk_...`, faz hash bcryptjs, compara com banco, retorna `{orgId, scopes, keyId}`
 - [x] Criar função `resolveAuthContext(authHeader)` — escolhe entre JWT e API Key baseado no prefixo do token
 - [x] Criar wrapper `withPep(handler, {requiredCapability?, requiredScope?})` para Convex HTTP Actions — extrai contexto, chama PDP, bloqueia se DENY
 - [x] Criar wrapper `withPepMutation(mutationFn, requiredCapability)` para Convex mutations internas
@@ -92,7 +92,7 @@
 - [x] Implementar payload completo: `sub` (userId), `orgId`, `workspaceIds[]`, `roles{}`, `capabilities[]`, `sessionId`, `iat`, `exp`
 - [x] Implementar função `verifyJwt(token)` — valida assinatura com chave pública e verifica `exp`
 - [x] Implementar endpoint `GET /v1/auth/.well-known/jwks` — retorna chave pública em formato JWKS (sem autenticação)
-- [x] Implementar geração de refresh token: 32 bytes aleatórios, hash argon2id armazenado em `sessions.refreshTokenHash`
+- [x] Implementar geração de refresh token: 32 bytes aleatórios, hash bcryptjs armazenado em `sessions.refreshTokenHash`
 - [x] Implementar rotação de refresh token: ao usar, invalidar sessão atual (inserir na blacklist) e criar nova sessão com novo token
 - [x] Implementar leitura de `org_settings.jwtExpiryAccess` e `jwtExpiryRefresh` para configurar `exp` do token
 - [x] Escrever teste: JWT emitido é verificável usando a chave pública retornada pelo JWKS
@@ -102,8 +102,8 @@
 ### 1.5 Login por email + senha — closes #4
 
 - [x] Implementar `POST /v1/auth/login` — recebe `{email, password}`, valida credenciais, cria sessão, emite access + refresh token
-- [x] Implementar hash de senha com argon2id via Convex Action (Node runtime) na criação de usuário
-- [x] Implementar verificação de hash argon2id no login: `argon2.verify(storedHash, inputPassword)`
+- [x] Implementar hash de senha com bcryptjs via Convex Action (Node runtime) na criação de usuário
+- [x] Implementar verificação de hash bcryptjs no login: `bcrypt.compare(inputPassword, storedHash)`
 - [x] Implementar criação de registro em `sessions` a cada login bem-sucedido: userId, refreshTokenHash, expiresAt, ip, deviceInfo
 - [x] Implementar `POST /v1/auth/refresh` — valida refresh token (hash comparison), insere sessionId antigo na blacklist, cria nova sessão, emite novo par
 - [x] Implementar `POST /v1/auth/logout` — extrai sessionId do JWT, insere na `session_blacklist` com TTL = `exp` do token
@@ -214,10 +214,10 @@
 
 ### 2.7 API Keys com escopos — closes #7
 
-- [x] Implementar `POST /v1/api-keys` — gera `publicId` (`gk_live_pk_` + 24 chars aleatórios), gera secret (32 bytes), armazena `argon2id(secret)`, retorna secret em plaintext apenas nesta resposta; PEP requer role org_admin
+- [x] Implementar `POST /v1/api-keys` — gera `publicId` (`gk_live_pk_` + 24 chars aleatórios), gera secret (32 bytes), armazena `bcryptjs(secret)`, retorna secret em plaintext apenas nesta resposta; PEP requer role org_admin
 - [x] Implementar `GET /v1/api-keys` — lista keys da org com metadata (publicId, scopes, description, lastUsedAt, status) sem secret; PEP requer role org_admin
 - [x] Implementar `DELETE /v1/api-keys/:id` — muda status para `revoked`; PEP requer role org_admin
-- [x] Implementar validação de API Key no PEP: recebe valor bruto no header, faz argon2id hash, compara com `secretHash` no banco
+- [x] Implementar validação de API Key no PEP: recebe valor bruto no header, faz bcryptjs hash, compara com `secretHash` no banco
 - [x] Implementar verificação de escopo no PEP: após validar a key, verificar se `scopes[]` contém o escopo requerido pelo endpoint
 - [x] Implementar atualização de `lastUsedAt` e `lastUsedIp` a cada uso bem-sucedido da key
 - [x] Implementar verificação de cota `api_keys_per_org` em `POST /v1/api-keys`
@@ -492,7 +492,7 @@
 - [ ] Implementar prompt: senha do Root (input mascarado + confirmação)
 - [ ] Implementar step `deploySchema` — executa deploy do schema Convex usando a deploy key fornecida
 - [ ] Implementar step `generateKeyPair` — chama `initializeKeyPair` Convex Action
-- [ ] Implementar step `createRootUser` — chama mutation de criação de Root com hash argon2id
+- [ ] Implementar step `createRootUser` — chama mutation de criação de Root com hash bcryptjs
 - [ ] Implementar step `saveEnvConfig` — grava variáveis de ambiente da instância em `.env.gatekey`
 - [ ] Implementar step `configureColdStorage` — salva configurações de bucket na instância (quando não skippado)
 - [ ] Gravar credenciais root em `.gatekey-root` (formato JSON ou dotenv)
