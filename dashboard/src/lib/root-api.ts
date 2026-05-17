@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_CONVEX_URL as string
+const BASE_URL = (import.meta.env.VITE_CONVEX_SITE_URL ?? import.meta.env.VITE_CONVEX_URL) as string
 
 async function apiFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {

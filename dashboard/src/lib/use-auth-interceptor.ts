@@ -2,9 +2,15 @@ import { useEffect, useCallback } from 'react'
 import { useAuth } from './auth-context'
 import { authService } from './auth-service'
 
+function base64urlDecode(str: string): string {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
+  return atob(padded)
+}
+
 export function parseJwtExp(token: string): number {
   const [, payload] = token.split('.')
-  const decoded = JSON.parse(atob(payload)) as { exp: number }
+  const decoded = JSON.parse(base64urlDecode(payload)) as { exp: number }
   return decoded.exp
 }
 

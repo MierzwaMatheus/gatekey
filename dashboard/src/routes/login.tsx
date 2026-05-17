@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useState } from 'react'
 import { Route as rootRoute } from './__root'
 import { loginSchema, type LoginFormData } from '../lib/schemas'
-import { authService, AuthError } from '../lib/auth-service'
+import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
 import { useAuth } from '../lib/auth-context'
 import { useNavigate } from '@tanstack/react-router'
 
@@ -28,9 +28,11 @@ export function LoginPage() {
 
     try {
       const result = await authService.login(data.email, data.password)
+      const payload = parseJwtPayload(result.accessToken)
+      const role = payload.orgId ? 'org_admin' : 'root'
       setAuth({
         token: result.accessToken,
-        role: 'org_admin',
+        role,
         orgId: result.orgId,
       })
       navigate({ to: '/root' })

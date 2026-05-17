@@ -44,33 +44,34 @@ http.route({
   path: "/v1/auth/login",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    let body: { email?: string; password?: string };
     try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "invalid_body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+      let body: { email?: string; password?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return withCors({ error: "invalid_body" }, 400);
+      }
+      if (!body.email || !body.password) {
+        return withCors({ error: "missing_fields" }, 400);
+      }
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.auth.loginWithPassword, {
+        email: body.email,
+        password: body.password,
+        ip,
       });
+      if (!result.success) {
+        const status = result.error === "account_locked" ? 429 : 401;
+        return withCors({ error: result.error, lockedUntil: result.lockedUntil }, status);
+      }
+      return withCors({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        sessionId: result.sessionId,
+      });
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
     }
-    if (!body.email || !body.password) {
-      return withCors({ error: "missing_fields" }, 400);
-    }
-    const ip = req.headers.get("x-forwarded-for") ?? undefined;
-    const result = await ctx.runAction(internal.auth.loginWithPassword, {
-      email: body.email,
-      password: body.password,
-      ip,
-    });
-    if (!result.success) {
-      const status = result.error === "account_locked" ? 429 : 401;
-      return withCors({ error: result.error, lockedUntil: result.lockedUntil }, status);
-    }
-    return withCors({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      sessionId: result.sessionId,
-    });
   }),
 });
 

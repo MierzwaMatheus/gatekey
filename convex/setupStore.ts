@@ -23,6 +23,20 @@ export const setUserIsRoot = internalMutation({
   },
 });
 
+export const updateRootPasswordHash = internalMutation({
+  args: { passwordHash: v.string() },
+  returns: v.null(),
+  handler: async (ctx, { passwordHash }) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("isRoot"), true))
+      .first();
+    if (!user) throw new Error("root_user_not_found");
+    await ctx.db.patch(user._id, { passwordHash, updatedAt: Date.now() });
+    return null;
+  },
+});
+
 export const createRootUser = internalMutation({
   args: { email: v.string(), passwordHash: v.string() },
   returns: v.union(

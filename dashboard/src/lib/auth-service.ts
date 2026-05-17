@@ -52,14 +52,20 @@ export function getStoredTokens(): (AuthTokens & { orgId: string }) | null {
   const sessionId = localStorage.getItem(STORAGE_KEYS.sessionId)
   const orgId = localStorage.getItem(STORAGE_KEYS.orgId)
 
-  if (!accessToken || !refreshToken || !sessionId || !orgId) return null
+  if (!accessToken || !refreshToken || !sessionId || orgId === null) return null
 
   return { accessToken, refreshToken, sessionId, orgId }
 }
 
+function base64urlDecode(str: string): string {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
+  return atob(padded)
+}
+
 export function parseJwtPayload(token: string): TokenPayload {
   const [, payload] = token.split('.')
-  return JSON.parse(atob(payload)) as TokenPayload
+  return JSON.parse(base64urlDecode(payload)) as TokenPayload
 }
 
 async function login(email: string, password: string): Promise<AuthTokens & { orgId: string }> {
