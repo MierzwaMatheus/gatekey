@@ -253,7 +253,7 @@
 
 - [x] Inicializar projeto React + Vite na pasta `/dashboard`
 - [x] Configurar TanStack Router com estrutura de rotas protegidas por role
-- [ ] Configurar `ConvexProvider` do `convex/react`
+- [x] Configurar `ConvexProvider` do `convex/react`
 - [x] Instalar shadcn/ui e configurar Tailwind
 - [x] Definir variáveis CSS no `globals.css`: `--gate-midnight: #0D1117`, `--gate-iron: #1C2333`, `--gate-steel: #30363D`, `--gate-key: #F0A500`, `--gate-key-dim: #7D5500`, `--gate-safe: #3FB950`, `--gate-danger: #F85149`, `--gate-text: #C9D1D9`, `--gate-muted: #8B949E`
 - [x] Configurar fonte Inter para interface e JetBrains Mono para código e tokens via CSS
