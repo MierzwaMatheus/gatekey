@@ -13,15 +13,37 @@ import { AuditLogOrg } from '../../../components/org/audit-log-org'
 import { ColdStorageDownload } from '../../../components/org/cold-storage-download'
 import { OrgSettings } from '../../../components/org/org-settings'
 import { LogOut, Plus } from 'lucide-react'
+import { PageHeader } from '../../../components/ui/page-header'
 
-const SECTION_TITLES: Record<OrgSection, string> = {
-  users: 'Usuários',
-  workspaces: 'Workspaces',
-  capabilities: 'Capabilities',
-  'api-keys': 'API Keys',
-  'audit-log': 'Audit Log',
-  'cold-storage': 'Cold Storage',
-  settings: 'Configurações',
+const SECTION_META: Record<OrgSection, { number: string; title: string; module: string; submodule: string; description: string }> = {
+  users: {
+    number: '01', title: 'Usuários', module: 'USERS', submodule: 'LIST',
+    description: 'Usuários ativos na organização. Gerencie membros, papéis e senhas temporárias.',
+  },
+  workspaces: {
+    number: '02', title: 'Workspaces', module: 'WORKSPACES', submodule: 'LIST',
+    description: 'Workspaces da organização. Crie e gerencie ambientes isolados de permissão.',
+  },
+  capabilities: {
+    number: '03', title: 'Capabilities', module: 'CAPABILITIES', submodule: 'LIST',
+    description: 'Permissões globais disponíveis para atribuição em workspaces desta organização.',
+  },
+  'api-keys': {
+    number: '04', title: 'API Keys', module: 'API-KEYS', submodule: 'BROWSER',
+    description: 'Chaves de API emitidas no escopo desta organização.',
+  },
+  'audit-log': {
+    number: '05', title: 'Audit Log', module: 'AUDIT', submodule: 'LOG',
+    description: 'Registro de operações realizadas no contexto desta organização.',
+  },
+  'cold-storage': {
+    number: '06', title: 'Cold Storage', module: 'STORAGE', submodule: 'COLD',
+    description: 'Configuração de armazenamento frio para dados desta organização.',
+  },
+  settings: {
+    number: '07', title: 'Configurações', module: 'SETTINGS', submodule: 'ORG',
+    description: 'Configurações gerais da organização.',
+  },
 }
 
 export function OrgPage() {
@@ -143,25 +165,27 @@ export function OrgPage() {
   return (
     <OrgLayout activeSection={section} onSectionChange={setSection} orgId={orgId}>
       <div className="p-6 space-y-5">
-        {/* Page header */}
-        <div className="flex items-center justify-between pb-4 border-b border-border-default">
-          <h1 className="text-[18px] font-medium text-text-primary">
-            {SECTION_TITLES[section]}
-          </h1>
-          <div className="flex items-center gap-2">
-            {renderActionButton()}
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
-            >
-              <LogOut size={13} />
-              {isLoggingOut ? 'Saindo…' : 'Sair'}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          {...SECTION_META[section]}
+          scope="ORG"
+          context={`org_${orgId.slice(-6)}`}
+          tenant={orgId.slice(-8)}
+          caller="org_admin@gatekey"
+          actions={
+            <>
+              {renderActionButton()}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                <LogOut size={13} />
+                {isLoggingOut ? 'Saindo…' : 'Sair'}
+              </button>
+            </>
+          }
+        />
 
-        {/* Section content */}
         {renderSection()}
       </div>
     </OrgLayout>

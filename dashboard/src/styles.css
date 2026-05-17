@@ -1,23 +1,42 @@
 /* ---------- GateKey · admin · cyberpunk minimal ---------- */
+
+/* ── Paleta bruta (fonte única da verdade) ────────────────── */
 :root {
-  --bg:            #0d1117;
-  --sidebar:       #0a0e14;
-  --card:          #141b26;
-  --card-elev:     #1c2333;
-  --border:        #232a36;
-  --border-strong: #30363d;
-  --border-soft:   #1a212c;
-  --text:          #c9d1d9;
+  --gate-midnight: #0D1117;
+  --gate-void:     #0A0E14;
+  --gate-shadow:   #141B26;
+  --gate-iron:     #1C2333;
+  --gate-steel:    #30363D;
+  --gate-dim:      #232A36;
+  --gate-dim-soft: #1A212C;
+  --gate-key:      #F0A500;
+  --gate-key-mid:  #B07A00;
+  --gate-key-dim:  #7D5500;
+  --gate-safe:     #3FB950;
+  --gate-danger:   #F85149;
+  --gate-text:     #C9D1D9;
+  --gate-muted:    #8B949E;
+}
+
+:root {
+  --bg:            var(--gate-midnight);
+  --sidebar:       var(--gate-void);
+  --card:          var(--gate-shadow);
+  --card-elev:     var(--gate-iron);
+  --border:        var(--gate-dim);
+  --border-strong: var(--gate-steel);
+  --border-soft:   var(--gate-dim-soft);
+  --text:          var(--gate-text);
   --text-strong:   #e6edf3;
-  --muted:         #8b949e;
+  --muted:         var(--gate-muted);
   --muted-2:       #6e7681;
   --muted-3:       #4d5560;
-  --accent:        #f0a500;
-  --accent-dim:    #b07a00;
+  --accent:        var(--gate-key);
+  --accent-dim:    var(--gate-key-mid);
   --accent-soft:   rgba(240, 165, 0, 0.08);
   --accent-soft-2: rgba(240, 165, 0, 0.14);
-  --green:         #3fb950;
-  --red:           #f85149;
+  --green:         var(--gate-safe);
+  --red:           var(--gate-danger);
   --row-hover:     rgba(255, 255, 255, 0.025);
   --row-focus:     rgba(240, 165, 0, 0.04);
   --mono:    "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
