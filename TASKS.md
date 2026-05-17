@@ -264,11 +264,11 @@
 
 ### 3.2 Autenticação no dashboard — pré-requisito para #9, #10, #11
 
-- [ ] Implementar tela `/login` com formulário de email + senha usando React Hook Form + Zod
-- [ ] Implementar chamada a `POST /v1/auth/login` e armazenamento de tokens (httpOnly cookie ou localStorage com cuidados)
-- [ ] Implementar interceptor de requisições que renova access token automaticamente chamando `POST /v1/auth/refresh` quando `exp` está próximo
-- [ ] Implementar redirect automático para `/login` quando qualquer requisição retorna 401
-- [ ] Implementar botão de logout que chama `POST /v1/auth/logout` e limpa tokens locais
+- [x] Implementar tela `/login` com formulário de email + senha usando React Hook Form + Zod
+- [x] Implementar chamada a `POST /v1/auth/login` e armazenamento de tokens (httpOnly cookie ou localStorage com cuidados)
+- [x] Implementar interceptor de requisições que renova access token automaticamente chamando `POST /v1/auth/refresh` quando `exp` está próximo
+- [x] Implementar redirect automático para `/login` quando qualquer requisição retorna 401
+- [x] Implementar botão de logout que chama `POST /v1/auth/logout` e limpa tokens locais
 
 ### 3.3 Painel Root — closes #9
 

@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-router": "^1.170.3",
     "convex": "^1.39.1",
     "framer-motion": "^12.38.0",
