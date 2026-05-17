@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -26,6 +26,80 @@ async function setupBase(t: ReturnType<typeof convexTest>) {
   );
   return { orgId, userId };
 }
+
+// ── listSessionsQuery (real-time, public query) ───────────────────────────────
+
+test("listSessionsQuery: retorna sessões ativas com JWT válido", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { orgId, userId } = await setupBase(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() + 60_000,
+      ip: "1.2.3.4",
+    }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "test-session",
+    expiresInSeconds: 3600,
+  });
+
+  const result = await t.query(api.sessions.listSessionsQuery, { token, orgId });
+
+  expect(result).toHaveLength(1);
+  expect(result[0]._id).toBe(sessionId);
+});
+
+test("listSessionsQuery: sessão revogada não aparece na lista", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { orgId, userId } = await setupBase(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "rth",
+      expiresAt: Date.now() + 60_000,
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("session_blacklist", { sessionId, expiresAt: Date.now() + 60_000 }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "test-session",
+    expiresInSeconds: 3600,
+  });
+
+  const result = await t.query(api.sessions.listSessionsQuery, { token, orgId });
+  expect(result).toHaveLength(0);
+});
+
+test("listSessionsQuery: retorna array vazio com token inválido", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { orgId } = await setupBase(t);
+
+  const result = await t.query(api.sessions.listSessionsQuery, {
+    token: "invalid.token.here",
+    orgId,
+  });
+  expect(result).toEqual([]);
+});
 
 // ── Ciclo 1: listSessions ─────────────────────────────────────────────────────
 

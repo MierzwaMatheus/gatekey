@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from 'convex/react'
 import { MonitorDot, X } from 'lucide-react'
-import { listSessions, revokeSession, type SessionSummary } from '../../lib/root-api'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import { revokeSession, type SessionSummary } from '../../lib/root-api'
 
 
 function formatExpiry(ts: number): string {
@@ -83,22 +86,26 @@ interface SessionsListProps {
 }
 
 export function SessionsList({ token }: SessionsListProps) {
-  const [sessions, setSessions] = useState<SessionSummary[] | null>(null)
   const [userIdFilter, setUserIdFilter] = useState('')
   const [orgIdFilter, setOrgIdFilter] = useState('')
   const [revoking, setRevoking] = useState<SessionSummary | null>(null)
   const [revokeLoading, setRevokeLoading] = useState(false)
 
-  const load = useCallback(() => {
-    setSessions(null)
-    listSessions(token, userIdFilter || undefined).then(setSessions).catch(() => setSessions([]))
-  }, [token, userIdFilter])
+  const queryResult = useQuery(
+    api.sessions.listSessionsQuery,
+    token
+      ? {
+          token,
+          userId: (userIdFilter || undefined) as Id<'users'> | undefined,
+        }
+      : 'skip',
+  )
 
-  useEffect(() => { load() }, [load])
+  const sessions = queryResult as SessionSummary[] | undefined
 
   const filtered = sessions?.filter((s) =>
     (!orgIdFilter || s.orgId === orgIdFilter),
-  ) ?? null
+  )
 
   async function handleRevoke() {
     if (!revoking) return
@@ -106,7 +113,6 @@ export function SessionsList({ token }: SessionsListProps) {
     try {
       await revokeSession(token, revoking._id)
       setRevoking(null)
-      load()
     } finally {
       setRevokeLoading(false)
     }
@@ -135,7 +141,7 @@ export function SessionsList({ token }: SessionsListProps) {
       </div>
 
       {/* Lista */}
-      {filtered === null ? (
+      {filtered === undefined ? (
         <LoadingSkeleton />
       ) : filtered.length === 0 ? (
         <EmptyState />

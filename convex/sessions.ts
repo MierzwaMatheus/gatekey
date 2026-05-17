@@ -1,6 +1,8 @@
-import { internalAction, internalQuery } from "./_generated/server";
+import { internalAction, internalQuery, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { verifyJwtToken } from "./jwtVerify";
 
 export const listSessions = internalQuery({
   args: {
@@ -55,6 +57,100 @@ export const listSessions = internalQuery({
         .withIndex("by_userId", (q) => q.eq("userId", uid as never))
         .collect();
 
+      for (const session of sessions) {
+        if (session.expiresAt <= now) continue;
+        const blacklisted = await ctx.db
+          .query("session_blacklist")
+          .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+          .first();
+        if (blacklisted) continue;
+        result.push(session);
+      }
+    }
+    return result;
+  },
+});
+
+// ── listSessionsQuery — query pública para real-time via useQuery ─────────────
+
+export const listSessionsQuery = query({
+  args: {
+    token: v.string(),
+    orgId: v.optional(v.id("orgs")),
+    userId: v.optional(v.id("users")),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const keys = await ctx.db
+      .query("key_pairs")
+      .withIndex("by_status_and_createdAt", (q) => q.eq("status", "active"))
+      .take(10);
+
+    let callerId: Id<"users">;
+    try {
+      const payload = await verifyJwtToken(
+        args.token,
+        keys.map((k) => ({ publicKeyJwk: k.publicKeyJwk })),
+      );
+      callerId = payload.sub as Id<"users">;
+    } catch {
+      return [];
+    }
+
+    const caller = await ctx.db.get(callerId);
+    if (!caller) return [];
+
+    const isRoot = caller.isRoot === true;
+
+    if (!isRoot && args.orgId) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), callerId),
+            q.eq(q.field("orgId"), args.orgId!),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") return [];
+    } else if (!isRoot) {
+      return [];
+    }
+
+    const now = Date.now();
+    let userIds: string[];
+
+    if (args.userId) {
+      userIds = [args.userId];
+    } else if (isRoot && !args.orgId) {
+      const allSessions = await ctx.db.query("sessions").collect();
+      const result = [];
+      for (const session of allSessions) {
+        if (session.expiresAt <= now) continue;
+        const blacklisted = await ctx.db
+          .query("session_blacklist")
+          .withIndex("by_sessionId", (q) => q.eq("sessionId", session._id))
+          .first();
+        if (!blacklisted) result.push(session);
+      }
+      return result;
+    } else if (args.orgId) {
+      const members = await ctx.db
+        .query("org_members")
+        .filter((q) => q.eq(q.field("orgId"), args.orgId!))
+        .collect();
+      userIds = members.map((m) => m.userId);
+    } else {
+      return [];
+    }
+
+    const result = [];
+    for (const uid of userIds) {
+      const sessions = await ctx.db
+        .query("sessions")
+        .withIndex("by_userId", (q) => q.eq("userId", uid as never))
+        .collect();
       for (const session of sessions) {
         if (session.expiresAt <= now) continue;
         const blacklisted = await ctx.db
