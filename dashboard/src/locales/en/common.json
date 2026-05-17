@@ -1,0 +1,11 @@
+{
+  "app_name": "GateKey",
+  "loading": "Loading...",
+  "error": "Error",
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "delete": "Delete",
+  "back": "Back",
+  "logout": "Logout"
+}
