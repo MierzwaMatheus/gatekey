@@ -260,7 +260,7 @@
 - [x] Instalar e configurar React Hook Form + Zod para validação de formulários
 - [x] Instalar e configurar i18next com `i18next-browser-languagedetector`
 - [x] Criar estrutura de rotas: `/login`, `/root/*`, `/org/:orgId/*`, `/org/:orgId/workspace/:wsId/*`
-- [ ] Criar componente `ProtectedRoute` que verifica role antes de renderizar
+- [x] Criar componente `ProtectedRoute` que verifica role antes de renderizar
 
 ### 3.2 Autenticação no dashboard — pré-requisito para #9, #10, #11
 
