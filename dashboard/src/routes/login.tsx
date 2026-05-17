@@ -25,6 +25,7 @@ function UtcClock() {
 }
 
 type Tab = 'password' | 'magic-link'
+type LoginPhase = 'credentials' | 'mfa_challenge' | 'mfa_setup'
 
 export function LoginPage() {
   const { setAuth } = useAuth()
@@ -35,6 +36,12 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [magicLinkSent, setMagicLinkSent] = useState(false)
   const [magicEmail, setMagicEmail] = useState('')
+  const [phase, setPhase] = useState<LoginPhase>('credentials')
+  const [mfaToken, setMfaToken] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaSetupSecret, setMfaSetupSecret] = useState('')
+  const [mfaSetupQr, setMfaSetupQr] = useState('')
+  const [mfaBackupCodes, setMfaBackupCodes] = useState<string[]>([])
 
   const {
     register,
@@ -44,21 +51,39 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   })
 
+  function navigateAfterLogin(accessToken: string, orgId: string, mustChangePassword = false) {
+    const payload = parseJwtPayload(accessToken)
+    const role = payload.orgId ? 'org_admin' : 'root'
+    setAuth({ token: accessToken, role, orgId })
+    if (mustChangePassword) {
+      navigate({ to: '/change-password' })
+    } else if (role === 'root') {
+      navigate({ to: '/root' })
+    } else {
+      navigate({ to: '/org/$orgId', params: { orgId } })
+    }
+  }
+
   async function onSubmit(data: LoginFormData) {
     setIsLoading(true)
     setApiError(null)
     try {
       const result = await authService.login(data.email, data.password)
-      const payload = parseJwtPayload(result.accessToken)
-      const role = payload.orgId ? 'org_admin' : 'root'
-      setAuth({ token: result.accessToken, role, orgId: result.orgId })
-      if (result.mustChangePassword) {
-        navigate({ to: '/change-password' })
-      } else if (role === 'root') {
-        navigate({ to: '/root' })
-      } else {
-        navigate({ to: '/org/$orgId', params: { orgId: result.orgId } })
+      if ('mfa_required' in result) {
+        setMfaToken(result.mfa_token)
+        setPhase('mfa_challenge')
+        return
       }
+      if ('mfa_setup_required' in result) {
+        const setupToken = result.mfa_setup_token
+        setMfaToken(setupToken)
+        const setup = await authService.setupMfa(setupToken)
+        setMfaSetupSecret(setup.secret)
+        setMfaSetupQr(setup.qrCodeUrl)
+        setPhase('mfa_setup')
+        return
+      }
+      navigateAfterLogin(result.accessToken, result.orgId, result.mustChangePassword)
     } catch (err) {
       if (err instanceof AuthError) {
         if (err.reason === 'invalid_credentials') {
@@ -71,6 +96,34 @@ export function LoginPage() {
       } else {
         setApiError('ERRO INESPERADO. TENTE NOVAMENTE.')
       }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function onMfaChallenge(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+    setApiError(null)
+    try {
+      const result = await authService.challengeMfa(mfaToken, mfaCode)
+      navigateAfterLogin(result.accessToken, result.orgId)
+    } catch {
+      setApiError('CÓDIGO INVÁLIDO OU EXPIRADO.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function onMfaSetupVerify(e: React.FormEvent) {
+    e.preventDefault()
+    setIsLoading(true)
+    setApiError(null)
+    try {
+      const result = await authService.verifyMfaSetup(mfaToken, mfaCode)
+      setMfaBackupCodes(result.backupCodes)
+    } catch {
+      setApiError('CÓDIGO INVÁLIDO. VERIFIQUE O APP AUTENTICADOR.')
     } finally {
       setIsLoading(false)
     }
@@ -99,6 +152,147 @@ export function LoginPage() {
     setTab(next)
     setApiError(null)
     setMagicLinkSent(false)
+  }
+
+  if (phase === 'mfa_challenge' || phase === 'mfa_setup') {
+    const isSetup = phase === 'mfa_setup'
+    return (
+      <div className="min-h-screen bg-surface-page flex items-center justify-center p-4">
+        <div className="w-full max-w-[480px] relative" style={{ borderLeft: '3px solid #F0A500' }}>
+          <div className="bg-surface-card border border-border-default border-l-0">
+            <div className="px-6 py-3 flex items-center justify-between border-b border-border-subtle">
+              <span className="font-mono text-[11px] font-semibold tracking-widest text-accent-primary uppercase">
+                {isSetup ? 'MFA · CONFIGURAÇÃO OBRIGATÓRIA' : 'MFA · VERIFICAÇÃO DOIS FATORES'}
+              </span>
+            </div>
+            <div className="px-6 py-6 space-y-5">
+              <p className="font-mono text-[11px] text-text-muted">
+                {isSetup
+                  ? 'Sua conta requer configuração de MFA. Acesse as configurações de segurança para configurar.'
+                  : 'Informe o código de 6 dígitos do seu aplicativo autenticador, ou um código de backup.'}
+              </p>
+              {apiError && (
+                <div role="alert" className="px-3 py-2 border border-status-deny text-status-deny font-mono text-[10px] uppercase tracking-wide">
+                  {apiError}
+                </div>
+              )}
+              {isSetup ? (
+                <div className="space-y-4">
+                  {mfaBackupCodes.length > 0 ? (
+                    <>
+                      <p className="font-mono text-[11px] text-text-secondary">
+                        MFA ativado com sucesso. Guarde estes códigos de backup em local seguro — cada um só pode ser usado uma vez.
+                      </p>
+                      <div className="bg-surface-elevated border border-border-default p-3 grid grid-cols-2 gap-1">
+                        {mfaBackupCodes.map((c) => (
+                          <span key={c} className="font-mono text-[11px] text-accent-primary">{c}</span>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => { setPhase('credentials'); setMfaToken(''); setMfaCode(''); setMfaBackupCodes([]) }}
+                        className="w-full py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors hover:brightness-90"
+                        style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
+                      >
+                        FAZER LOGIN →
+                      </button>
+                    </>
+                  ) : (
+                    <form onSubmit={onMfaSetupVerify} noValidate className="space-y-4">
+                      <p className="font-mono text-[11px] text-text-muted">
+                        Escaneie o QR code no seu app autenticador (Google Authenticator, Authy, etc.) usando a URI abaixo, ou copie o segredo manualmente.
+                      </p>
+                      <div className="bg-surface-elevated border border-border-default px-3 py-2">
+                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">SEGREDO BASE32</p>
+                        <p className="font-mono text-[11px] text-accent-primary break-all">{mfaSetupSecret}</p>
+                      </div>
+                      <div className="bg-surface-elevated border border-border-default px-3 py-2">
+                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">URI TOTP (cole no app)</p>
+                        <p className="font-mono text-[10px] text-text-secondary break-all">{mfaSetupQr}</p>
+                      </div>
+                      <div>
+                        <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
+                          <span className="text-accent-primary">A</span> CÓDIGO DE CONFIRMAÇÃO
+                        </p>
+                        <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
+                          <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            placeholder="000000"
+                            maxLength={6}
+                            value={mfaCode}
+                            onChange={e => setMfaCode(e.target.value)}
+                            className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none tracking-widest"
+                            autoFocus
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setPhase('credentials'); setMfaToken(''); setMfaCode('') }}
+                          className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase hover:text-text-secondary transition-colors"
+                        >
+                          ← VOLTAR
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isLoading || mfaCode.length < 6}
+                          className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90"
+                          style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
+                        >
+                          {isLoading ? 'VERIFICANDO…' : 'ATIVAR MFA →'}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={onMfaChallenge} noValidate className="space-y-4">
+                  <div>
+                    <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
+                      <span className="text-accent-primary">A</span> CÓDIGO TOTP / BACKUP
+                    </p>
+                    <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
+                      <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder="000000"
+                        maxLength={32}
+                        value={mfaCode}
+                        onChange={e => setMfaCode(e.target.value)}
+                        className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none tracking-widest"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => { setPhase('credentials'); setMfaToken(''); setMfaCode('') }}
+                      className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase hover:text-text-secondary transition-colors"
+                    >
+                      ← VOLTAR
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading || !mfaCode}
+                      className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90 active:brightness-75"
+                      style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
+                    >
+                      {isLoading ? 'VERIFICANDO…' : 'CONFIRMAR CÓDIGO →'}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

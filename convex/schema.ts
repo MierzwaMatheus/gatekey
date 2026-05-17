@@ -156,10 +156,12 @@ export default defineSchema({
 
   mfa_configs: defineTable({
     userId: v.id("users"),
-    secret: v.string(),
+    secret: v.optional(v.string()),
     backupCodes: v.array(v.string()),
-    activatedAt: v.number(),
-  }),
+    activatedAt: v.optional(v.number()),
+    pendingSecret: v.optional(v.string()),
+    pendingSecretExpiresAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"]),
 
   ip_rate_limits: defineTable({
     ip: v.string(),

@@ -24,6 +24,16 @@ export interface AuthTokens {
   mustChangePassword?: boolean
 }
 
+export interface MfaRequired {
+  mfa_required: true
+  mfa_token: string
+}
+
+export interface MfaSetupRequired {
+  mfa_setup_required: true
+  mfa_setup_token: string
+}
+
 export class AuthError extends Error {
   readonly reason: string
   readonly lockedUntil?: number
@@ -69,7 +79,12 @@ export function parseJwtPayload(token: string): TokenPayload {
   return JSON.parse(base64urlDecode(payload)) as TokenPayload
 }
 
-async function login(email: string, password: string): Promise<AuthTokens & { orgId: string; mustChangePassword: boolean }> {
+type LoginResult =
+  | (AuthTokens & { orgId: string; mustChangePassword: boolean })
+  | MfaRequired
+  | MfaSetupRequired
+
+async function login(email: string, password: string): Promise<LoginResult> {
   const res = await fetch(`${CONVEX_URL}/v1/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -77,7 +92,8 @@ async function login(email: string, password: string): Promise<AuthTokens & { or
   })
 
   if (res.status === 401) {
-    throw new AuthError('invalid_credentials')
+    const data = await res.json() as { error?: string }
+    throw new AuthError(data.error ?? 'invalid_credentials')
   }
 
   if (res.status === 429) {
@@ -88,16 +104,40 @@ async function login(email: string, password: string): Promise<AuthTokens & { or
     throw new AuthError('rate_limit_exceeded')
   }
 
+  if (res.status === 403) {
+    const data = await res.json() as { error: string }
+    throw new AuthError(data.error)
+  }
+
   if (!res.ok) {
     throw new AuthError('unknown_error')
   }
 
-  const tokens = await res.json() as AuthTokens & { mustChangePassword?: boolean }
+  const data = await res.json() as LoginResult & { mfa_required?: boolean; mfa_setup_required?: boolean }
+
+  if (data.mfa_required) return data as MfaRequired
+  if (data.mfa_setup_required) return data as MfaSetupRequired
+
+  const tokens = data as AuthTokens & { mustChangePassword?: boolean }
   const { orgId } = parseJwtPayload(tokens.accessToken)
-
   saveTokens(tokens, orgId)
-
   return { ...tokens, orgId, mustChangePassword: tokens.mustChangePassword ?? false }
+}
+
+async function challengeMfa(mfaToken: string, totpCode: string): Promise<AuthTokens & { orgId: string }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/mfa/challenge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mfaToken, totpCode }),
+  })
+  if (!res.ok) {
+    const data = await res.json() as { error?: string }
+    throw new AuthError(data.error ?? 'mfa_failed')
+  }
+  const tokens = await res.json() as AuthTokens
+  const { orgId } = parseJwtPayload(tokens.accessToken)
+  saveTokens(tokens, orgId)
+  return { ...tokens, orgId }
 }
 
 async function logout(accessToken: string): Promise<void> {
@@ -139,17 +179,55 @@ async function requestMagicLink(email: string): Promise<void> {
   if (!res.ok) throw new AuthError('unknown_error')
 }
 
-async function verifyMagicLink(token: string): Promise<AuthTokens & { orgId: string }> {
+type MagicLinkVerifyResult =
+  | (AuthTokens & { orgId: string })
+  | MfaRequired
+  | MfaSetupRequired
+
+async function verifyMagicLink(token: string): Promise<MagicLinkVerifyResult> {
   const res = await fetch(`${CONVEX_URL}/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}`)
 
   if (res.status === 401) throw new AuthError('invalid_or_expired')
+  if (res.status === 403) {
+    const data = await res.json() as { error: string }
+    throw new AuthError(data.error)
+  }
   if (!res.ok) throw new AuthError('unknown_error')
 
-  const tokens = await res.json() as AuthTokens
+  const data = await res.json() as MagicLinkVerifyResult & { mfa_required?: boolean; mfa_setup_required?: boolean }
+
+  if (data.mfa_required) return data as MfaRequired
+  if (data.mfa_setup_required) return data as MfaSetupRequired
+
+  const tokens = data as AuthTokens
   const { orgId } = parseJwtPayload(tokens.accessToken)
   saveTokens(tokens, orgId)
-
   return { ...tokens, orgId }
 }
 
-export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink }
+async function setupMfa(mfaSetupToken: string): Promise<{ secret: string; qrCodeUrl: string }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/mfa/setup`, {
+    method: 'POST',
+    headers: { Authorization: `MfaSetup ${mfaSetupToken}` },
+  })
+  if (!res.ok) throw new AuthError('setup_failed')
+  return res.json() as Promise<{ secret: string; qrCodeUrl: string }>
+}
+
+async function verifyMfaSetup(mfaSetupToken: string, totpCode: string): Promise<{ backupCodes: string[] }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/mfa/verify-setup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `MfaSetup ${mfaSetupToken}`,
+    },
+    body: JSON.stringify({ totpCode }),
+  })
+  if (!res.ok) {
+    const data = await res.json() as { error?: string }
+    throw new AuthError(data.error ?? 'invalid_code')
+  }
+  return res.json() as Promise<{ backupCodes: string[] }>
+}
+
+export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink, challengeMfa, setupMfa, verifyMfaSetup }

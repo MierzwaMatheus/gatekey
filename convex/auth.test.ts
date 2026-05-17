@@ -736,3 +736,194 @@ test("loginWithPassword: usuário com mustChangePassword=true retorna flag no re
     expect(result.mustChangePassword).toBe(true);
   }
 });
+
+// ── Ciclo 6: mfaRequired bloqueia login sem MFA ativo ────────────────────────
+
+test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa_setup_required", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  // auth.ts usa bcryptjs.compare — deve-se criar o hash com bcryptjs
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("password123", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "mfa-user@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  await t.run(async (ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["email_password"],
+      mfaRequired: true,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "mfa-user@test.com",
+    password: "password123",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+  }
+});
+
+// ── Ciclo MFA 4.6: mfa_setup_required retorna mfaSetupToken ──────────────────
+
+test("loginWithPassword: mfa_setup_required retorna mfaSetupToken para permitir configuração", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "SetupOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("setup-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "needsmfa@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "needsmfa@test.com",
+    password: "setup-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+    expect((result as { mfaSetupToken?: string }).mfaSetupToken).toBeTypeOf("string");
+    expect((result as { mfaSetupToken?: string }).mfaSetupToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});
+
+// ── Ciclo MFA 4.6: login com MFA ativo ────────────────────────────────────────
+
+test("loginWithPassword: MFA ativo retorna mfa_required com mfaToken, sem accessToken", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "MfaOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("mfa-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "mfaactive@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  await t.mutation(internal.mfaStore.activateMfaConfig, {
+    userId: userId as never,
+    secret: "JBSWY3DPEHPK3PXP",
+    backupCodes: ["backup1", "backup2"],
+  });
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "mfaactive@test.com",
+    password: "mfa-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_required");
+    expect((result as { mfaToken?: string }).mfaToken).toBeTypeOf("string");
+    expect((result as { mfaToken?: string }).mfaToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});
+
+// ── Ciclo 7: Root account lock sem MFA ───────────────────────────────────────
+
+test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_required", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("root-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "root@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "root@test.com",
+    password: "root-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+  }
+});
+
+// ── Ciclo MFA 4.6: verifyMagicLink com MFA ativo ─────────────────────────────
+
+test("verifyMagicLink: MFA ativo retorna mfa_required com mfaToken, sem accessToken", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "MfaMagicOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const userId = await createUser(t, "mfamagic@test.com", "irrelevant");
+  await addOrgMember(t, userId as string, orgId as string);
+
+  // Ativar MFA para o usuário
+  await t.mutation(internal.mfaStore.activateMfaConfig, {
+    userId: userId as never,
+    secret: "JBSWY3DPEHPK3PXP",
+    backupCodes: ["backup1"],
+  });
+
+  const crypto = await import("crypto");
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("magic_link_tokens", {
+      tokenHash,
+      userId: userId as never,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+  });
+
+  const result = await t.action(internal.auth.verifyMagicLink, { token: rawToken });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_required");
+    expect((result as { mfaToken?: string }).mfaToken).toBeTypeOf("string");
+    expect((result as { mfaToken?: string }).mfaToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});

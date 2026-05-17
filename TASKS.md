@@ -390,26 +390,26 @@
 
 ### 4.5 MFA TOTP — closes #13 (parcial)
 
-- [ ] Instalar biblioteca TOTP (ex: `otpauth`) para geração e verificação
-- [ ] Criar tabela `mfa_configs` com campos: userId, secret (criptografado), backupCodes[], activatedAt
-- [ ] Implementar `POST /v1/auth/mfa/setup` — gera segredo TOTP, retorna segredo em base32 e URL de QR code (não ativa ainda)
-- [ ] Implementar `POST /v1/auth/mfa/verify-setup` — valida código TOTP contra segredo pendente; se válido, ativa MFA e gera 10 backup codes
-- [ ] Implementar `POST /v1/auth/mfa/challenge` — recebe `{mfaToken, totpCode}`, valida código com janela ±1 intervalo, emite access + refresh token
-- [ ] Implementar verificação de backup code: aceitar qualquer código da lista, invalidar após uso
-- [ ] Implementar bloqueio de acesso ao Root se MFA não configurado — redirecionar para setup no primeiro login
-- [ ] Implementar verificação de `org_settings.mfaRequired` — usuário sem `mfa_configs` ativo é redirecionado para setup antes de receber token
-- [ ] Chamar `writeAuditEvent` com action `auth.mfa.setup`, `auth.mfa.success`, `auth.mfa.failure`, `auth.mfa.backup_used`
+- [x] Instalar biblioteca TOTP (ex: `otpauth`) para geração e verificação
+- [x] Criar tabela `mfa_configs` com campos: userId, secret (criptografado), backupCodes[], activatedAt
+- [x] Implementar `POST /v1/auth/mfa/setup` — gera segredo TOTP, retorna segredo em base32 e URL de QR code (não ativa ainda)
+- [x] Implementar `POST /v1/auth/mfa/verify-setup` — valida código TOTP contra segredo pendente; se válido, ativa MFA e gera 10 backup codes
+- [x] Implementar `POST /v1/auth/mfa/challenge` — recebe `{mfaToken, totpCode}`, valida código com janela ±1 intervalo, emite access + refresh token
+- [x] Implementar verificação de backup code: aceitar qualquer código da lista, invalidar após uso
+- [x] Implementar bloqueio de acesso ao Root se MFA não configurado — redirecionar para setup no primeiro login
+- [x] Implementar verificação de `org_settings.mfaRequired` — usuário sem `mfa_configs` ativo é redirecionado para setup antes de receber token
+- [x] Chamar `writeAuditEvent` com action `auth.mfa.setup`, `auth.mfa.success`, `auth.mfa.failure`, `auth.mfa.backup_used`
 
 ### 4.6 Integração: MFA ↔ Fluxo de login — closes #13 (com 4.5)
 
-- [ ] Alterar `POST /v1/auth/login` — quando MFA está ativo para o usuário, não emitir access token; retornar `{mfa_required: true, mfa_token: "<temporário 5min>"}`
-- [ ] Alterar `GET /v1/auth/magic-link/verify` — quando MFA está ativo, retornar `{mfa_required: true, mfa_token: "<temporário>"}` ao invés de tokens finais
+- [x] Alterar `POST /v1/auth/login` — quando MFA está ativo para o usuário, não emitir access token; retornar `{mfa_required: true, mfa_token: "<temporário 5min>"}`
+- [x] Alterar `GET /v1/auth/magic-link/verify` — quando MFA está ativo, retornar `{mfa_required: true, mfa_token: "<temporário>"}` ao invés de tokens finais
 - [ ] Alterar callbacks OAuth — mesma lógica: retornar `mfa_required` quando MFA está ativo
-- [ ] Alterar dashboard: detectar `mfa_required: true` na resposta de login e exibir tela de desafio TOTP
-- [ ] Alterar dashboard: tela de TOTP aceita código de 6 dígitos ou backup code
-- [ ] Escrever teste: `POST /v1/auth/login` com MFA ativo retorna `mfa_required: true` sem access token
-- [ ] Escrever teste: `POST /v1/auth/mfa/challenge` com código correto retorna access + refresh token
-- [ ] Escrever teste: `POST /v1/auth/mfa/challenge` com código errado retorna 401
+- [x] Alterar dashboard: detectar `mfa_required: true` na resposta de login e exibir tela de desafio TOTP
+- [x] Alterar dashboard: tela de TOTP aceita código de 6 dígitos ou backup code
+- [x] Escrever teste: `POST /v1/auth/login` com MFA ativo retorna `mfa_required: true` sem access token
+- [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código correto retorna access + refresh token
+- [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código errado retorna 401
 
 ### 4.7 SDK TypeScript — @gatekey/sdk — closes #14 (parcial)
 

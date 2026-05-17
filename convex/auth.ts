@@ -27,11 +27,13 @@ export const loginWithPassword = internalAction({
       success: v.literal(false),
       error: v.string(),
       lockedUntil: v.optional(v.number()),
+      mfaToken: v.optional(v.string()),
+      mfaSetupToken: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args): Promise<
     | { success: true; accessToken: string; refreshToken: string; sessionId: string; mustChangePassword: boolean }
-    | { success: false; error: string; lockedUntil?: number }
+    | { success: false; error: string; lockedUntil?: number; mfaToken?: string; mfaSetupToken?: string }
   > => {
     const bcrypt = await import("bcryptjs");
 
@@ -56,6 +58,7 @@ export const loginWithPassword = internalAction({
       loginAttempts: number;
       lockedUntil?: number;
       mustChangePassword?: boolean;
+      isRoot?: boolean;
     } | null;
 
     if (!user) {
@@ -129,6 +132,42 @@ export const loginWithPassword = internalAction({
 
     // Login bem-sucedido — zerar tentativas
     await ctx.runMutation(internal.authStore.resetLoginAttempts, { userId: user._id as never });
+
+    // Verificar MFA obrigatório (root ou org com mfaRequired)
+    const activeMfaConfig = (await ctx.runQuery(internal.mfaStore.getActiveMfaConfig, {
+      userId: user._id as never,
+    })) as object | null;
+
+    if (activeMfaConfig) {
+      // MFA ativo — emitir mfaToken temporário para desafio
+      const mfaToken = (await ctx.runAction(internal.mfa.signMfaToken, {
+        userId: user._id as never,
+      })) as string;
+      return { success: false as const, error: "mfa_required", mfaToken };
+    }
+
+    {
+      const isRootWithoutMfa = user.isRoot;
+      let orgRequiresMfa = false;
+
+      const orgMembershipForMfa = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+        userId: user._id as never,
+      })) as { orgId: string } | null;
+
+      if (orgMembershipForMfa) {
+        const orgSettingsForMfa = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+          orgId: orgMembershipForMfa.orgId as never,
+        })) as { mfaRequired?: boolean } | null;
+        orgRequiresMfa = orgSettingsForMfa?.mfaRequired ?? false;
+      }
+
+      if (isRootWithoutMfa || orgRequiresMfa) {
+        const mfaSetupToken = (await ctx.runAction(internal.mfa.signMfaSetupToken, {
+          userId: user._id as never,
+        })) as string;
+        return { success: false as const, error: "mfa_setup_required", mfaSetupToken };
+      }
+    }
 
     // Obter orgId do usuário (primeira org ativa)
     const orgMembership = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
@@ -407,11 +446,16 @@ export const verifyMagicLink = internalAction({
       refreshToken: v.string(),
       sessionId: v.string(),
     }),
-    v.object({ success: v.literal(false), error: v.string() }),
+    v.object({
+      success: v.literal(false),
+      error: v.string(),
+      mfaToken: v.optional(v.string()),
+      mfaSetupToken: v.optional(v.string()),
+    }),
   ),
   handler: async (ctx, args): Promise<
     | { success: true; accessToken: string; refreshToken: string; sessionId: string }
-    | { success: false; error: string }
+    | { success: false; error: string; mfaToken?: string; mfaSetupToken?: string }
   > => {
     const crypto = await import("crypto");
     const tokenHash = crypto.createHash("sha256").update(args.token).digest("hex");
@@ -451,13 +495,45 @@ export const verifyMagicLink = internalAction({
     if (orgId) {
       const orgSettingsForMethod = (await ctx.runQuery(internal.authStore.getOrgSettings, {
         orgId: orgId as never,
-      })) as { loginMethods?: string[] } | null;
+      })) as { loginMethods?: string[]; mfaRequired?: boolean } | null;
       if (
         orgSettingsForMethod?.loginMethods &&
         orgSettingsForMethod.loginMethods.length > 0 &&
         !orgSettingsForMethod.loginMethods.includes("magic_link")
       ) {
         return { success: false as const, error: "method_disabled" };
+      }
+    }
+
+    // Verificar MFA
+    const activeMfaConfig = (await ctx.runQuery(internal.mfaStore.getActiveMfaConfig, {
+      userId: tokenRecord.userId as never,
+    })) as object | null;
+
+    if (activeMfaConfig) {
+      const mfaToken = (await ctx.runAction(internal.mfa.signMfaToken, {
+        userId: tokenRecord.userId as never,
+      })) as string;
+      return { success: false as const, error: "mfa_required", mfaToken };
+    }
+
+    {
+      const user = (await ctx.runQuery(internal.authStore.getUserById, {
+        userId: tokenRecord.userId as never,
+      })) as { isRoot?: boolean } | null;
+      const isRootWithoutMfa = user?.isRoot;
+      let orgRequiresMfa = false;
+      if (orgId) {
+        const orgSettingsMfa = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+          orgId: orgId as never,
+        })) as { mfaRequired?: boolean } | null;
+        orgRequiresMfa = orgSettingsMfa?.mfaRequired ?? false;
+      }
+      if (isRootWithoutMfa || orgRequiresMfa) {
+        const mfaSetupToken = (await ctx.runAction(internal.mfa.signMfaSetupToken, {
+          userId: tokenRecord.userId as never,
+        })) as string;
+        return { success: false as const, error: "mfa_setup_required", mfaSetupToken };
       }
     }
 
