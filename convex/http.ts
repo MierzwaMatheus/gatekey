@@ -1405,7 +1405,8 @@ http.route({
       const ip = req.headers.get("x-forwarded-for") ?? undefined;
       const result = await ctx.runAction(internal.auth.verifyMagicLink, { token, ip });
       if (!result.success) {
-        return withCors({ error: result.error }, 401);
+        const status = result.error === "method_disabled" ? 403 : 401;
+        return withCors({ error: result.error }, status);
       }
       return withCors({
         accessToken: result.accessToken,

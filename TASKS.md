@@ -382,11 +382,11 @@
 ### 4.4 Integração: Métodos de login ↔ Configuração da org — closes #12 (com 4.1–4.3)
 
 - [x] Alterar `POST /v1/auth/login` para consultar `org_settings.loginMethods` do usuário e rejeitar com 403 se `email_password` não está habilitado
-- [ ] Alterar `POST /v1/auth/magic-link` para rejeitar com 403 se `magic_link` não está habilitado na org
+- [x] Alterar `POST /v1/auth/magic-link` para rejeitar com 403 se `magic_link` não está habilitado na org
 - [ ] Alterar callback do Google para rejeitar com 403 se `oauth_google` não está habilitado na org
 - [ ] Alterar callback do GitHub para rejeitar com 403 se `oauth_github` não está habilitado na org
 - [x] Escrever teste: `POST /v1/auth/login` com `loginMethods` sem `email_password` retorna 403 com reason `method_disabled`
-- [ ] Escrever teste: magic link enviado, org admin desabilita magic link, token ainda válido → `verify` retorna 403
+- [x] Escrever teste: magic link enviado, org admin desabilita magic link, token ainda válido → `verify` retorna 403
 
 ### 4.5 MFA TOTP — closes #13 (parcial)
 

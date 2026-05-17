@@ -447,6 +447,20 @@ export const verifyMagicLink = internalAction({
     })) as { orgId: string } | null;
     const orgId = orgMembership?.orgId;
 
+    // Verificar se magic_link ainda está habilitado no momento da verificação
+    if (orgId) {
+      const orgSettingsForMethod = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+        orgId: orgId as never,
+      })) as { loginMethods?: string[] } | null;
+      if (
+        orgSettingsForMethod?.loginMethods &&
+        orgSettingsForMethod.loginMethods.length > 0 &&
+        !orgSettingsForMethod.loginMethods.includes("magic_link")
+      ) {
+        return { success: false as const, error: "method_disabled" };
+      }
+    }
+
     let accessExpirySeconds = 3600;
     if (orgId) {
       const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
