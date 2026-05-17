@@ -251,11 +251,11 @@
 
 ### 3.1 Setup do projeto frontend — pré-requisito para #9, #10, #11
 
-- [ ] Inicializar projeto React + Vite na pasta `/dashboard`
+- [x] Inicializar projeto React + Vite na pasta `/dashboard`
 - [ ] Configurar TanStack Router com estrutura de rotas protegidas por role
 - [ ] Configurar `ConvexProvider` do `convex/react`
-- [ ] Instalar shadcn/ui e configurar Tailwind
-- [ ] Definir variáveis CSS no `globals.css`: `--gate-midnight: #0D1117`, `--gate-iron: #1C2333`, `--gate-steel: #30363D`, `--gate-key: #F0A500`, `--gate-key-dim: #7D5500`, `--gate-safe: #3FB950`, `--gate-danger: #F85149`, `--gate-text: #C9D1D9`, `--gate-muted: #8B949E`
+- [x] Instalar shadcn/ui e configurar Tailwind
+- [x] Definir variáveis CSS no `globals.css`: `--gate-midnight: #0D1117`, `--gate-iron: #1C2333`, `--gate-steel: #30363D`, `--gate-key: #F0A500`, `--gate-key-dim: #7D5500`, `--gate-safe: #3FB950`, `--gate-danger: #F85149`, `--gate-text: #C9D1D9`, `--gate-muted: #8B949E`
 - [ ] Configurar fonte Inter para interface e JetBrains Mono para código e tokens via CSS
 - [ ] Instalar e configurar React Hook Form + Zod para validação de formulários
 - [ ] Instalar e configurar i18next com `i18next-browser-languagedetector`

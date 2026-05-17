@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  --gate-midnight: #0D1117;
+  --gate-iron: #1C2333;
+  --gate-steel: #30363D;
+  --gate-key: #F0A500;
+  --gate-key-dim: #7D5500;
+  --gate-safe: #3FB950;
+  --gate-danger: #F85149;
+  --gate-text: #C9D1D9;
+  --gate-muted: #8B949E;
+}
+
+body {
+  background-color: var(--gate-midnight);
+  color: var(--gate-text);
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+}
+
+.font-mono, code, pre, [data-mono] {
+  font-family: 'JetBrains Mono', monospace;
+}
