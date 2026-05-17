@@ -25,7 +25,7 @@ function generateSecret(): string {
 export const createApiKey = internalAction({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
     scopes: v.array(v.string()),
     description: v.string(),
     ip: v.optional(v.string()),
@@ -54,11 +54,11 @@ export const createApiKey = internalAction({
     const publicId = generatePublicId();
     const secret = generateSecret();
 
-    const argon2 = await import("argon2");
-    const secretHash = await argon2.hash(secret, { type: argon2.argon2id });
+    const bcrypt = await import("bcryptjs");
+    const secretHash = await bcrypt.hash(secret, 10);
 
     const keyId: Id<"api_keys"> = await ctx.runMutation(internal.apiKeys._insertApiKey, {
-      orgId: args.orgId,
+      orgId: args.orgId as never,
       publicId,
       secretHash,
       scopes: args.scopes,

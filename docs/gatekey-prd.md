@@ -274,7 +274,7 @@ Apps clientes se autenticam com o IAM via **API Keys escopadas** para operaçõe
 - Descrição, data de criação e registro de última utilização (timestamp + IP)
 - Status: ativa / revogada
 
-O backend armazena apenas o **hash argon2id** da chave — nunca o valor em plaintext. Na validação, o PEP faz hash do valor recebido e compara.
+O backend armazena apenas o **hash bcryptjs** da chave — nunca o valor em plaintext. Na validação, o PEP faz hash do valor recebido e compara.
 
 **Escopos disponíveis:**
 
@@ -521,7 +521,7 @@ Root credentials saved to .gatekey-root (add to .gitignore!)
 1. Valida conexão com o Convex deployment
 2. Executa migrations do schema (todas as tabelas e índices)
 3. Gera o par de chaves RS256 e armazena no Convex (privada nunca sai)
-4. Cria o usuário root com hash argon2id da senha
+4. Cria o usuário root com hash bcryptjs da senha
 5. Configura variáveis de ambiente da instância
 6. Opcionalmente configura o bucket de cold storage
 
@@ -547,7 +547,7 @@ Root credentials saved to .gatekey-root (add to .gitignore!)
 | Auth flow | Convex HTTP Actions | Endpoints HTTP sem servidor separado |
 | JWT | `jose` (JOSE padrão) | RS256, JWKS, padrão da indústria |
 | Email | Resend | Magic link, notificações transacionais |
-| Hashing (senha e API Key) | `argon2id` via Convex Action (Node runtime) | Mais seguro que bcrypt, resistente a GPU |
+| Hashing (senha e API Key) | `bcryptjs` (cost factor 10) | argon2id desejável mas incompatível com o runtime V8 do Convex; bcryptjs roda no runtime Node via Convex Actions e é suficientemente seguro para o modelo de ameaça |
 | Cold storage | Cloudflare R2 ou AWS S3 | Configurável na instalação |
 
 ### 12.2 Frontend (dashboard)
@@ -588,7 +588,7 @@ capabilities             → catálogo de capabilities (base global + custom por
 role_capabilities        → capabilities atribuídas a cada role
 resource_types           → tipos registrados por app cliente (com config de herança)
 bindings                 → user + role + resourceType + resourceId + parentResourceId?
-api_keys                 → API Keys por org (hash argon2id, escopos, metadata)
+api_keys                 → API Keys por org (hash bcryptjs, escopos, metadata)
 sessions                 → sessões ativas (sessionId, expiração, device info)
 session_blacklist        → sessões revogadas (TTL automático)
 audit_log                → eventos append-only (hot tier — 30 dias)
@@ -615,7 +615,7 @@ audit_exports            → registro de exportações para cold tier
 - Todas as Convex mutations e queries com dados sensíveis passam pelo PEP antes de executar
 - Nenhuma decisão de autorização acontece no frontend
 - Rate limiting em endpoints de auth (login, refresh, `/check`) via Convex Scheduler
-- Senhas e API Key secrets hasheados com **argon2id** — nunca bcrypt, nunca MD5
+- Senhas e API Key secrets hasheados com **bcryptjs** (cost factor 10) via Convex Action (Node runtime) — argon2id seria preferível mas é incompatível com o runtime V8 do Convex; nunca MD5, nunca SHA-1, nunca hashing sem salt
 - JWT assinados com **RS256** — chave privada nunca sai do backend
 - JWKS endpoint público para verificação local de tokens pelas apps clientes
 - Toda comunicação por HTTPS (Convex gerencia TLS)
@@ -637,7 +637,7 @@ audit_exports            → registro de exportações para cold tier
 
 ### Fase 2 — Management API
 - REST API completa (`/v1/...`) com todos os endpoints
-- API Keys com escopos (criação, hash argon2id, validação de escopo no PEP)
+- API Keys com escopos (criação, hash bcryptjs, validação de escopo no PEP)
 - Audit log hot tier com todos os eventos
 - Revogação de sessão em tempo real
 - Cotas com validação e erros estruturados

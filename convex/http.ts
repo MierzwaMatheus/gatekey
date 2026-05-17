@@ -4,6 +4,26 @@ import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const preflight = httpAction(async () => new Response(null, { status: 204, headers: CORS_HEADERS }));
+
+function withCors(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
+http.route({ path: "/v1/auth/.well-known/jwks", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/login", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/refresh", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/logout", method: "OPTIONS", handler: preflight });
+
 http.route({
   path: "/v1/auth/.well-known/jwks",
   method: "GET",
@@ -14,6 +34,7 @@ http.route({
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=3600",
+        ...CORS_HEADERS,
       },
     });
   }),
@@ -23,42 +44,34 @@ http.route({
   path: "/v1/auth/login",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    let body: { email?: string; password?: string };
     try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "invalid_body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+      let body: { email?: string; password?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return withCors({ error: "invalid_body" }, 400);
+      }
+      if (!body.email || !body.password) {
+        return withCors({ error: "missing_fields" }, 400);
+      }
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.auth.loginWithPassword, {
+        email: body.email,
+        password: body.password,
+        ip,
       });
-    }
-    if (!body.email || !body.password) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const ip = req.headers.get("x-forwarded-for") ?? undefined;
-    const result = await ctx.runAction(internal.auth.loginWithPassword, {
-      email: body.email,
-      password: body.password,
-      ip,
-    });
-    if (!result.success) {
-      const status = result.error === "account_locked" ? 429 : 401;
-      return new Response(
-        JSON.stringify({ error: result.error, lockedUntil: result.lockedUntil }),
-        { status, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    return new Response(
-      JSON.stringify({
+      if (!result.success) {
+        const status = result.error === "account_locked" ? 429 : 401;
+        return withCors({ error: result.error, lockedUntil: result.lockedUntil }, status);
+      }
+      return withCors({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         sessionId: result.sessionId,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+      });
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
+    }
   }),
 });
 
@@ -76,10 +89,7 @@ http.route({
       });
     }
     if (!body.sessionId || !body.refreshToken || !body.orgId) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "missing_fields" }, 400);
     }
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const result = await ctx.runAction(internal.auth.refreshTokens, {
@@ -89,19 +99,13 @@ http.route({
       ip,
     });
     if (!result.success) {
-      return new Response(JSON.stringify({ error: result.error }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: result.error }, 401);
     }
-    return new Response(
-      JSON.stringify({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        sessionId: result.sessionId,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+    return withCors({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      sessionId: result.sessionId,
+    });
   }),
 });
 
@@ -111,18 +115,12 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "missing_token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "missing_token" }, 401);
     }
     const token = authHeader.slice(7);
     const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
     if (!verified.valid) {
-      return new Response(JSON.stringify({ error: "invalid_token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "invalid_token" }, 401);
     }
     // Decodificar exp do payload para passar como TTL da blacklist
     const parts = token.split(".");
@@ -138,19 +136,14 @@ http.route({
       ip: req.headers.get("x-forwarded-for") ?? undefined,
     });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return withCors({ success: true });
   }),
 });
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+  return withCors(body, status);
 }
 
 const API_KEY_PREFIX = "gk_live_pk_";
@@ -195,6 +188,174 @@ async function resolveJwtCaller(
 function isResponse(v: unknown): v is Response {
   return v instanceof Response;
 }
+
+// ── GET /v1/orgs ─────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    try {
+      const orgs = await ctx.runQuery(internal.hierarchy.listOrgs, {
+        callerId: caller.callerId as never,
+      });
+      return jsonResponse(orgs);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/orgs ────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { name?: string; adminEmail?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.name || !body.adminEmail) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+    try {
+      const orgId = await ctx.runMutation(internal.hierarchy.createOrg, {
+        callerId: caller.callerId as never,
+        name: body.name,
+        adminEmail: body.adminEmail,
+      });
+      return jsonResponse({ orgId });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/orgs/:id/suspend ─────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const action = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      if (action === "suspend") {
+        await ctx.runMutation(internal.hierarchy.suspendOrg, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
+      } else {
+        return jsonResponse({ error: "unknown_action" }, 404);
+      }
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/orgs/:id ───────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const orgId = url.pathname.replace(/^\/v1\/orgs\//, "").split("/")[0];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      await ctx.runMutation(internal.hierarchy.deleteOrg, {
+        callerId: caller.callerId as never,
+        orgId: orgId as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/orgs/:id/settings ────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const sub = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      if (sub === "settings") {
+        const settings = await ctx.runQuery(internal.hierarchy.getOrgSettings, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
+        return jsonResponse(settings);
+      }
+      return jsonResponse({ error: "not_found" }, 404);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── PATCH /v1/orgs/:id/settings ──────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const sub = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    let body: { quotas?: Record<string, number> } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    try {
+      if (sub === "settings" && body.quotas) {
+        await ctx.runMutation(internal.hierarchy.updateOrgQuotas, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+          quotas: body.quotas,
+        });
+        return jsonResponse({ success: true });
+      }
+      return jsonResponse({ error: "not_found" }, 404);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
 
 // ── POST /v1/users ───────────────────────────────────────────────────────────
 
@@ -486,7 +647,7 @@ http.route({
     try {
       const capabilities = await ctx.runQuery(internal.roles.listCapabilities, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
       });
       return jsonResponse({ capabilities });
     } catch (e) {
@@ -519,7 +680,7 @@ http.route({
     try {
       const result = await ctx.runMutation(internal.roles.createCapability, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         name: body.name,
         description: body.description,
       });
@@ -783,7 +944,8 @@ http.route({
     const userIdFilter = url.searchParams.get("userId") ?? undefined;
 
     const sessions = await ctx.runQuery(internal.sessions.listSessions, {
-      orgId: caller.orgId as never,
+      orgId: (caller.orgId || undefined) as never,
+      callerId: caller.callerId as never,
       userId: userIdFilter as never,
     });
     return jsonResponse(sessions);
@@ -807,7 +969,7 @@ http.route({
       await ctx.runAction(internal.sessions.revokeSession, {
         sessionId: sessionId as never,
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         ip,
       });
       return jsonResponse({ success: true });
@@ -841,7 +1003,7 @@ http.route({
     try {
       const result = await ctx.runAction(internal.apiKeysActions.createApiKey, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         scopes: body.scopes ?? [],
         description: body.description ?? "",
         ip,
@@ -870,7 +1032,7 @@ http.route({
     try {
       const keys = await ctx.runQuery(internal.apiKeys.listApiKeys, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
       });
       return jsonResponse(keys);
     } catch (e) {
@@ -899,7 +1061,7 @@ http.route({
     try {
       await ctx.runMutation(internal.apiKeys.revokeApiKey, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         keyId: keyId as never,
         ip,
       });
@@ -923,7 +1085,8 @@ http.route({
     if (isResponse(caller)) return caller;
 
     const url = new URL(req.url);
-    const orgId = (url.searchParams.get("orgId") ?? caller.orgId) as never;
+    const orgIdParam = url.searchParams.get("orgId") ?? caller.orgId;
+    const orgId = (orgIdParam || undefined) as never;
     const wsParam = url.searchParams.get("workspaceId");
     const workspaceId = wsParam ? (wsParam as never) : undefined;
     const action = url.searchParams.get("action") ?? undefined;
@@ -955,5 +1118,24 @@ http.route({
     }
   }),
 });
+
+// Preflight OPTIONS — rotas com path fixo
+http.route({ path: "/v1/orgs", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/orgs/", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/users", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/roles", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/capabilities", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/bindings", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/resource-types", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/check", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/sessions", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/api-keys", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/audit-log", method: "OPTIONS", handler: preflight });
+// Preflight OPTIONS — rotas com pathPrefix
+http.route({ pathPrefix: "/v1/users/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/roles/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/bindings/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
 
 export default http;

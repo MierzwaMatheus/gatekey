@@ -178,6 +178,38 @@ export const createWorkspace = internalMutation({
   },
 });
 
+export const listOrgs = internalQuery({
+  args: { callerId: v.id("users") },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller || !caller.isRoot) {
+      throw new Error("forbidden: root_required");
+    }
+    const orgs = await ctx.db.query("orgs").collect();
+    const results = await Promise.all(
+      orgs.map(async (org) => {
+        const members = await ctx.db
+          .query("org_members")
+          .filter((q) => q.eq(q.field("orgId"), org._id))
+          .collect();
+        const workspaces = await ctx.db
+          .query("workspaces")
+          .filter((q) => q.eq(q.field("orgId"), org._id))
+          .collect();
+        return {
+          _id: org._id,
+          name: org.name,
+          status: org.status,
+          usersCount: members.length,
+          workspacesCount: workspaces.length,
+          updatedAt: org.updatedAt ?? org._creationTime,
+        };
+      }),
+    );
+    return results;
+  },
+});
+
 export const isOrgAdminOrRoot = internalQuery({
   args: { callerId: v.id("users"), orgId: v.id("orgs") },
   returns: v.boolean(),
@@ -603,6 +635,40 @@ export const suspendWorkspace = internalMutation({
     }
 
     await ctx.db.patch(args.workspaceId, { status: "suspended" });
+    return null;
+  },
+});
+
+export const getOrgSettings = internalQuery({
+  args: { callerId: v.id("users"), orgId: v.id("orgs") },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller || !caller.isRoot) throw new Error("forbidden: root_required");
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    if (!settings) throw new Error("not_found: org_settings");
+    return { quotas: settings.quotas };
+  },
+});
+
+export const updateOrgQuotas = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    quotas: v.record(v.string(), v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await assertRoot(ctx, args.callerId);
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    if (!settings) throw new Error("not_found: org_settings");
+    const merged = { ...(settings.quotas as Record<string, number>), ...args.quotas };
+    await ctx.db.patch(settings._id, { quotas: merged });
     return null;
   },
 });

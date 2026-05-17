@@ -26,31 +26,35 @@ export const _insertApiKey = internalMutation({
 });
 
 export const _countActiveKeys = internalQuery({
-  args: { orgId: v.id("orgs") },
+  args: { orgId: v.optional(v.id("orgs")) },
   returns: v.object({ count: v.number(), quota: v.number() }),
   handler: async (ctx, { orgId }) => {
+    const quota = DEFAULT_QUOTA_API_KEYS;
+    if (!orgId) return { count: 0, quota: Number.MAX_SAFE_INTEGER };
+
     const settings = await ctx.db
       .query("org_settings")
       .filter((q) => q.eq(q.field("orgId"), orgId))
       .first();
-    const quota = settings?.quotas["api_keys_per_org"] ?? DEFAULT_QUOTA_API_KEYS;
+    const effectiveQuota = (settings?.quotas["api_keys_per_org"] as number | undefined) ?? quota;
 
     const activeKeys = await ctx.db
       .query("api_keys")
       .withIndex("by_orgId_and_status", (q) => q.eq("orgId", orgId).eq("status", "active"))
-      .take(quota + 1);
+      .take(effectiveQuota + 1);
 
-    return { count: activeKeys.length, quota };
+    return { count: activeKeys.length, quota: effectiveQuota };
   },
 });
 
 export const _assertOrgAdminOrRoot = internalQuery({
-  args: { callerId: v.id("users"), orgId: v.id("orgs") },
+  args: { callerId: v.id("users"), orgId: v.optional(v.id("orgs")) },
   returns: v.boolean(),
   handler: async (ctx, { callerId, orgId }) => {
     const caller = await ctx.db.get(callerId);
     if (!caller) throw new Error("forbidden: caller_not_found");
     if (caller.isRoot) return true;
+    if (!orgId) throw new Error("forbidden: org_id_required");
 
     const membership = await ctx.db
       .query("org_members")
@@ -84,7 +88,7 @@ export const updateLastUsed = internalMutation({
 export const revokeApiKey = internalMutation({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
     keyId: v.id("api_keys"),
     ip: v.optional(v.string()),
   },
@@ -115,6 +119,7 @@ export const revokeApiKey = internalMutation({
     const callerDoc = await ctx.db.get(callerId);
     if (key.orgId !== orgId && !callerDoc?.isRoot) throw new Error("forbidden: key_not_in_org");
 
+
     await ctx.db.patch(keyId, { status: "revoked" });
 
     await ctx.runMutation(internal.auditLog.writeAuditEvent, {
@@ -134,7 +139,7 @@ export const revokeApiKey = internalMutation({
 export const listApiKeys = internalQuery({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
   },
   returns: v.array(v.any()),
   handler: async (ctx, { callerId, orgId }) => {
@@ -142,6 +147,7 @@ export const listApiKeys = internalQuery({
     if (!caller) throw new Error("forbidden: caller_not_found");
 
     if (!caller.isRoot) {
+      if (!orgId) throw new Error("forbidden: org_id_required");
       const membership = await ctx.db
         .query("org_members")
         .filter((q) =>
@@ -155,6 +161,12 @@ export const listApiKeys = internalQuery({
       if (!membership || membership.role !== "admin") {
         throw new Error("forbidden: org_admin_required");
       }
+    }
+
+    if (!orgId) {
+      // Root sem org: listar todas as api keys ativas
+      const keys = await ctx.db.query("api_keys").order("desc").take(100);
+      return keys.map(({ secretHash: _secretHash, ...safe }) => safe);
     }
 
     const keys = await ctx.db

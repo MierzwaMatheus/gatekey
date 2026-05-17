@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
-import { getStoredTokens } from './auth-service'
+import { getStoredTokens, parseJwtPayload } from './auth-service'
 
 export type UserRole = 'root' | 'org_admin' | 'workspace_admin' | 'member'
 
@@ -31,9 +31,17 @@ function loadInitialState(initialRole?: UserRole | null): AuthState {
     return { token: null, role: null, orgId: null }
   }
 
+  let role: UserRole | null = null
+  try {
+    const payload = parseJwtPayload(stored.accessToken)
+    role = payload.orgId ? 'org_admin' : 'root'
+  } catch {
+    // token malformed, leave role as null
+  }
+
   return {
     token: stored.accessToken,
-    role: null,
+    role,
     orgId: stored.orgId,
   }
 }

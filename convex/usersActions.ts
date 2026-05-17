@@ -13,8 +13,8 @@ export const createUserWithPassword = internalAction({
     role: v.string(),
   },
   handler: async (ctx, args) => {
-    const argon2 = await import("argon2");
-    const passwordHash = await argon2.hash(args.password);
+    const bcrypt = await import("bcryptjs");
+    const passwordHash = await bcrypt.hash(args.password, 10);
     // Explicit cast to avoid TS circularity errors on cross-file mutation call
     const result: unknown = await ctx.runMutation(internal.users.createUser, {
       callerId: args.callerId as never,
@@ -35,8 +35,8 @@ export const updateUserPassword = internalAction({
     password: v.string(),
   },
   handler: async (ctx, args) => {
-    const argon2 = await import("argon2");
-    const passwordHash = await argon2.hash(args.password);
+    const bcrypt = await import("bcryptjs");
+    const passwordHash = await bcrypt.hash(args.password, 10);
     await ctx.runMutation(internal.users.updateUser, {
       callerId: args.callerId as never,
       userId: args.userId as never,

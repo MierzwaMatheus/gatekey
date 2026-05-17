@@ -144,7 +144,7 @@ export const getJwks = internalAction({
 export const createSessionWithRefreshToken = internalAction({
   args: {
     userId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
     deviceInfo: v.optional(v.string()),
     ip: v.optional(v.string()),
   },
@@ -153,13 +153,13 @@ export const createSessionWithRefreshToken = internalAction({
     refreshToken: v.string(),
   }),
   handler: async (ctx, args) => {
-    const argon2 = await import("argon2");
+    const bcrypt = await import("bcryptjs");
     const rawToken = randomBytes(32).toString("hex");
-    const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+    const expiry = args.orgId ? (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
       orgId: args.orgId,
-    })) as { jwtExpiryRefresh: number } | null;
+    })) as { jwtExpiryRefresh: number } | null : null;
     const refreshExpiresAt = Date.now() + (expiry?.jwtExpiryRefresh ?? 30 * 24 * 3600) * 1000;
-    const refreshTokenHash: string = await argon2.hash(rawToken);
+    const refreshTokenHash: string = await bcrypt.hash(rawToken, 10);
     const sessionId: string = await ctx.runMutation(internal.jwtStore.createSession, {
       userId: args.userId,
       refreshTokenHash,
@@ -188,7 +188,7 @@ export const rotateRefreshToken = internalAction({
     v.object({ valid: v.literal(false), error: v.string() }),
   ),
   handler: async (ctx, args) => {
-    const argon2 = await import("argon2");
+    const bcrypt = await import("bcryptjs");
     const session = (await ctx.runQuery(internal.jwtStore.getSession, {
       sessionId: args.sessionId,
     })) as { userId: string; refreshTokenHash: string; expiresAt: number } | null;
@@ -198,7 +198,7 @@ export const rotateRefreshToken = internalAction({
       sessionId: args.sessionId,
     });
     if (blacklisted) return { valid: false as const, error: "session_revoked" };
-    const tokenValid: boolean = await argon2.verify(session.refreshTokenHash, args.refreshToken);
+    const tokenValid: boolean = await bcrypt.compare(args.refreshToken, session.refreshTokenHash);
     if (!tokenValid) return { valid: false as const, error: "refresh_token_invalid" };
 
     await ctx.runMutation(internal.jwtStore.blacklistSession, {
@@ -211,7 +211,7 @@ export const rotateRefreshToken = internalAction({
       orgId: args.orgId,
     })) as { jwtExpiryRefresh: number } | null;
     const refreshExpiresAt = Date.now() + (expiry?.jwtExpiryRefresh ?? 30 * 24 * 3600) * 1000;
-    const newRefreshTokenHash: string = await argon2.hash(rawToken);
+    const newRefreshTokenHash: string = await bcrypt.hash(rawToken, 10);
     const newSessionId: string = await ctx.runMutation(internal.jwtStore.createSession, {
       userId: session.userId as never,
       refreshTokenHash: newRefreshTokenHash,
