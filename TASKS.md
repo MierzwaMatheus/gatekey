@@ -318,9 +318,9 @@
 - [x] Implementar listagem de roles customizados do workspace: nome, capabilities atribuídas
 - [x] Implementar formulário de criação de role customizado: nome + seleção de capabilities (checkboxes do catálogo)
 - [x] Implementar ação de deletar role customizado (bloqueado com mensagem se há bindings ativos)
-- [ ] Implementar listagem de bindings: tabela com userId, role, resourceType, resourceId (ou "workspace inteiro")
-- [ ] Implementar formulário de criação de binding: seletor usuário + seletor role + campo resourceType + campo resourceId (opcional)
-- [ ] Implementar ação de revogar binding (modal de confirmação)
+- [x] Implementar listagem de bindings: tabela com userId, role, resourceType, resourceId (ou "workspace inteiro")
+- [x] Implementar formulário de criação de binding: seletor usuário + seletor role + campo resourceType + campo resourceId (opcional)
+- [x] Implementar ação de revogar binding (modal de confirmação)
 - [ ] Implementar listagem de resource types registrados: nome, inheritsFrom, inheritanceMode
 - [ ] Implementar formulário de registro de resource type: nome + toggle de herança + seletor do tipo pai
 - [ ] Implementar audit log do workspace: tabela paginada com filtros (hot tier)
