@@ -810,6 +810,67 @@ export const listWorkspaces = internalQuery({
   },
 });
 
+export const listWorkspaceMembers = internalQuery({
+  args: { callerId: v.id("users"), workspaceId: v.id("workspaces") },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+
+    const workspace = await ctx.db.get(args.workspaceId);
+    if (!workspace) throw new Error("not_found: workspace");
+
+    if (!caller.isRoot) {
+      const orgMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), workspace.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!orgMembership || orgMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    const members = await ctx.db
+      .query("workspace_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("workspaceId"), args.workspaceId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .collect();
+
+    return await Promise.all(
+      members.map(async (m) => {
+        const user = await ctx.db.get(m.userId);
+        const binding = await ctx.db
+          .query("bindings")
+          .withIndex("by_workspaceId_and_userId", (q) =>
+            q.eq("workspaceId", args.workspaceId).eq("userId", m.userId),
+          )
+          .first();
+        let roleName = "member";
+        if (binding) {
+          const role = await ctx.db.get(binding.roleId);
+          if (role) roleName = role.name;
+        }
+        return {
+          userId: m.userId as string,
+          userName: user?.email?.split("@")[0] ?? "unknown",
+          userEmail: user?.email ?? "",
+          roleName,
+          addedAt: m._creationTime,
+        };
+      }),
+    );
+  },
+});
+
 export const listUsersForOrg = internalQuery({
   args: { callerId: v.id("users"), orgId: v.id("orgs") },
   handler: async (ctx, args) => {

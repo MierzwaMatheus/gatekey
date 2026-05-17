@@ -1160,6 +1160,137 @@ http.route({
   }),
 });
 
+// ── GET /v1/workspaces/:wsId/members ────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/workspaces/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const parts = url.pathname.split("/");
+    // /v1/workspaces/:wsId/members
+    if (parts.length < 5 || parts[4] !== "members") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+    const wsId = parts[3];
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    try {
+      const members = await ctx.runQuery(internal.hierarchy.listWorkspaceMembers, {
+        callerId: caller.callerId as never,
+        workspaceId: wsId as never,
+      });
+      return jsonResponse(members);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/workspaces/:wsId/members ───────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/workspaces/",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const parts = url.pathname.split("/");
+    if (parts.length < 5 || parts[4] !== "members") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+    const wsId = parts[3];
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { userId?: string; roleId?: string } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    if (!body.userId) return jsonResponse({ error: "missing_userId" }, 400);
+    try {
+      await ctx.runMutation(internal.hierarchy.addWorkspaceMember, {
+        callerId: caller.callerId as never,
+        workspaceId: wsId as never,
+        userId: body.userId as never,
+      });
+      return jsonResponse({ ok: true }, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) return jsonResponse({ error: "QuotaExceeded", quota: "users_per_workspace" }, 429);
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/workspaces/:wsId/members/:userId ──────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/workspaces/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const parts = url.pathname.split("/");
+    // /v1/workspaces/:wsId/members/:userId
+    if (parts.length < 6 || parts[4] !== "members") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+    const wsId = parts[3];
+    const userId = parts[5];
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    try {
+      await ctx.runMutation(internal.hierarchy.removeWorkspaceMember, {
+        callerId: caller.callerId as never,
+        workspaceId: wsId as never,
+        userId: userId as never,
+      });
+      return jsonResponse({ ok: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── PATCH /v1/workspaces/:wsId/members/:userId ───────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/workspaces/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const url = new URL(req.url);
+    const parts = url.pathname.split("/");
+    if (parts.length < 6 || parts[4] !== "members") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+    const wsId = parts[3];
+    const userId = parts[5];
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { newRoleId?: string } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    if (!body.newRoleId) return jsonResponse({ error: "missing_newRoleId" }, 400);
+    try {
+      await ctx.runMutation(internal.hierarchy.changeWorkspaceMemberRole, {
+        callerId: caller.callerId as never,
+        workspaceId: wsId as never,
+        userId: userId as never,
+        newRoleId: body.newRoleId as never,
+      });
+      return jsonResponse({ ok: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── GET /v1/audit-log ────────────────────────────────────────────────────────
 
 http.route({

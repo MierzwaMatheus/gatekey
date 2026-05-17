@@ -1,0 +1,108 @@
+import { useState, useEffect } from 'react'
+import { createRole, listCapabilities } from '../../lib/workspace-api'
+import type { WorkspaceCapability } from '../../lib/workspace-api'
+
+interface CreateRoleFormProps {
+  token: string
+  wsId: string
+  onSuccess: () => void
+  onCancel: () => void
+}
+
+export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleFormProps) {
+  const [capabilities, setCapabilities] = useState<WorkspaceCapability[] | null>(null)
+  const [name, setName] = useState('')
+  const [selectedCaps, setSelectedCaps] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    listCapabilities(token)
+      .then(({ capabilities: caps }) => setCapabilities(caps))
+      .catch(() => setCapabilities([]))
+  }, [token])
+
+  function toggleCap(capId: string) {
+    setSelectedCaps((prev) => {
+      const next = new Set(prev)
+      if (next.has(capId)) next.delete(capId)
+      else next.add(capId)
+      return next
+    })
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) return
+    setLoading(true)
+    setError(null)
+    try {
+      await createRole(token, { name: name.trim(), workspaceId: wsId })
+      onSuccess()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!capabilities) {
+    return <div className="text-text-muted text-sm py-2">Carregando capabilities…</div>
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+      <div>
+        <label className="block text-xs text-text-secondary mb-1">Nome do Role</label>
+        <input
+          data-testid="input-role-name"
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="ex: editor-docs"
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
+          required
+        />
+      </div>
+
+      <div>
+        <p className="text-xs text-text-secondary mb-2">Capabilities</p>
+        <div className="space-y-1">
+          {capabilities.map((cap) => (
+            <label key={cap._id} className="flex items-center gap-2 cursor-pointer">
+              <input
+                data-testid={`cap-check-${cap._id}`}
+                type="checkbox"
+                checked={selectedCaps.has(cap._id)}
+                onChange={() => toggleCap(cap._id)}
+                className="accent-accent-primary"
+              />
+              <span className="text-sm text-text-primary font-mono">{cap.name}</span>
+              <span className="text-xs text-text-muted">{cap.description}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {error && <p className="text-status-deny text-xs">{error}</p>}
+
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          data-testid="btn-create-role"
+          disabled={loading || !name.trim()}
+          className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
+        >
+          {loading ? 'Criando…' : 'Criar Role'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
