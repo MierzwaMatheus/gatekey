@@ -152,7 +152,7 @@ export default defineSchema({
     userId: v.id("users"),
     expiresAt: v.number(),
     usedAt: v.optional(v.number()),
-  }),
+  }).index("by_tokenHash", ["tokenHash"]),
 
   mfa_configs: defineTable({
     userId: v.id("users"),
