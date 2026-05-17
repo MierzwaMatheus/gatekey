@@ -393,9 +393,9 @@
 - [ ] Instalar biblioteca TOTP (ex: `otpauth`) para geração e verificação
 - [ ] Criar tabela `mfa_configs` com campos: userId, secret (criptografado), backupCodes[], activatedAt
 - [ ] Implementar `POST /v1/auth/mfa/setup` — gera segredo TOTP, retorna segredo em base32 e URL de QR code (não ativa ainda)
-- [ ] Implementar `POST /v1/auth/mfa/verify-setup` — valida código TOTP contra segredo pendente; se válido, ativa MFA e gera 10 backup codes
-- [ ] Implementar `POST /v1/auth/mfa/challenge` — recebe `{mfaToken, totpCode}`, valida código com janela ±1 intervalo, emite access + refresh token
-- [ ] Implementar verificação de backup code: aceitar qualquer código da lista, invalidar após uso
+- [x] Implementar `POST /v1/auth/mfa/verify-setup` — valida código TOTP contra segredo pendente; se válido, ativa MFA e gera 10 backup codes
+- [x] Implementar `POST /v1/auth/mfa/challenge` — recebe `{mfaToken, totpCode}`, valida código com janela ±1 intervalo, emite access + refresh token
+- [x] Implementar verificação de backup code: aceitar qualquer código da lista, invalidar após uso
 - [ ] Implementar bloqueio de acesso ao Root se MFA não configurado — redirecionar para setup no primeiro login
 - [ ] Implementar verificação de `org_settings.mfaRequired` — usuário sem `mfa_configs` ativo é redirecionado para setup antes de receber token
 - [ ] Chamar `writeAuditEvent` com action `auth.mfa.setup`, `auth.mfa.success`, `auth.mfa.failure`, `auth.mfa.backup_used`

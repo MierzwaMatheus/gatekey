@@ -56,6 +56,7 @@ export const loginWithPassword = internalAction({
       loginAttempts: number;
       lockedUntil?: number;
       mustChangePassword?: boolean;
+      isRoot?: boolean;
     } | null;
 
     if (!user) {
@@ -129,6 +130,31 @@ export const loginWithPassword = internalAction({
 
     // Login bem-sucedido — zerar tentativas
     await ctx.runMutation(internal.authStore.resetLoginAttempts, { userId: user._id as never });
+
+    // Verificar MFA obrigatório (root ou org com mfaRequired)
+    const activeMfaConfig = (await ctx.runQuery(internal.mfaStore.getActiveMfaConfig, {
+      userId: user._id as never,
+    })) as object | null;
+
+    if (!activeMfaConfig) {
+      const isRootWithoutMfa = user.isRoot;
+      let orgRequiresMfa = false;
+
+      const orgMembershipForMfa = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+        userId: user._id as never,
+      })) as { orgId: string } | null;
+
+      if (orgMembershipForMfa) {
+        const orgSettingsForMfa = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+          orgId: orgMembershipForMfa.orgId as never,
+        })) as { mfaRequired?: boolean } | null;
+        orgRequiresMfa = orgSettingsForMfa?.mfaRequired ?? false;
+      }
+
+      if (isRootWithoutMfa || orgRequiresMfa) {
+        return { success: false as const, error: "mfa_setup_required" };
+      }
+    }
 
     // Obter orgId do usuário (primeira org ativa)
     const orgMembership = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {

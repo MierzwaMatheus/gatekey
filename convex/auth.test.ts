@@ -736,3 +736,76 @@ test("loginWithPassword: usuário com mustChangePassword=true retorna flag no re
     expect(result.mustChangePassword).toBe(true);
   }
 });
+
+// ── Ciclo 6: mfaRequired bloqueia login sem MFA ativo ────────────────────────
+
+test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa_setup_required", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  // auth.ts usa bcryptjs.compare — deve-se criar o hash com bcryptjs
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("password123", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "mfa-user@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  await t.run(async (ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["email_password"],
+      mfaRequired: true,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "mfa-user@test.com",
+    password: "password123",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+  }
+});
+
+// ── Ciclo 7: Root account lock sem MFA ───────────────────────────────────────
+
+test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_required", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("root-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "root@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "root@test.com",
+    password: "root-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+  }
+});
