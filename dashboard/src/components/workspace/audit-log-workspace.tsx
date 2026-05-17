@@ -3,6 +3,19 @@ import { usePaginatedQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import type { AuditEvent } from '../../lib/workspace-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 interface AuditLogWorkspaceProps {
   token: string
@@ -80,57 +93,49 @@ export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps
           <p className="text-text-muted text-sm">Nenhum evento de auditoria encontrado.</p>
         </div>
       ) : (
-        <>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border-default">
-                <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Quando</th>
-                <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Ator</th>
-                <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Action</th>
-                <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Resultado</th>
-              </tr>
-            </thead>
+        <DenseGridContainer>
+          <DenseGridHeader
+            label="Audit Log"
+            stats={[{ label: 'eventos', value: logs.length }]}
+          />
+          <DenseGridTable>
+            <DenseGridThead>
+              <DenseGridThNum />
+              <DenseGridTh>Quando</DenseGridTh>
+              <DenseGridTh>Ator</DenseGridTh>
+              <DenseGridTh>Action</DenseGridTh>
+              <DenseGridTh>Resultado</DenseGridTh>
+            </DenseGridThead>
             <tbody>
-              {logs.map((log) => (
-                <tr
-                  key={log._id}
-                  data-testid={`log-row-${log._id}`}
-                  className="border-b border-border-default hover:bg-surface-hover"
-                >
-                  <td className="py-2.5 px-3 text-text-muted text-xs">{relativeTime(log.timestamp)}</td>
-                  <td className="py-2.5 px-3 text-text-secondary font-mono text-xs">{log.actorId}</td>
-                  <td className="py-2.5 px-3 text-text-primary text-xs font-mono">{log.action}</td>
-                  <td className="py-2.5 px-3">
-                    <span
-                      data-testid={`result-badge-${log._id}`}
-                      className={[
-                        'px-2 py-0.5 rounded-pill text-xs',
-                        log.result === 'allow'
-                          ? 'bg-status-allow/10 text-status-allow'
-                          : 'bg-status-deny/10 text-status-deny',
-                      ].join(' ')}
-                    >
-                      {log.result}
-                    </span>
-                  </td>
-                </tr>
+              {logs.map((log, i) => (
+                <DenseGridRow key={log._id} testId={`log-row-${log._id}`}>
+                  <DenseGridRowNum index={i} />
+                  <DenseGridCellStack
+                    primary={<span className="text-[11px] text-[#6E7681]">{relativeTime(log.timestamp)}</span>}
+                  />
+                  <DenseGridCellStack primary={log.actorId} />
+                  <DenseGridCellStack primary={log.action} />
+                  <DenseGridCellStack
+                    primary={
+                      <span data-testid={`result-badge-${log._id}`}>
+                        <DenseGridStatusBadge
+                          value={log.result}
+                          type={log.result === 'allow' ? 'allow' : 'deny'}
+                        />
+                      </span>
+                    }
+                  />
+                </DenseGridRow>
               ))}
             </tbody>
-          </table>
-
-          {!isDone && (
-            <div className="flex justify-center pt-2">
-              <button
-                data-testid="btn-load-more"
-                onClick={() => loadMore(50)}
-                disabled={status === 'LoadingMore'}
-                className="px-4 py-2 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover disabled:opacity-60 cursor-pointer"
-              >
-                {status === 'LoadingMore' ? 'Carregando…' : 'Carregar mais'}
-              </button>
-            </div>
-          )}
-        </>
+          </DenseGridTable>
+          <DenseGridFooter
+            showing={logs.length}
+            onLoadMore={!isDone ? () => loadMore(50) : undefined}
+            loadingMore={status === 'LoadingMore'}
+            isDone={isDone}
+          />
+        </DenseGridContainer>
       )}
     </div>
   )

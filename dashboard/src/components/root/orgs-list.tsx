@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react'
 import { Building2 } from 'lucide-react'
 import { listOrgs, type OrgSummary } from '../../lib/root-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridCell,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 interface OrgsListProps {
   token: string
@@ -8,20 +22,10 @@ interface OrgsListProps {
   refreshKey?: number
 }
 
-function StatusPill({ status, orgId }: { status: OrgSummary['status']; orgId: string }) {
-  const styles: Record<OrgSummary['status'], string> = {
-    active: 'bg-status-allow/15 text-status-allow',
-    suspended: 'bg-status-warning/15 text-status-warning',
-    deleted: 'bg-status-deny/15 text-status-deny',
-  }
-  return (
-    <span
-      data-testid={`status-${orgId}`}
-      className={`inline-flex items-center px-2 py-0.5 rounded-pill text-[11px] font-mono ${styles[status]}`}
-    >
-      {status}
-    </span>
-  )
+function statusType(status: OrgSummary['status']): 'allow' | 'deny' | 'neutral' {
+  if (status === 'active') return 'allow'
+  if (status === 'deleted') return 'deny'
+  return 'neutral'
 }
 
 function EmptyState() {
@@ -108,47 +112,55 @@ export function OrgsList({ token, onSelectOrg, refreshKey = 0 }: OrgsListProps) 
   if (orgs.length === 0) return <EmptyState />
 
   return (
-    <div className="w-full">
-      {/* Header da tabela */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-border-default">
-        <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide flex-1">Nome</span>
-        <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-24">Status</span>
-        <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-16 text-right">Usuários</span>
-        <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-20 text-right">Workspaces</span>
-        <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-16 text-right">Atividade</span>
-      </div>
-
-      {/* Linhas */}
-      {orgs.map((org) => (
-        <button
-          key={org._id}
-          onClick={() => onSelectOrg(org._id)}
-          className="w-full flex items-center gap-4 px-4 py-[8px] border-b border-border-default/30 hover:bg-surface-hover transition-colors duration-200 cursor-pointer text-left"
-        >
-          <span className="flex items-center gap-2 flex-1 min-w-0">
-            <Building2 size={14} className="text-text-secondary flex-shrink-0" />
-            <span className="text-sm text-text-primary truncate">{org.name}</span>
-          </span>
-          <span className="w-24">
-            <StatusPill status={org.status} orgId={org._id} />
-          </span>
-          <span
-            data-testid={`users-count-${org._id}`}
-            className="w-16 text-right text-sm font-mono text-text-secondary"
-          >
-            {org.usersCount}
-          </span>
-          <span
-            data-testid={`workspaces-count-${org._id}`}
-            className="w-20 text-right text-sm font-mono text-text-secondary"
-          >
-            {org.workspacesCount}
-          </span>
-          <span className="w-16 text-right text-[12px] font-mono text-text-muted">
-            {formatRelative(org.updatedAt)}
-          </span>
-        </button>
-      ))}
-    </div>
+    <DenseGridContainer>
+      <DenseGridHeader label="Organizações" stats={[{ label: 'total', value: orgs.length }]} />
+      <DenseGridTable>
+        <DenseGridThead>
+          <DenseGridThNum />
+          <DenseGridTh>Nome</DenseGridTh>
+          <DenseGridTh>Status</DenseGridTh>
+          <DenseGridTh>Usuários</DenseGridTh>
+          <DenseGridTh>Workspaces</DenseGridTh>
+          <DenseGridTh>Atividade</DenseGridTh>
+        </DenseGridThead>
+        <tbody>
+          {orgs.map((org, i) => (
+            <DenseGridRow key={org._id} testId={`org-row-${org._id}`}>
+              <DenseGridRowNum index={i} />
+              <DenseGridCellStack
+                primary={
+                  <button
+                    onClick={() => onSelectOrg(org._id)}
+                    className="flex items-center gap-1.5 text-[13px] font-mono text-[#E6EDF3] hover:text-[#58A6FF] transition-colors cursor-pointer text-left"
+                  >
+                    <Building2 size={12} className="text-[#6E7681] flex-shrink-0" />
+                    {org.name}
+                  </button>
+                }
+              />
+              <DenseGridCell>
+                <span data-testid={`status-${org._id}`}>
+                  <DenseGridStatusBadge value={org.status} type={statusType(org.status)} />
+                </span>
+              </DenseGridCell>
+              <DenseGridCell>
+                <span data-testid={`users-count-${org._id}`} className="text-[11px] text-[#8B949E]">
+                  {org.usersCount}
+                </span>
+              </DenseGridCell>
+              <DenseGridCell>
+                <span data-testid={`workspaces-count-${org._id}`} className="text-[11px] text-[#8B949E]">
+                  {org.workspacesCount}
+                </span>
+              </DenseGridCell>
+              <DenseGridCell>
+                <span className="text-[11px] text-[#6E7681]">{formatRelative(org.updatedAt)}</span>
+              </DenseGridCell>
+            </DenseGridRow>
+          ))}
+        </tbody>
+      </DenseGridTable>
+      <DenseGridFooter showing={orgs.length} />
+    </DenseGridContainer>
   )
 }

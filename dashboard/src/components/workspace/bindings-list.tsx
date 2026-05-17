@@ -3,6 +3,21 @@ import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { deleteBinding, type WorkspaceBinding } from '../../lib/workspace-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridActionsCell,
+  DenseGridActionBtn,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 interface BindingsListProps {
   token: string
@@ -54,48 +69,46 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
 
   return (
     <>
-      <div data-testid="bindings-list">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-default">
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Usuário</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Role</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Resource Type</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Resource ID</th>
-              <th className="py-2 px-3" />
-            </tr>
-          </thead>
+      <DenseGridContainer testId="bindings-list">
+        <DenseGridHeader label="Bindings" stats={[{ label: 'total', value: bindings.length }]} />
+        <DenseGridTable>
+          <DenseGridThead>
+            <DenseGridThNum />
+            <DenseGridTh>Usuário</DenseGridTh>
+            <DenseGridTh>Role</DenseGridTh>
+            <DenseGridTh>Resource Type</DenseGridTh>
+            <DenseGridTh>Resource ID</DenseGridTh>
+            <DenseGridTh align="right">Ações</DenseGridTh>
+          </DenseGridThead>
           <tbody>
-            {bindings.map((b) => (
-              <tr
-                key={b._id}
-                data-testid={`binding-row-${b._id}`}
-                className="border-b border-border-default hover:bg-surface-hover group"
-              >
-                <td className="py-2.5 px-3 text-text-secondary font-mono text-xs">{b.userId}</td>
-                <td className="py-2.5 px-3">
-                  <span className="px-2 py-0.5 rounded-pill bg-surface-elevated text-text-secondary text-xs">
-                    {b.roleName ?? b.roleId}
-                  </span>
-                </td>
-                <td className="py-2.5 px-3 text-text-primary text-xs">{b.resourceType}</td>
-                <td className="py-2.5 px-3 text-text-secondary font-mono text-xs">
-                  {b.resourceId ?? 'workspace inteiro'}
-                </td>
-                <td className="py-2.5 px-3">
-                  <button
-                    data-testid={`btn-revoke-${b._id}`}
+            {bindings.map((b, i) => (
+              <DenseGridRow key={b._id} testId={`binding-row-${b._id}`}>
+                <DenseGridRowNum index={i} />
+                <DenseGridCellStack primary={b.userId} />
+                <DenseGridCellStack
+                  primary={<DenseGridStatusBadge value={b.roleName ?? b.roleId} type="neutral" />}
+                />
+                <DenseGridCellStack primary={b.resourceType} />
+                <DenseGridCellStack
+                  primary={
+                    <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? 'workspace inteiro'}</span>
+                  }
+                />
+                <DenseGridActionsCell>
+                  <DenseGridActionBtn
+                    variant="danger"
+                    testId={`btn-revoke-${b._id}`}
                     onClick={() => setRevokeTarget(b)}
-                    className="opacity-0 group-hover:opacity-100 px-2 py-1 text-[11px] text-status-deny border border-border-default rounded hover:bg-surface-hover cursor-pointer transition-opacity"
                   >
                     Revogar
-                  </button>
-                </td>
-              </tr>
+                  </DenseGridActionBtn>
+                </DenseGridActionsCell>
+              </DenseGridRow>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DenseGridTable>
+        <DenseGridFooter showing={bindings.length} />
+      </DenseGridContainer>
 
       {revokeTarget && (
         <div

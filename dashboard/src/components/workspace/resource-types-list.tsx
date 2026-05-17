@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { listResourceTypes, type ResourceType } from '../../lib/workspace-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridCell,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 interface ResourceTypesListProps {
   token: string
@@ -42,37 +56,33 @@ export function ResourceTypesList({ token, refreshKey }: ResourceTypesListProps)
   }
 
   return (
-    <div data-testid="resource-types-list">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border-default">
-            <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Nome</th>
-            <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Herda De</th>
-            <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Modo de Herança</th>
-          </tr>
-        </thead>
+    <DenseGridContainer testId="resource-types-list">
+      <DenseGridHeader label="Resource Types" stats={[{ label: 'total', value: resourceTypes.length }]} />
+      <DenseGridTable>
+        <DenseGridThead>
+          <DenseGridThNum />
+          <DenseGridTh>Nome</DenseGridTh>
+          <DenseGridTh>Herda De</DenseGridTh>
+          <DenseGridTh>Modo de Herança</DenseGridTh>
+        </DenseGridThead>
         <tbody>
-          {resourceTypes.map((rt) => (
-            <tr
-              key={rt._id}
-              data-testid={`resource-type-row-${rt._id}`}
-              className="border-b border-border-default hover:bg-surface-hover"
-            >
-              <td className="py-2.5 px-3 text-text-primary font-mono">{rt.name}</td>
-              <td className="py-2.5 px-3 text-text-secondary text-xs font-mono">
-                {rt.inheritsFrom ?? '—'}
-              </td>
-              <td className="py-2.5 px-3">
-                {rt.inheritanceMode ? (
-                  <span className="px-2 py-0.5 rounded-pill bg-surface-elevated text-text-secondary text-xs">
-                    {rt.inheritanceMode}
-                  </span>
-                ) : '—'}
-              </td>
-            </tr>
+          {resourceTypes.map((rt, i) => (
+            <DenseGridRow key={rt._id} testId={`resource-type-row-${rt._id}`}>
+              <DenseGridRowNum index={i} />
+              <DenseGridCellStack primary={rt.name} />
+              <DenseGridCell>
+                <span className="text-[11px] text-[#6E7681]">{rt.inheritsFrom ?? '—'}</span>
+              </DenseGridCell>
+              <DenseGridCell>
+                {rt.inheritanceMode
+                  ? <DenseGridStatusBadge value={rt.inheritanceMode} type="neutral" />
+                  : <span className="text-[11px] text-[#484F58]">—</span>}
+              </DenseGridCell>
+            </DenseGridRow>
           ))}
         </tbody>
-      </table>
-    </div>
+      </DenseGridTable>
+      <DenseGridFooter showing={resourceTypes.length} />
+    </DenseGridContainer>
   )
 }

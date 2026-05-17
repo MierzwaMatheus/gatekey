@@ -4,6 +4,22 @@ import { Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { suspendUser, resetUserPassword, type UserSummary } from '../../lib/org-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridCell,
+  DenseGridActionsCell,
+  DenseGridActionBtn,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts
@@ -214,63 +230,50 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
 
   return (
     <>
-      <div className="border border-border-default rounded-card overflow-hidden shadow-card">
-        <table className="w-full text-sm" data-testid="users-table">
-          <thead>
-            <tr className="border-b border-border-default bg-surface-elevated">
-              <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Email</th>
-              <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Status</th>
-              <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Role</th>
-              <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Atualizado</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
+      <DenseGridContainer testId="users-table">
+        <DenseGridHeader label="Usuários" stats={[{ label: 'total', value: users.length }]} />
+        <DenseGridTable>
+          <DenseGridThead>
+            <DenseGridThNum />
+            <DenseGridTh>Identificador</DenseGridTh>
+            <DenseGridTh>Status</DenseGridTh>
+            <DenseGridTh>Role</DenseGridTh>
+            <DenseGridTh>Atualizado</DenseGridTh>
+            <DenseGridTh align="right">Ações</DenseGridTh>
+          </DenseGridThead>
           <tbody>
-            {users.map((user) => (
-              <tr
-                key={user._id}
-                className="border-b border-border-default last:border-0 hover:bg-surface-hover transition-colors group"
-              >
-                <td className="px-4 py-2.5 font-mono text-[13px] text-text-primary">{user.email}</td>
-                <td className="px-4 py-2.5">
-                  <span
-                    className={[
-                      'inline-flex px-2 py-0.5 text-[11px] font-medium rounded-pill',
-                      user.status === 'active'
-                        ? 'bg-status-allow/15 text-status-allow'
-                        : 'bg-status-deny/15 text-status-deny',
-                    ].join(' ')}
-                  >
-                    {user.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-[13px] text-text-secondary font-mono">{user.orgRole}</td>
-                <td className="px-4 py-2.5 text-[12px] text-text-secondary font-mono">
-                  {formatRelativeTime(user.updatedAt)}
-                </td>
-                <td className="px-4 py-2.5">
-                  <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                    {user.status === 'active' && (
-                      <button
-                        onClick={() => setSuspendTarget(user)}
-                        className="px-2 py-1 text-[11px] text-status-deny border border-status-deny/30 rounded-[4px] hover:bg-status-deny/10 transition-colors cursor-pointer"
-                      >
-                        Suspender
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setResetTarget(user)}
-                      className="px-2 py-1 text-[11px] text-text-secondary border border-border-default rounded-[4px] hover:bg-surface-elevated transition-colors cursor-pointer"
-                    >
-                      Redefinir senha
-                    </button>
-                  </div>
-                </td>
-              </tr>
+            {users.map((user, i) => (
+              <DenseGridRow key={user._id}>
+                <DenseGridRowNum index={i} />
+                <DenseGridCellStack primary={user.email} />
+                <DenseGridCell>
+                  <DenseGridStatusBadge
+                    value={user.status}
+                    type={user.status === 'active' ? 'allow' : 'deny'}
+                  />
+                </DenseGridCell>
+                <DenseGridCell>
+                  <span className="text-[11px] text-[#8B949E]">{user.orgRole}</span>
+                </DenseGridCell>
+                <DenseGridCell>
+                  <span className="text-[11px] text-[#6E7681]">{formatRelativeTime(user.updatedAt)}</span>
+                </DenseGridCell>
+                <DenseGridActionsCell>
+                  {user.status === 'active' && (
+                    <DenseGridActionBtn variant="danger" onClick={() => setSuspendTarget(user)}>
+                      Suspender
+                    </DenseGridActionBtn>
+                  )}
+                  <DenseGridActionBtn onClick={() => setResetTarget(user)}>
+                    Redefinir senha
+                  </DenseGridActionBtn>
+                </DenseGridActionsCell>
+              </DenseGridRow>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DenseGridTable>
+        <DenseGridFooter showing={users.length} />
+      </DenseGridContainer>
 
       {suspendTarget && (
         <SuspendModal

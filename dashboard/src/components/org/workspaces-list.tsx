@@ -2,6 +2,21 @@ import { useEffect, useState, useRef } from 'react'
 import { LayoutGrid, Plus, ExternalLink } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 import { listWorkspaces, type WorkspaceSummary } from '../../lib/org-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridCell,
+  DenseGridActionsCell,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -86,54 +101,55 @@ export function WorkspacesList({ token, orgId, onAddWorkspace }: WorkspacesListP
   }
 
   return (
-    <div className="border border-border-default rounded-card overflow-hidden shadow-card" data-testid="workspaces-table">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border-default bg-surface-elevated">
-            <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Nome</th>
-            <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Status</th>
-            <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Membros</th>
-            <th className="text-left px-4 py-2.5 text-[12px] font-medium text-text-secondary uppercase tracking-wide">Criado em</th>
-            <th className="px-4 py-2.5" />
-          </tr>
-        </thead>
+    <DenseGridContainer testId="workspaces-table">
+      <DenseGridHeader label="Workspaces" stats={[{ label: 'total', value: workspaces.length }]} />
+      <DenseGridTable>
+        <DenseGridThead>
+          <DenseGridThNum />
+          <DenseGridTh>Nome</DenseGridTh>
+          <DenseGridTh>Status</DenseGridTh>
+          <DenseGridTh>Membros</DenseGridTh>
+          <DenseGridTh>Criado em</DenseGridTh>
+          <DenseGridTh align="right">Ações</DenseGridTh>
+        </DenseGridThead>
         <tbody>
-          {workspaces.map((ws) => (
-            <tr
-              key={ws._id}
-              className="border-b border-border-default last:border-0 hover:bg-surface-hover transition-colors group"
-            >
-              <td className="px-4 py-2.5 text-[13px] text-text-primary flex items-center gap-2">
-                <LayoutGrid size={14} className="text-text-secondary flex-shrink-0" />
-                {ws.name}
-              </td>
-              <td className="px-4 py-2.5">
-                <span
-                  className={[
-                    'inline-flex px-2 py-0.5 text-[11px] font-medium rounded-pill',
-                    ws.status === 'active'
-                      ? 'bg-status-allow/15 text-status-allow'
-                      : 'bg-status-deny/15 text-status-deny',
-                  ].join(' ')}
-                >
-                  {ws.status}
-                </span>
-              </td>
-              <td className="px-4 py-2.5 text-[13px] text-text-secondary font-mono">{ws.membersCount}</td>
-              <td className="px-4 py-2.5 text-[12px] text-text-secondary font-mono">{formatDate(ws.createdAt)}</td>
-              <td className="px-4 py-2.5">
+          {workspaces.map((ws, i) => (
+            <DenseGridRow key={ws._id}>
+              <DenseGridRowNum index={i} />
+              <DenseGridCellStack
+                primary={
+                  <span className="flex items-center gap-1.5">
+                    <LayoutGrid size={12} className="text-[#6E7681] flex-shrink-0" />
+                    {ws.name}
+                  </span>
+                }
+              />
+              <DenseGridCell>
+                <DenseGridStatusBadge
+                  value={ws.status}
+                  type={ws.status === 'active' ? 'allow' : 'deny'}
+                />
+              </DenseGridCell>
+              <DenseGridCell>
+                <span className="text-[11px] text-[#8B949E]">{ws.membersCount}</span>
+              </DenseGridCell>
+              <DenseGridCell>
+                <span className="text-[11px] text-[#6E7681]">{formatDate(ws.createdAt)}</span>
+              </DenseGridCell>
+              <DenseGridActionsCell>
                 <button
                   onClick={() => navigate({ to: `/org/${orgId}/workspace/${ws._id}` })}
-                  className="flex items-center gap-1 px-2 py-1 text-[11px] text-accent-primary border border-accent-primary/30 rounded-[4px] hover:bg-accent-subtle transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.06em] text-[#58A6FF] border border-[#58A6FF]/30 rounded-[2px] hover:bg-[#58A6FF]/10 transition-colors cursor-pointer"
                 >
-                  <ExternalLink size={11} />
-                  Abrir painel
+                  <ExternalLink size={10} />
+                  Abrir
                 </button>
-              </td>
-            </tr>
+              </DenseGridActionsCell>
+            </DenseGridRow>
           ))}
         </tbody>
-      </table>
-    </div>
+      </DenseGridTable>
+      <DenseGridFooter showing={workspaces.length} />
+    </DenseGridContainer>
   )
 }

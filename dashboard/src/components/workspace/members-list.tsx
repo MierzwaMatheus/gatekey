@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 import { listMembers, removeMember, changeMemberRole, listRoles, type WorkspaceMember } from '../../lib/workspace-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridActionsCell,
+  DenseGridActionBtn,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts
@@ -109,53 +123,37 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
 
   return (
     <>
-      <div data-testid="members-list">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-default">
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Nome</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Email</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Role</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Adicionado</th>
-              <th className="py-2 px-3" />
-            </tr>
-          </thead>
+      <DenseGridContainer testId="members-list">
+        <DenseGridHeader label="Membros" stats={[{ label: 'total', value: members.length }]} />
+        <DenseGridTable>
+          <DenseGridThead>
+            <DenseGridThNum />
+            <DenseGridTh>Identificador</DenseGridTh>
+            <DenseGridTh>Role</DenseGridTh>
+            <DenseGridTh>Adicionado</DenseGridTh>
+            <DenseGridTh align="right">Ações</DenseGridTh>
+          </DenseGridThead>
           <tbody>
-            {members.map((m) => (
-              <tr
-                key={m.userId}
-                data-testid={`member-row-${m.userId}`}
-                className="border-b border-border-default hover:bg-surface-hover group"
-              >
-                <td className="py-2.5 px-3 text-text-primary font-medium">{m.userName}</td>
-                <td className="py-2.5 px-3 text-text-secondary font-mono text-xs">{m.userEmail}</td>
-                <td className="py-2.5 px-3">
-                  <span className="px-2 py-0.5 rounded-pill bg-surface-elevated text-text-secondary text-xs">
-                    {m.roleName}
-                  </span>
-                </td>
-                <td className="py-2.5 px-3 text-text-muted text-xs">{relativeTime(m.addedAt)}</td>
-                <td className="py-2.5 px-3">
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => { setChangeRoleTarget(m); setNewRoleId('') }}
-                      className="px-2 py-1 text-[11px] text-text-secondary border border-border-default rounded hover:bg-surface-hover cursor-pointer"
-                    >
-                      Trocar role
-                    </button>
-                    <button
-                      onClick={() => setRemoveTarget(m)}
-                      className="px-2 py-1 text-[11px] text-status-deny border border-border-default rounded hover:bg-surface-hover cursor-pointer"
-                    >
-                      Remover
-                    </button>
-                  </div>
-                </td>
-              </tr>
+            {members.map((m, i) => (
+              <DenseGridRow key={m.userId} testId={`member-row-${m.userId}`}>
+                <DenseGridRowNum index={i} />
+                <DenseGridCellStack primary={m.userName} secondary={m.userEmail} />
+                <DenseGridCellStack primary={m.roleName} />
+                <DenseGridCellStack primary={relativeTime(m.addedAt)} />
+                <DenseGridActionsCell>
+                  <DenseGridActionBtn onClick={() => { setChangeRoleTarget(m); setNewRoleId('') }}>
+                    Trocar role
+                  </DenseGridActionBtn>
+                  <DenseGridActionBtn variant="danger" onClick={() => setRemoveTarget(m)}>
+                    Remover
+                  </DenseGridActionBtn>
+                </DenseGridActionsCell>
+              </DenseGridRow>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DenseGridTable>
+        <DenseGridFooter showing={members.length} />
+      </DenseGridContainer>
 
       {/* Remove confirmation modal */}
       {removeTarget && (
