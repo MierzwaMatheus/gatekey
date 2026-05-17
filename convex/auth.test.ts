@@ -779,6 +779,47 @@ test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa
   }
 });
 
+// ── Ciclo MFA 4.6: login com MFA ativo ────────────────────────────────────────
+
+test("loginWithPassword: MFA ativo retorna mfa_required com mfaToken, sem accessToken", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "MfaOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("mfa-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "mfaactive@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  await t.mutation(internal.mfaStore.activateMfaConfig, {
+    userId: userId as never,
+    secret: "JBSWY3DPEHPK3PXP",
+    backupCodes: ["backup1", "backup2"],
+  });
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "mfaactive@test.com",
+    password: "mfa-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_required");
+    expect((result as { mfaToken?: string }).mfaToken).toBeTypeOf("string");
+    expect((result as { mfaToken?: string }).mfaToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});
+
 // ── Ciclo 7: Root account lock sem MFA ───────────────────────────────────────
 
 test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_required", async () => {

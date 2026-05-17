@@ -27,11 +27,13 @@ export const loginWithPassword = internalAction({
       success: v.literal(false),
       error: v.string(),
       lockedUntil: v.optional(v.number()),
+      mfaToken: v.optional(v.string()),
+      mfaSetupToken: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args): Promise<
     | { success: true; accessToken: string; refreshToken: string; sessionId: string; mustChangePassword: boolean }
-    | { success: false; error: string; lockedUntil?: number }
+    | { success: false; error: string; lockedUntil?: number; mfaToken?: string; mfaSetupToken?: string }
   > => {
     const bcrypt = await import("bcryptjs");
 
@@ -136,7 +138,15 @@ export const loginWithPassword = internalAction({
       userId: user._id as never,
     })) as object | null;
 
-    if (!activeMfaConfig) {
+    if (activeMfaConfig) {
+      // MFA ativo — emitir mfaToken temporário para desafio
+      const mfaToken = (await ctx.runAction(internal.mfa.signMfaToken, {
+        userId: user._id as never,
+      })) as string;
+      return { success: false as const, error: "mfa_required", mfaToken };
+    }
+
+    {
       const isRootWithoutMfa = user.isRoot;
       let orgRequiresMfa = false;
 

@@ -66,6 +66,12 @@ http.route({
         ip,
       });
       if (!result.success) {
+        if (result.error === "mfa_required") {
+          return withCors({ mfa_required: true, mfa_token: result.mfaToken });
+        }
+        if (result.error === "mfa_setup_required") {
+          return withCors({ mfa_setup_required: true, mfa_setup_token: result.mfaSetupToken });
+        }
         const status = result.error === "account_locked" ? 429
           : result.error === "method_disabled" ? 403
           : 401;
