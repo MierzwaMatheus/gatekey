@@ -332,3 +332,74 @@ test("challengeMfa: backup code inválido retorna erro", async () => {
     expect(result.error).toBe("invalid_code");
   }
 });
+
+// ── Ciclo 8: audit events ─────────────────────────────────────────────────────
+
+test("verifyMfaSetup: gera evento auth.mfa.setup no audit_log", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await setupUser(t);
+
+  const { TOTP, Secret } = await import("otpauth");
+  const pendingSecret = new Secret({ size: 20 }).base32;
+
+  await t.mutation(internal.mfaStore.upsertPendingMfaConfig, {
+    userId: userId as never,
+    pendingSecret,
+    pendingSecretExpiresAt: Date.now() + 600_000,
+  });
+
+  const totp = new TOTP({ algorithm: "SHA1", digits: 6, period: 30, secret: Secret.fromBase32(pendingSecret) });
+  await t.action(internal.mfa.verifyMfaSetup, {
+    userId: userId as never,
+    totpCode: totp.generate(),
+  });
+
+  const auditEvents = await t.run(async (ctx) => ctx.db.query("audit_log").collect());
+  const setupEvent = auditEvents.find((e) => e.action === "auth.mfa.setup");
+  expect(setupEvent).toBeDefined();
+  expect(setupEvent?.result).toBe("allow");
+});
+
+test("challengeMfa: gera evento auth.mfa.success no audit_log para código correto", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  const { totp } = await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+  await t.action(internal.mfa.challengeMfa, { mfaToken, totpCode: totp.generate() });
+
+  const auditEvents = await t.run(async (ctx) => ctx.db.query("audit_log").collect());
+  const successEvent = auditEvents.find((e) => e.action === "auth.mfa.success");
+  expect(successEvent).toBeDefined();
+});
+
+test("challengeMfa: gera evento auth.mfa.failure no audit_log para código errado", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+  await t.action(internal.mfa.challengeMfa, { mfaToken, totpCode: "000000" });
+
+  const auditEvents = await t.run(async (ctx) => ctx.db.query("audit_log").collect());
+  const failEvent = auditEvents.find((e) => e.action === "auth.mfa.failure");
+  expect(failEvent).toBeDefined();
+  expect(failEvent?.result).toBe("deny");
+});
+
+test("challengeMfa: gera evento auth.mfa.backup_used no audit_log para backup code", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+  await t.action(internal.mfa.challengeMfa, { mfaToken, totpCode: "backup001" });
+
+  const auditEvents = await t.run(async (ctx) => ctx.db.query("audit_log").collect());
+  const backupEvent = auditEvents.find((e) => e.action === "auth.mfa.backup_used");
+  expect(backupEvent).toBeDefined();
+  expect(backupEvent?.result).toBe("allow");
+});
