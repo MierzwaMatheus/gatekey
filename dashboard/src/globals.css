@@ -2,25 +2,69 @@
 
 @import "tailwindcss";
 
+/* ── Variáveis brutas da paleta ─────────────────────────────── */
 :root {
   --gate-midnight: #0D1117;
-  --gate-iron: #1C2333;
-  --gate-steel: #30363D;
-  --gate-key: #F0A500;
-  --gate-key-dim: #7D5500;
-  --gate-safe: #3FB950;
-  --gate-danger: #F85149;
-  --gate-text: #C9D1D9;
-  --gate-muted: #8B949E;
+  --gate-iron:     #1C2333;
+  --gate-steel:    #30363D;
+  --gate-key:      #F0A500;
+  --gate-key-dim:  #7D5500;
+  --gate-safe:     #3FB950;
+  --gate-danger:   #F85149;
+  --gate-text:     #C9D1D9;
+  --gate-muted:    #8B949E;
 }
 
+/* ── Tokens semânticos do Tailwind v4 ───────────────────────── */
+@theme inline {
+  /* Cores de superfície */
+  --color-surface-page:     var(--gate-midnight);
+  --color-surface-card:     var(--gate-iron);
+  --color-surface-elevated: var(--gate-steel);
+  --color-surface-hover:    rgba(255,255,255,0.04);
+
+  /* Texto */
+  --color-text-primary:   var(--gate-text);
+  --color-text-secondary: var(--gate-muted);
+  --color-text-muted:     rgba(139,148,158,0.6);
+
+  /* Accent âmbar */
+  --color-accent-primary: var(--gate-key);
+  --color-accent-hover:   var(--gate-key-dim);
+  --color-accent-subtle:  rgba(240,165,0,0.12);
+
+  /* Status */
+  --color-status-allow:   var(--gate-safe);
+  --color-status-deny:    var(--gate-danger);
+  --color-status-warning: #E3B341;
+
+  /* Bordas */
+  --color-border-default: rgba(48,54,61,1);
+  --color-border-subtle:  rgba(255,255,255,0.06);
+  --color-border-accent:  rgba(240,165,0,0.3);
+
+  /* Border radius */
+  --radius-card:   12px;
+  --radius-button: 8px;
+  --radius-input:  8px;
+  --radius-badge:  6px;
+  --radius-pill:   9999px;
+
+  /* Sombras */
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-hover:  0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+  --shadow-float:  0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  --shadow-accent: 0 0 0 1px rgba(240,165,0,0.4);
+
+  /* Tipografia */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ── Base global ────────────────────────────────────────────── */
 body {
   background-color: var(--gate-midnight);
   color: var(--gate-text);
   font-family: 'Inter', sans-serif;
   font-weight: 400;
-}
-
-.font-mono, code, pre, [data-mono] {
-  font-family: 'JetBrains Mono', monospace;
 }
