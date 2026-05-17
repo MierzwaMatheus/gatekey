@@ -1,5 +1,5 @@
 import { createRoute, useSearch } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Route as rootRoute } from './__root'
 import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
 import { useAuth } from '../lib/auth-context'
@@ -11,8 +11,12 @@ export function MagicLinkVerifyPage() {
   const search = useSearch({ from: Route.id }) as { token?: string }
   const [status, setStatus] = useState<'verifying' | 'error'>('verifying')
   const [errorMsg, setErrorMsg] = useState('')
+  const didVerify = useRef(false)
 
   useEffect(() => {
+    if (didVerify.current) return
+    didVerify.current = true
+
     const token = search.token
     if (!token) {
       setErrorMsg('LINK INVÁLIDO. TOKEN AUSENTE.')
@@ -24,7 +28,11 @@ export function MagicLinkVerifyPage() {
       const payload = parseJwtPayload(result.accessToken)
       const role = payload.orgId ? 'org_admin' : 'root'
       setAuth({ token: result.accessToken, role, orgId: result.orgId })
-      navigate({ to: '/root' })
+      if (role === 'root') {
+        navigate({ to: '/root' })
+      } else {
+        navigate({ to: '/org/$orgId', params: { orgId: result.orgId } })
+      }
     }).catch((err) => {
       if (err instanceof AuthError && err.reason === 'invalid_or_expired') {
         setErrorMsg('LINK EXPIRADO OU JÁ UTILIZADO.')

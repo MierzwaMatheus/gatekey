@@ -473,7 +473,7 @@ export const verifyMagicLink = internalAction({
 export const requestMagicLink = internalAction({
   args: {
     email: v.string(),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.string()),
     ip: v.optional(v.string()),
     baseUrl: v.optional(v.string()),
   },
@@ -481,20 +481,36 @@ export const requestMagicLink = internalAction({
   handler: async (ctx, args): Promise<{ ok: true }> => {
     const crypto = await import("crypto");
 
-    const orgSettings = (await ctx.runQuery(internal.authStore.getOrgSettings, {
-      orgId: args.orgId,
-    })) as { loginMethods?: string[] } | null;
-
-    if (!orgSettings?.loginMethods?.includes("magic_link")) {
-      throw new Error("method_disabled");
-    }
-
     const user = (await ctx.runQuery(internal.authStore.getUserByEmail, {
       email: args.email,
     })) as { _id: string; email: string } | null;
 
     if (!user) {
       return { ok: true };
+    }
+
+    // Resolver orgId: usa o fornecido ou busca pela primeira org ativa do usuário
+    let resolvedOrgId: string | undefined = args.orgId;
+    if (!resolvedOrgId) {
+      const membership = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+        userId: user._id as never,
+      })) as { orgId: string } | null;
+      resolvedOrgId = membership?.orgId;
+    }
+
+    let locale = "en";
+
+    if (resolvedOrgId) {
+      const orgSettings = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+        orgId: resolvedOrgId as never,
+      })) as { loginMethods?: string[]; defaultLanguage?: string } | null;
+
+      // Só bloqueia se loginMethods está explicitamente configurado e não inclui magic_link
+      if (orgSettings?.loginMethods && orgSettings.loginMethods.length > 0 && !orgSettings.loginMethods.includes("magic_link")) {
+        throw new Error("method_disabled");
+      }
+
+      locale = orgSettings?.defaultLanguage ?? "en";
     }
 
     const rawToken = crypto.randomBytes(32).toString("hex");
@@ -514,12 +530,10 @@ export const requestMagicLink = internalAction({
         const { magicLinkHtml } = await import("./emailTemplates");
         const resend = new Resend(resendApiKey);
         const link = `${args.baseUrl ?? "https://app.gatekey.dev"}/auth/magic-link/verify?token=${rawToken}`;
-        const locale = (orgSettings as { defaultLanguage?: string }).defaultLanguage ?? "en";
-        const isPtBr = locale === "pt-BR";
         await resend.emails.send({
-          from: "GateKey <noreply@gatekey.dev>",
+          from: "GateKey <onboarding@resend.dev>",
           to: args.email,
-          subject: isPtBr ? "Seu link de acesso" : "Your sign-in link",
+          subject: locale === "pt-BR" ? "Seu link de acesso" : "Your sign-in link",
           html: magicLinkHtml(link, locale),
         });
       }
@@ -532,7 +546,7 @@ export const requestMagicLink = internalAction({
       actorId: user._id as string,
       action: "auth.magiclink.sent",
       target: { type: "session" },
-      orgId: args.orgId,
+      orgId: resolvedOrgId as never,
       ip: args.ip,
       result: "allow",
     });

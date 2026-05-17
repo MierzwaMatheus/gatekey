@@ -8,7 +8,6 @@ import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
 import { useAuth } from '../lib/auth-context'
 import { useNavigate } from '@tanstack/react-router'
 
-const DEFAULT_ORG_ID = (import.meta.env.VITE_DEFAULT_ORG_ID ?? '') as string
 
 function UtcClock() {
   const [time, setTime] = useState(() => {
@@ -55,8 +54,10 @@ export function LoginPage() {
       setAuth({ token: result.accessToken, role, orgId: result.orgId })
       if (result.mustChangePassword) {
         navigate({ to: '/change-password' })
-      } else {
+      } else if (role === 'root') {
         navigate({ to: '/root' })
+      } else {
+        navigate({ to: '/org/$orgId', params: { orgId: result.orgId } })
       }
     } catch (err) {
       if (err instanceof AuthError) {
@@ -81,7 +82,7 @@ export function LoginPage() {
     setIsLoading(true)
     setApiError(null)
     try {
-      await authService.requestMagicLink(magicEmail, DEFAULT_ORG_ID)
+      await authService.requestMagicLink(magicEmail)
       setMagicLinkSent(true)
     } catch (err) {
       if (err instanceof AuthError && err.reason === 'method_disabled') {

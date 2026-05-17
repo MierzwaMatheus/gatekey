@@ -128,11 +128,11 @@ async function refresh(sessionId: string, refreshToken: string, orgId: string): 
   return { ...tokens, orgId }
 }
 
-async function requestMagicLink(email: string, orgId: string): Promise<void> {
+async function requestMagicLink(email: string): Promise<void> {
   const res = await fetch(`${CONVEX_URL}/v1/auth/magic-link`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, orgId }),
+    body: JSON.stringify({ email }),
   })
 
   if (res.status === 403) throw new AuthError('method_disabled')
