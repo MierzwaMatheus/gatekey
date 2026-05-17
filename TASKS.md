@@ -257,7 +257,7 @@
 - [x] Instalar shadcn/ui e configurar Tailwind
 - [x] Definir variáveis CSS no `globals.css`: `--gate-midnight: #0D1117`, `--gate-iron: #1C2333`, `--gate-steel: #30363D`, `--gate-key: #F0A500`, `--gate-key-dim: #7D5500`, `--gate-safe: #3FB950`, `--gate-danger: #F85149`, `--gate-text: #C9D1D9`, `--gate-muted: #8B949E`
 - [x] Configurar fonte Inter para interface e JetBrains Mono para código e tokens via CSS
-- [ ] Instalar e configurar React Hook Form + Zod para validação de formulários
+- [x] Instalar e configurar React Hook Form + Zod para validação de formulários
 - [x] Instalar e configurar i18next com `i18next-browser-languagedetector`
 - [x] Criar estrutura de rotas: `/login`, `/root/*`, `/org/:orgId/*`, `/org/:orgId/workspace/:wsId/*`
 - [ ] Criar componente `ProtectedRoute` que verifica role antes de renderizar
