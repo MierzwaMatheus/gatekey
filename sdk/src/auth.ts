@@ -1,12 +1,21 @@
 import { GatekeyApiError, GatekeyAuthError } from "./errors.js";
+import { MfaModule } from "./mfa.js";
 import type { LoginResult, TokenStore } from "./types.js";
 
 type RawFetch = (path: string, options?: RequestInit) => Promise<Response>;
 
 export class AuthModule {
   private tokens: TokenStore | null = null;
+  private mfaSetupTokenStored: string | null = null;
+  readonly mfa: MfaModule;
 
-  constructor(private readonly rawFetch: RawFetch) {}
+  constructor(private readonly rawFetch: RawFetch) {
+    this.mfa = new MfaModule(
+      rawFetch,
+      () => this.mfaSetupTokenStored,
+      (tokens) => { this.tokens = tokens; },
+    );
+  }
 
   async login(email: string, password: string): Promise<LoginResult> {
     const res = await this.rawFetch("/v1/auth/login", {
@@ -26,6 +35,7 @@ export class AuthModule {
     }
 
     if (data.mfaSetupToken) {
+      this.mfaSetupTokenStored = String(data.mfaSetupToken);
       return { type: "mfa_setup_required", mfaSetupToken: String(data.mfaSetupToken) };
     }
 
