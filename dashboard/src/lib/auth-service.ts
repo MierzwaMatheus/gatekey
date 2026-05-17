@@ -21,6 +21,7 @@ export interface AuthTokens {
   accessToken: string
   refreshToken: string
   sessionId: string
+  mustChangePassword?: boolean
 }
 
 export class AuthError extends Error {
@@ -68,7 +69,7 @@ export function parseJwtPayload(token: string): TokenPayload {
   return JSON.parse(base64urlDecode(payload)) as TokenPayload
 }
 
-async function login(email: string, password: string): Promise<AuthTokens & { orgId: string }> {
+async function login(email: string, password: string): Promise<AuthTokens & { orgId: string; mustChangePassword: boolean }> {
   const res = await fetch(`${CONVEX_URL}/v1/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -91,12 +92,12 @@ async function login(email: string, password: string): Promise<AuthTokens & { or
     throw new AuthError('unknown_error')
   }
 
-  const tokens = await res.json() as AuthTokens
+  const tokens = await res.json() as AuthTokens & { mustChangePassword?: boolean }
   const { orgId } = parseJwtPayload(tokens.accessToken)
 
   saveTokens(tokens, orgId)
 
-  return { ...tokens, orgId }
+  return { ...tokens, orgId, mustChangePassword: tokens.mustChangePassword ?? false }
 }
 
 async function logout(accessToken: string): Promise<void> {

@@ -17,11 +17,12 @@ vi.mock('../lib/auth-service', async (importOriginal) => {
   }
 })
 
+const mockNavigate = vi.fn()
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
   return {
     ...actual,
-    useNavigate: () => vi.fn(),
+    useNavigate: () => mockNavigate,
   }
 })
 
@@ -141,6 +142,30 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/conta bloqueada/i)).toBeDefined()
+    })
+  })
+
+  it('redireciona para /change-password quando mustChangePassword=true no login', async () => {
+    const mockToken = [
+      'h',
+      btoa(JSON.stringify({ sub: 'u1', orgId: 'org1', sessionId: 's1', workspaceIds: [], roles: {}, capabilities: [], exp: 9999999999 })),
+      'sig',
+    ].join('.')
+    vi.mocked(authService.login).mockResolvedValue({
+      accessToken: mockToken,
+      refreshToken: 'r',
+      sessionId: 's',
+      orgId: 'org1',
+      mustChangePassword: true,
+    })
+
+    renderLoginPage()
+    await userEvent.type(screen.getByLabelText(/email/i), 'admin@acme.com')
+    await userEvent.type(screen.getByLabelText(/senha/i), 'temppass')
+    fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/change-password' })
     })
   })
 })

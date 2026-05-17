@@ -102,6 +102,26 @@ describe('authService', () => {
       expect(result.orgId).toBe('org_456')
     })
 
+    it('retorna mustChangePassword=true quando API sinaliza troca obrigatória', async () => {
+      vi.mocked(global.fetch).mockResolvedValue(
+        new Response(JSON.stringify({ ...MOCK_TOKENS, mustChangePassword: true }), { status: 200 })
+      )
+
+      const result = await authService.login('admin@acme.io', 'temppass')
+
+      expect(result.mustChangePassword).toBe(true)
+    })
+
+    it('retorna mustChangePassword=false quando API não sinaliza troca', async () => {
+      vi.mocked(global.fetch).mockResolvedValue(
+        new Response(JSON.stringify(MOCK_TOKENS), { status: 200 })
+      )
+
+      const result = await authService.login('user@acme.io', 'senha123')
+
+      expect(result.mustChangePassword).toBe(false)
+    })
+
     it('lança AuthError com reason=invalid_credentials em resposta 401', async () => {
       vi.mocked(global.fetch).mockResolvedValue(
         new Response(JSON.stringify({ error: 'invalid_credentials' }), { status: 401 })

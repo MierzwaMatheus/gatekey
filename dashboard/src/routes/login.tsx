@@ -35,7 +35,11 @@ export function LoginPage() {
         role,
         orgId: result.orgId,
       })
-      navigate({ to: '/root' })
+      if (result.mustChangePassword) {
+        navigate({ to: '/change-password' })
+      } else {
+        navigate({ to: '/root' })
+      }
     } catch (err) {
       if (err instanceof AuthError) {
         if (err.reason === 'invalid_credentials') {

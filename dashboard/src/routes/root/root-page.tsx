@@ -10,7 +10,7 @@ import { AuditLogTable } from '../../components/root/audit-log-table'
 import { CapabilitiesList } from '../../components/root/capabilities-list'
 import { ApiKeysBrowser } from '../../components/root/api-keys-browser'
 import { ColdStorageConfig } from '../../components/root/cold-storage-config'
-import { LogOut } from 'lucide-react'
+import { LogOut, Copy, Check } from 'lucide-react'
 
 const SECTION_TITLES: Record<RootSection, string> = {
   orgs: 'Organizações',
@@ -22,11 +22,72 @@ const SECTION_TITLES: Record<RootSection, string> = {
   'cold-storage': 'Cold Storage',
 }
 
+interface TempPasswordModal {
+  orgId: string
+  tempPassword: string
+}
+
+function TempPasswordDialog({ orgId, tempPassword, onClose }: TempPasswordModal & { onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard.writeText(tempPassword).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="temp-pass-title"
+        className="w-full max-w-md bg-surface-card rounded-card shadow-card border border-border-default p-6 mx-4"
+      >
+        <h2 id="temp-pass-title" className="text-base font-medium text-text-primary mb-1">
+          Organização criada
+        </h2>
+        <p className="text-sm text-text-secondary mb-4">
+          O admin ainda não tem senha definida. Anote a senha temporária abaixo e repasse por canal seguro — ela não será exibida novamente.
+        </p>
+
+        <div className="flex items-center gap-2 bg-surface-elevated border border-border-default rounded-input px-3 py-2 mb-2">
+          <code className="flex-1 font-mono text-sm text-accent-primary tracking-wider select-all">
+            {tempPassword}
+          </code>
+          <button
+            onClick={handleCopy}
+            className="text-text-secondary hover:text-text-primary transition-colors"
+            title="Copiar senha"
+          >
+            {copied ? <Check size={15} className="text-status-allow" /> : <Copy size={15} />}
+          </button>
+        </div>
+
+        <p className="text-xs text-text-muted mb-5">
+          Org ID: <span className="font-mono">{orgId}</span>
+        </p>
+
+        <button
+          data-testid="btn-confirm-temp-password"
+          onClick={onClose}
+          className="w-full bg-accent-primary text-black font-medium rounded-button py-2 text-sm hover:bg-accent-hover transition-colors"
+        >
+          Entendi, já copiei a senha
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export function RootPage() {
   const { token } = useAuth()
   const { handleLogout, isLoggingOut } = useLogout()
   const [section, setSection] = useState<RootSection>('orgs')
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
+  const [tempPasswordModal, setTempPasswordModal] = useState<TempPasswordModal | null>(null)
+  const [orgsRefreshKey, setOrgsRefreshKey] = useState(0)
 
   const tok = token ?? ''
 
@@ -35,13 +96,21 @@ export function RootPage() {
       case 'orgs':
         return (
           <div className="space-y-6">
-            <OrgsList token={tok} onSelectOrg={setSelectedOrgId} />
+            <OrgsList token={tok} onSelectOrg={setSelectedOrgId} refreshKey={orgsRefreshKey} />
             <div className="border-t border-border-default pt-6">
               <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
                 Nova Organização
               </p>
               <div className="max-w-md">
-                <CreateOrgForm token={tok} onSuccess={() => {}} />
+                <CreateOrgForm
+                  token={tok}
+                  onSuccess={(orgId, tempPassword) => {
+                    setOrgsRefreshKey((k) => k + 1)
+                    if (tempPassword) {
+                      setTempPasswordModal({ orgId, tempPassword })
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -72,6 +141,14 @@ export function RootPage() {
   }
 
   return (
+    <>
+    {tempPasswordModal && (
+      <TempPasswordDialog
+        orgId={tempPasswordModal.orgId}
+        tempPassword={tempPasswordModal.tempPassword}
+        onClose={() => setTempPasswordModal(null)}
+      />
+    )}
     <RootLayout activeSection={section} onSectionChange={setSection}>
       <div className="p-6 space-y-5">
         {/* Page header */}
@@ -93,5 +170,6 @@ export function RootPage() {
         {renderSection()}
       </div>
     </RootLayout>
+    </>
   )
 }
