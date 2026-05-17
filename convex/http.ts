@@ -647,7 +647,7 @@ http.route({
     try {
       const capabilities = await ctx.runQuery(internal.roles.listCapabilities, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
       });
       return jsonResponse({ capabilities });
     } catch (e) {
@@ -680,7 +680,7 @@ http.route({
     try {
       const result = await ctx.runMutation(internal.roles.createCapability, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         name: body.name,
         description: body.description,
       });
@@ -1003,7 +1003,7 @@ http.route({
     try {
       const result = await ctx.runAction(internal.apiKeysActions.createApiKey, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         scopes: body.scopes ?? [],
         description: body.description ?? "",
         ip,
@@ -1032,7 +1032,7 @@ http.route({
     try {
       const keys = await ctx.runQuery(internal.apiKeys.listApiKeys, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
       });
       return jsonResponse(keys);
     } catch (e) {
@@ -1061,7 +1061,7 @@ http.route({
     try {
       await ctx.runMutation(internal.apiKeys.revokeApiKey, {
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         keyId: keyId as never,
         ip,
       });
@@ -1085,7 +1085,8 @@ http.route({
     if (isResponse(caller)) return caller;
 
     const url = new URL(req.url);
-    const orgId = (url.searchParams.get("orgId") ?? caller.orgId) as never;
+    const orgIdParam = url.searchParams.get("orgId") ?? caller.orgId;
+    const orgId = (orgIdParam || undefined) as never;
     const wsParam = url.searchParams.get("workspaceId");
     const workspaceId = wsParam ? (wsParam as never) : undefined;
     const action = url.searchParams.get("action") ?? undefined;

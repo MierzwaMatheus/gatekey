@@ -31,7 +31,7 @@ export const writeAuditEvent = internalMutation({
 export const listAuditLog = internalQuery({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
     workspaceId: v.optional(v.id("workspaces")),
     action: v.optional(v.string()),
     result: v.optional(v.union(v.literal("allow"), v.literal("deny"))),
@@ -88,14 +88,17 @@ export const listAuditLog = internalQuery({
         .withIndex("by_workspaceId_and_timestamp", (q) =>
           q.eq("workspaceId", args.workspaceId!).gte("timestamp", from).lte("timestamp", to),
         );
-    } else {
+    } else if (args.orgId) {
       const from = args.from ?? 0;
       const to = args.to ?? Date.now() + 1000;
       query = ctx.db
         .query("audit_log")
         .withIndex("by_orgId_and_timestamp", (q) =>
-          q.eq("orgId", args.orgId).gte("timestamp", from).lte("timestamp", to),
+          q.eq("orgId", args.orgId!).gte("timestamp", from).lte("timestamp", to),
         );
+    } else {
+      // Root sem org: listar todos os eventos
+      query = ctx.db.query("audit_log").order("desc");
     }
 
     if (args.action && args.result) {

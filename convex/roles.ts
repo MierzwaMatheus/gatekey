@@ -9,11 +9,12 @@ const DEFAULT_CAPABILITIES_PER_ORG = 50;
 async function assertOrgAdminOrRoot(
   ctx: QueryCtx | MutationCtx,
   callerId: Id<"users">,
-  orgId: Id<"orgs">,
+  orgId?: Id<"orgs">,
 ) {
   const caller = await ctx.db.get(callerId);
   if (!caller) throw new Error("forbidden: caller_not_found");
   if (caller.isRoot) return;
+  if (!orgId) throw new Error("forbidden: org_id_required");
 
   const membership = await ctx.db
     .query("org_members")
@@ -145,12 +146,13 @@ export const deleteRole = internalMutation({
 export const listCapabilities = internalQuery({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
   },
   handler: async (ctx, args) => {
     await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
 
     const all = await ctx.db.query("capabilities").collect();
+    if (!args.orgId) return all; // root sem org: todas as capabilities
     return all.filter((c) => c.isBase === true || c.orgId === args.orgId);
   },
 });
@@ -160,7 +162,7 @@ export const listCapabilities = internalQuery({
 export const createCapability = internalMutation({
   args: {
     callerId: v.id("users"),
-    orgId: v.id("orgs"),
+    orgId: v.optional(v.id("orgs")),
     name: v.string(),
     description: v.string(),
   },
