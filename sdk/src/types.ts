@@ -31,3 +31,22 @@ export interface CheckResult {
   allow: boolean;
   reason?: string;
 }
+
+export interface CreateUserData {
+  email: string;
+  password: string;
+  role: string;
+  orgId?: string;
+}
+
+export interface UpdateUserData {
+  email?: string;
+  password?: string;
+}
+
+export interface UserResponse {
+  id: string;
+  email: string;
+  role?: string;
+  [key: string]: unknown;
+}
