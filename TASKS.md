@@ -398,7 +398,7 @@
 - [x] Implementar verificação de backup code: aceitar qualquer código da lista, invalidar após uso
 - [x] Implementar bloqueio de acesso ao Root se MFA não configurado — redirecionar para setup no primeiro login
 - [x] Implementar verificação de `org_settings.mfaRequired` — usuário sem `mfa_configs` ativo é redirecionado para setup antes de receber token
-- [ ] Chamar `writeAuditEvent` com action `auth.mfa.setup`, `auth.mfa.success`, `auth.mfa.failure`, `auth.mfa.backup_used`
+- [x] Chamar `writeAuditEvent` com action `auth.mfa.setup`, `auth.mfa.success`, `auth.mfa.failure`, `auth.mfa.backup_used`
 
 ### 4.6 Integração: MFA ↔ Fluxo de login — closes #13 (com 4.5)
 

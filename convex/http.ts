@@ -25,6 +25,9 @@ http.route({ path: "/v1/auth/refresh", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/auth/logout", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/auth/magic-link", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/auth/magic-link/verify", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/mfa/setup", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/mfa/verify-setup", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/mfa/challenge", method: "OPTIONS", handler: preflight });
 
 http.route({
   path: "/v1/auth/.well-known/jwks",
@@ -1408,6 +1411,117 @@ http.route({
         const status = result.error === "method_disabled" ? 403 : 401;
         return withCors({ error: result.error }, status);
       }
+      return withCors({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        sessionId: result.sessionId,
+      });
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
+    }
+  }),
+});
+
+// ── MFA endpoints ─────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/auth/mfa/setup",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return withCors({ error: "unauthorized" }, 401);
+      }
+      const { jwtVerify, importSPKI } = await import("jose");
+      const jwks = (await ctx.runAction(internal.jwt.getJwks, {})) as { keys: { n: string; e: string; kty: string; alg: string }[] };
+      const keyData = jwks.keys[0];
+      if (!keyData) return withCors({ error: "no_key" }, 500);
+      const spki = `-----BEGIN PUBLIC KEY-----\n${Buffer.from(
+        JSON.stringify({ kty: keyData.kty, n: keyData.n, e: keyData.e }),
+      ).toString("base64")}\n-----END PUBLIC KEY-----`;
+      let payload: { sub?: string };
+      try {
+        const publicKey = await importSPKI(spki, "RS256").catch(() => null);
+        if (!publicKey) return withCors({ error: "key_error" }, 500);
+        const v = await jwtVerify(authHeader.slice(7), publicKey);
+        payload = v.payload as { sub?: string };
+      } catch {
+        return withCors({ error: "unauthorized" }, 401);
+      }
+      if (!payload.sub) return withCors({ error: "unauthorized" }, 401);
+      const result = await ctx.runAction(internal.mfa.setupMfa, {
+        userId: payload.sub as never,
+        issuer: "GateKey",
+      });
+      return withCors(result);
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/v1/auth/mfa/verify-setup",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) {
+        return withCors({ error: "unauthorized" }, 401);
+      }
+      const { jwtVerify, importSPKI } = await import("jose");
+      const jwks = (await ctx.runAction(internal.jwt.getJwks, {})) as { keys: { n: string; e: string; kty: string; alg: string }[] };
+      const keyData = jwks.keys[0];
+      if (!keyData) return withCors({ error: "no_key" }, 500);
+      const spki = `-----BEGIN PUBLIC KEY-----\n${Buffer.from(
+        JSON.stringify({ kty: keyData.kty, n: keyData.n, e: keyData.e }),
+      ).toString("base64")}\n-----END PUBLIC KEY-----`;
+      let payload: { sub?: string };
+      try {
+        const publicKey = await importSPKI(spki, "RS256").catch(() => null);
+        if (!publicKey) return withCors({ error: "key_error" }, 500);
+        const v = await jwtVerify(authHeader.slice(7), publicKey);
+        payload = v.payload as { sub?: string };
+      } catch {
+        return withCors({ error: "unauthorized" }, 401);
+      }
+      if (!payload.sub) return withCors({ error: "unauthorized" }, 401);
+
+      let body: { totpCode?: string };
+      try { body = await req.json(); } catch { return withCors({ error: "invalid_body" }, 400); }
+      if (!body.totpCode) return withCors({ error: "missing_fields" }, 400);
+
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.mfa.verifyMfaSetup, {
+        userId: payload.sub as never,
+        totpCode: body.totpCode,
+        ip,
+      });
+      if (!result.success) return withCors({ error: result.error }, 400);
+      return withCors(result);
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/v1/auth/mfa/challenge",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      let body: { mfaToken?: string; totpCode?: string };
+      try { body = await req.json(); } catch { return withCors({ error: "invalid_body" }, 400); }
+      if (!body.mfaToken || !body.totpCode) return withCors({ error: "missing_fields" }, 400);
+
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.mfa.challengeMfa, {
+        mfaToken: body.mfaToken,
+        totpCode: body.totpCode,
+        ip,
+      });
+      if (!result.success) return withCors({ error: result.error }, 401);
       return withCors({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
