@@ -107,6 +107,34 @@ test("getActiveMfaConfig: retorna config após ativação", async () => {
   expect(config?.secret).toBe("SECRET123");
 });
 
+// ── Ciclo 2: setupMfa ────────────────────────────────────────────────────────
+
+test("setupMfa: retorna secret base32 e qrCodeUrl, armazena pendingSecret", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await setupUser(t);
+
+  const result = await t.action(internal.mfa.setupMfa, {
+    userId: userId as never,
+    issuer: "GateKey",
+  });
+
+  expect(result.secret).toBeTypeOf("string");
+  expect(result.secret.length).toBeGreaterThan(10);
+  expect(result.qrCodeUrl).toContain("otpauth://totp/");
+  expect(result.qrCodeUrl).toContain("GateKey");
+
+  const config = await t.run(async (ctx) =>
+    ctx.db
+      .query("mfa_configs")
+      .withIndex("by_userId", (q) => q.eq("userId", userId as never))
+      .first(),
+  );
+  expect(config?.pendingSecret).toBe(result.secret);
+  expect(config?.activatedAt).toBeUndefined();
+});
+
+// ── Ciclo 1 (continuação) ────────────────────────────────────────────────────
+
 test("invalidateBackupCode: remove código da lista após uso", async () => {
   const t = convexTest(schema, modules);
   const userId = await setupUser(t);
