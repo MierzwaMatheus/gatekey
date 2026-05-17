@@ -62,6 +62,23 @@ export const loginWithPassword = internalAction({
       return { success: false as const, error: "invalid_credentials" };
     }
 
+    // Verificar se email_password está habilitado na org do usuário
+    const orgMembershipForMethod = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+      userId: user._id as never,
+    })) as { orgId: string } | null;
+    if (orgMembershipForMethod) {
+      const orgSettingsForMethod = (await ctx.runQuery(internal.authStore.getOrgSettings, {
+        orgId: orgMembershipForMethod.orgId as never,
+      })) as { loginMethods?: string[] } | null;
+      if (
+        orgSettingsForMethod?.loginMethods &&
+        orgSettingsForMethod.loginMethods.length > 0 &&
+        !orgSettingsForMethod.loginMethods.includes("email_password")
+      ) {
+        return { success: false as const, error: "method_disabled" };
+      }
+    }
+
     // Verificar se conta está bloqueada
     if (user.lockedUntil && user.lockedUntil > Date.now()) {
       await ctx.runMutation(internal.auditLog.writeAuditEvent, {

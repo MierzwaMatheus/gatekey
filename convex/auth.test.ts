@@ -385,6 +385,44 @@ test("loginWithPassword: sessions_per_user atingido retorna quota_exceeded", asy
   }
 });
 
+// ── Ciclo 4.4: loginMethods ↔ email_password ─────────────────────────────────
+
+test("loginWithPassword: retorna method_disabled quando email_password não está em loginMethods", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+  const userId = await createUser(t, "blocked@test.com", "correct");
+  await addOrgMember(t, userId as string, orgId as string);
+
+  await t.run(async (ctx) => {
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+    if (settings) {
+      await ctx.db.patch(settings._id, { loginMethods: ["magic_link"] });
+    } else {
+      await ctx.db.insert("org_settings", {
+        orgId: orgId as never,
+        loginMethods: ["magic_link"],
+        mfaRequired: false,
+        jwtExpiryAccess: 3600,
+        jwtExpiryRefresh: 2592000,
+        quotas: {},
+      });
+    }
+  });
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "blocked@test.com",
+    password: "correct",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("method_disabled");
+  }
+});
+
 // ── Ciclo: mustChangePassword no login ───────────────────────────────────────
 
 // ── Ciclo Magic Link: requestMagicLink ───────────────────────────────────────
