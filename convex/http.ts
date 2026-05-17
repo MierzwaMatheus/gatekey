@@ -4,6 +4,26 @@ import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const preflight = httpAction(async () => new Response(null, { status: 204, headers: CORS_HEADERS }));
+
+function withCors(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
+http.route({ path: "/v1/auth/.well-known/jwks", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/login", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/refresh", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/logout", method: "OPTIONS", handler: preflight });
+
 http.route({
   path: "/v1/auth/.well-known/jwks",
   method: "GET",
@@ -14,6 +34,7 @@ http.route({
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=3600",
+        ...CORS_HEADERS,
       },
     });
   }),
@@ -33,10 +54,7 @@ http.route({
       });
     }
     if (!body.email || !body.password) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "missing_fields" }, 400);
     }
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const result = await ctx.runAction(internal.auth.loginWithPassword, {
@@ -46,19 +64,13 @@ http.route({
     });
     if (!result.success) {
       const status = result.error === "account_locked" ? 429 : 401;
-      return new Response(
-        JSON.stringify({ error: result.error, lockedUntil: result.lockedUntil }),
-        { status, headers: { "Content-Type": "application/json" } },
-      );
+      return withCors({ error: result.error, lockedUntil: result.lockedUntil }, status);
     }
-    return new Response(
-      JSON.stringify({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        sessionId: result.sessionId,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+    return withCors({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      sessionId: result.sessionId,
+    });
   }),
 });
 
@@ -76,10 +88,7 @@ http.route({
       });
     }
     if (!body.sessionId || !body.refreshToken || !body.orgId) {
-      return new Response(JSON.stringify({ error: "missing_fields" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "missing_fields" }, 400);
     }
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const result = await ctx.runAction(internal.auth.refreshTokens, {
@@ -89,19 +98,13 @@ http.route({
       ip,
     });
     if (!result.success) {
-      return new Response(JSON.stringify({ error: result.error }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: result.error }, 401);
     }
-    return new Response(
-      JSON.stringify({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        sessionId: result.sessionId,
-      }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+    return withCors({
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      sessionId: result.sessionId,
+    });
   }),
 });
 
@@ -111,18 +114,12 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "missing_token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "missing_token" }, 401);
     }
     const token = authHeader.slice(7);
     const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
     if (!verified.valid) {
-      return new Response(JSON.stringify({ error: "invalid_token" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json" },
-      });
+      return withCors({ error: "invalid_token" }, 401);
     }
     // Decodificar exp do payload para passar como TTL da blacklist
     const parts = token.split(".");
@@ -138,19 +135,14 @@ http.route({
       ip: req.headers.get("x-forwarded-for") ?? undefined,
     });
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return withCors({ success: true });
   }),
 });
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
 function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
+  return withCors(body, status);
 }
 
 const API_KEY_PREFIX = "gk_live_pk_";
@@ -1123,5 +1115,24 @@ http.route({
     }
   }),
 });
+
+// Preflight OPTIONS — rotas com path fixo
+http.route({ path: "/v1/orgs", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/orgs/", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/users", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/roles", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/capabilities", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/bindings", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/resource-types", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/check", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/sessions", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/api-keys", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/audit-log", method: "OPTIONS", handler: preflight });
+// Preflight OPTIONS — rotas com pathPrefix
+http.route({ pathPrefix: "/v1/users/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/roles/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/bindings/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
 
 export default http;

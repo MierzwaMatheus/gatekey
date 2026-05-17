@@ -1,4 +1,4 @@
-const CONVEX_URL = import.meta.env.VITE_CONVEX_URL as string
+const CONVEX_URL = (import.meta.env.VITE_CONVEX_SITE_URL ?? import.meta.env.VITE_CONVEX_URL) as string
 
 const STORAGE_KEYS = {
   accessToken: 'gk_access_token',
