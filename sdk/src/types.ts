@@ -8,6 +8,8 @@ export interface GatekeyClientOptions {
 export interface TokenStore {
   accessToken: string;
   refreshToken: string;
+  sessionId?: string;
+  orgId?: string;
 }
 
 export type LoginResult =

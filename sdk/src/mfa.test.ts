@@ -40,7 +40,7 @@ describe("client.auth.mfa.challenge", () => {
     const result = await client.auth.mfa.challenge("mfa.token", "123456");
 
     expect(result).toEqual({ accessToken: "acc123", refreshToken: "ref456" });
-    expect(client.auth.getTokens()).toEqual({ accessToken: "acc123", refreshToken: "ref456" });
+    expect(client.auth.getTokens()).toMatchObject({ accessToken: "acc123", refreshToken: "ref456", sessionId: "s1" });
   });
 
   it("throws GatekeyApiError on invalid TOTP code", async () => {

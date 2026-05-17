@@ -25,7 +25,8 @@ export class MfaModule {
 
     const accessToken = String(data.accessToken);
     const refreshToken = String(data.refreshToken);
-    this.storeTokens({ accessToken, refreshToken });
+    const sessionId = data.sessionId ? String(data.sessionId) : undefined;
+    this.storeTokens({ accessToken, refreshToken, sessionId });
     return { accessToken, refreshToken };
   }
 

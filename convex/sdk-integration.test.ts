@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
-import { expect, test, beforeEach } from "vitest";
+import { expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import bcrypt from "bcryptjs";
@@ -211,4 +211,116 @@ test("SDK integração: client.permissions.check retorna allowed=false sem bindi
   );
 
   expect(checkResult.allow).toBe(false);
+});
+
+// ── Ciclo 2: refresh automático quando access token próximo de expirar ────────
+
+async function setupShortLivedTokenEnv(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const PASSWORD = "short-lived-pass";
+  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "ShortLivedOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  // jwtExpiryAccess = 30s (< 60s threshold do cliente → auto-refresh ativado)
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId: orgId as never,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 30,
+      jwtExpiryRefresh: 604800,
+      quotas: {},
+    }),
+  );
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: true }),
+  );
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "document:read", description: "Read", isBase: true }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("role_capabilities", { roleId: roleId as never, capabilityId: capId as never }),
+  );
+
+  const workspaceId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgId as never, name: "WS", status: "active" }),
+  );
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "shortlived@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: userId as never, orgId: orgId as never, role: "member", status: "active" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: userId as never, workspaceId: workspaceId as never, status: "active" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("resource_types", { orgId: orgId as never, name: "document" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId: userId as never, roleId: roleId as never, resourceType: "document", workspaceId: workspaceId as never }),
+  );
+
+  const fetchFn = (url: string, init?: RequestInit) =>
+    t.fetch(url.replace("http://test", ""), init as RequestInit);
+
+  const client = new GatekeyClient({ baseUrl: "http://test", fetchFn });
+
+  return { client, userId: String(userId), workspaceId: String(workspaceId), email: "shortlived@test.com", password: PASSWORD };
+}
+
+test("SDK integração: refresh automático é invocado quando access token expira em menos de 60s", async () => {
+  const t = convexTest(schema, modules);
+  const env = await setupShortLivedTokenEnv(t);
+
+  const loginResult = await env.client.auth.login(env.email, env.password);
+  expect(loginResult.type).toBe("success");
+
+  // Espiona o método refresh para verificar que será invocado automaticamente
+  const refreshSpy = vi.spyOn(env.client.auth, "refresh");
+
+  // A chamada ao _request detecta exp < 60s → chama refresh() antes da request
+  const checkResult = await env.client.permissions.check(
+    "document:read",
+    "document",
+    undefined,
+    { userId: env.userId, workspaceId: env.workspaceId },
+  );
+
+  expect(refreshSpy).toHaveBeenCalledOnce();
+  expect(checkResult.allow).toBe(true);
+});
+
+test("SDK integração: após refresh automático, token atualizado é diferente do original", async () => {
+  const t = convexTest(schema, modules);
+  const env = await setupShortLivedTokenEnv(t);
+
+  const loginResult = await env.client.auth.login(env.email, env.password);
+  expect(loginResult.type).toBe("success");
+  if (loginResult.type !== "success") return;
+
+  const originalToken = loginResult.accessToken;
+
+  // Chama qualquer endpoint — o interceptor detecta exp < 60s e faz refresh
+  await env.client.permissions.check(
+    "document:read",
+    "document",
+    undefined,
+    { userId: env.userId, workspaceId: env.workspaceId },
+  );
+
+  const freshTokens = env.client.auth.getTokens();
+  expect(freshTokens?.accessToken).not.toBe(originalToken);
 });

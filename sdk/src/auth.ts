@@ -2,6 +2,17 @@ import { GatekeyApiError, GatekeyAuthError } from "./errors.js";
 import { MfaModule } from "./mfa.js";
 import type { LoginResult, TokenStore } from "./types.js";
 
+function parseJwtClaim(token: string, claim: string): string | undefined {
+  try {
+    const payload = token.split(".")[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as Record<string, unknown>;
+    const val = decoded[claim];
+    return typeof val === "string" && val ? val : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 type RawFetch = (path: string, options?: RequestInit) => Promise<Response>;
 
 export class AuthModule {
@@ -41,7 +52,9 @@ export class AuthModule {
 
     const accessToken = String(data.accessToken);
     const refreshToken = String(data.refreshToken);
-    this.tokens = { accessToken, refreshToken };
+    const sessionId = data.sessionId ? String(data.sessionId) : undefined;
+    const orgId = parseJwtClaim(accessToken, "orgId");
+    this.tokens = { accessToken, refreshToken, sessionId, orgId };
     return { type: "success", accessToken, refreshToken };
   }
 
@@ -53,7 +66,11 @@ export class AuthModule {
     const res = await this.rawFetch("/v1/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: this.tokens.refreshToken }),
+      body: JSON.stringify({
+        refreshToken: this.tokens.refreshToken,
+        sessionId: this.tokens.sessionId,
+        orgId: this.tokens.orgId,
+      }),
     });
 
     const data = await res.json() as Record<string, unknown>;
@@ -62,10 +79,11 @@ export class AuthModule {
       throw new GatekeyApiError(res.status, String(data.error ?? "unknown"));
     }
 
-    this.tokens = {
-      accessToken: String(data.accessToken),
-      refreshToken: String(data.refreshToken),
-    };
+    const accessToken = String(data.accessToken);
+    const refreshToken = String(data.refreshToken);
+    const sessionId = data.sessionId ? String(data.sessionId) : undefined;
+    const orgId = parseJwtClaim(accessToken, "orgId");
+    this.tokens = { accessToken, refreshToken, sessionId, orgId };
   }
 
   async logout(): Promise<void> {
