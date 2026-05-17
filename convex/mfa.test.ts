@@ -286,3 +286,49 @@ test("challengeMfa: código TOTP inválido retorna erro", async () => {
     expect(result.error).toBe("invalid_code");
   }
 });
+
+// ── Ciclo 5: backup codes no challenge ───────────────────────────────────────
+
+test("challengeMfa: backup code válido é aceito e invalidado após uso", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+
+  const result = await t.action(internal.mfa.challengeMfa, {
+    mfaToken,
+    totpCode: "backup001",
+  });
+
+  expect(result.success).toBe(true);
+
+  const config = await t.run(async (ctx) =>
+    ctx.db
+      .query("mfa_configs")
+      .withIndex("by_userId", (q) => q.eq("userId", userId as never))
+      .first(),
+  );
+  expect(config?.backupCodes).not.toContain("backup001");
+  expect(config?.backupCodes).toContain("backup002");
+});
+
+test("challengeMfa: backup code inválido retorna erro", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+
+  const result = await t.action(internal.mfa.challengeMfa, {
+    mfaToken,
+    totpCode: "wrongcode",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("invalid_code");
+  }
+});
