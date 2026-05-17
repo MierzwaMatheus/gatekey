@@ -886,3 +886,44 @@ test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_r
     expect(result.error).toBe("mfa_setup_required");
   }
 });
+
+// ── Ciclo MFA 4.6: verifyMagicLink com MFA ativo ─────────────────────────────
+
+test("verifyMagicLink: MFA ativo retorna mfa_required com mfaToken, sem accessToken", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "MfaMagicOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const userId = await createUser(t, "mfamagic@test.com", "irrelevant");
+  await addOrgMember(t, userId as string, orgId as string);
+
+  // Ativar MFA para o usuário
+  await t.mutation(internal.mfaStore.activateMfaConfig, {
+    userId: userId as never,
+    secret: "JBSWY3DPEHPK3PXP",
+    backupCodes: ["backup1"],
+  });
+
+  const crypto = await import("crypto");
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("magic_link_tokens", {
+      tokenHash,
+      userId: userId as never,
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    });
+  });
+
+  const result = await t.action(internal.auth.verifyMagicLink, { token: rawToken });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_required");
+    expect((result as { mfaToken?: string }).mfaToken).toBeTypeOf("string");
+    expect((result as { mfaToken?: string }).mfaToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});

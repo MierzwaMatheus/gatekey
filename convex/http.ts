@@ -1414,6 +1414,12 @@ http.route({
       const ip = req.headers.get("x-forwarded-for") ?? undefined;
       const result = await ctx.runAction(internal.auth.verifyMagicLink, { token, ip });
       if (!result.success) {
+        if (result.error === "mfa_required") {
+          return withCors({ mfa_required: true, mfa_token: result.mfaToken });
+        }
+        if (result.error === "mfa_setup_required") {
+          return withCors({ mfa_setup_required: true, mfa_setup_token: result.mfaSetupToken });
+        }
         const status = result.error === "method_disabled" ? 403 : 401;
         return withCors({ error: result.error }, status);
       }

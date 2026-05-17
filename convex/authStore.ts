@@ -12,6 +12,12 @@ export const getUserByEmail = internalQuery({
   },
 });
 
+export const getUserById = internalQuery({
+  args: { userId: v.id("users") },
+  returns: v.any(),
+  handler: async (ctx, { userId }) => ctx.db.get(userId),
+});
+
 export const incrementLoginAttempts = internalMutation({
   args: { userId: v.id("users") },
   returns: v.number(),
