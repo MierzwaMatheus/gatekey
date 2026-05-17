@@ -323,7 +323,7 @@
 - [x] Implementar ação de revogar binding (modal de confirmação)
 - [x] Implementar listagem de resource types registrados: nome, inheritsFrom, inheritanceMode
 - [x] Implementar formulário de registro de resource type: nome + toggle de herança + seletor do tipo pai
-- [ ] Implementar audit log do workspace: tabela paginada com filtros (hot tier)
+- [x] Implementar audit log do workspace: tabela paginada com filtros (hot tier)
 
 ### 3.6 Playground interativo — closes #11 (com 3.5)
 
