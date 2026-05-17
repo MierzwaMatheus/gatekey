@@ -196,6 +196,174 @@ function isResponse(v: unknown): v is Response {
   return v instanceof Response;
 }
 
+// ── GET /v1/orgs ─────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    try {
+      const orgs = await ctx.runQuery(internal.hierarchy.listOrgs, {
+        callerId: caller.callerId as never,
+      });
+      return jsonResponse(orgs);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/orgs ────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { name?: string; adminEmail?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.name || !body.adminEmail) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+    try {
+      const orgId = await ctx.runMutation(internal.hierarchy.createOrg, {
+        callerId: caller.callerId as never,
+        name: body.name,
+        adminEmail: body.adminEmail,
+      });
+      return jsonResponse({ orgId });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/orgs/:id/suspend ─────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const action = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      if (action === "suspend") {
+        await ctx.runMutation(internal.hierarchy.suspendOrg, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
+      } else {
+        return jsonResponse({ error: "unknown_action" }, 404);
+      }
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── DELETE /v1/orgs/:id ───────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const orgId = url.pathname.replace(/^\/v1\/orgs\//, "").split("/")[0];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      await ctx.runMutation(internal.hierarchy.deleteOrg, {
+        callerId: caller.callerId as never,
+        orgId: orgId as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/orgs/:id/settings ────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const sub = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      if (sub === "settings") {
+        const settings = await ctx.runQuery(internal.hierarchy.getOrgSettings, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
+        return jsonResponse(settings);
+      }
+      return jsonResponse({ error: "not_found" }, 404);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── PATCH /v1/orgs/:id/settings ──────────────────────────────────────────────
+
+http.route({
+  path: "/v1/orgs/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const sub = parts[1];
+    if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    let body: { quotas?: Record<string, number> } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    try {
+      if (sub === "settings" && body.quotas) {
+        await ctx.runMutation(internal.hierarchy.updateOrgQuotas, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+          quotas: body.quotas,
+        });
+        return jsonResponse({ success: true });
+      }
+      return jsonResponse({ error: "not_found" }, 404);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── POST /v1/users ───────────────────────────────────────────────────────────
 
 http.route({
