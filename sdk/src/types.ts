@@ -62,3 +62,28 @@ export interface RoleResponse {
   workspaceId: string;
   [key: string]: unknown;
 }
+
+export interface BindingFilters {
+  workspaceId: string;
+  userId?: string;
+  resourceType?: string;
+}
+
+export interface CreateBindingData {
+  userId: string;
+  roleId: string;
+  resourceType: string;
+  resourceId?: string;
+  parentResourceId?: string;
+  workspaceId: string;
+}
+
+export interface BindingResponse {
+  id: string;
+  userId: string;
+  roleId: string;
+  resourceType: string;
+  resourceId?: string;
+  workspaceId: string;
+  [key: string]: unknown;
+}

@@ -4,6 +4,7 @@ export { MfaModule } from "./mfa.js";
 export { PermissionsModule } from "./permissions.js";
 export { UsersModule } from "./users.js";
 export { RolesModule } from "./roles.js";
+export { BindingsModule } from "./bindings.js";
 export { GatekeyAuthError, GatekeyApiError } from "./errors.js";
 export type {
   GatekeyClientOptions,
@@ -18,4 +19,7 @@ export type {
   UserResponse,
   CreateRoleData,
   RoleResponse,
+  BindingFilters,
+  CreateBindingData,
+  BindingResponse,
 } from "./types.js";
