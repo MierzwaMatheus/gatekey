@@ -402,14 +402,14 @@
 
 ### 4.6 Integração: MFA ↔ Fluxo de login — closes #13 (com 4.5)
 
-- [ ] Alterar `POST /v1/auth/login` — quando MFA está ativo para o usuário, não emitir access token; retornar `{mfa_required: true, mfa_token: "<temporário 5min>"}`
-- [ ] Alterar `GET /v1/auth/magic-link/verify` — quando MFA está ativo, retornar `{mfa_required: true, mfa_token: "<temporário>"}` ao invés de tokens finais
+- [x] Alterar `POST /v1/auth/login` — quando MFA está ativo para o usuário, não emitir access token; retornar `{mfa_required: true, mfa_token: "<temporário 5min>"}`
+- [x] Alterar `GET /v1/auth/magic-link/verify` — quando MFA está ativo, retornar `{mfa_required: true, mfa_token: "<temporário>"}` ao invés de tokens finais
 - [ ] Alterar callbacks OAuth — mesma lógica: retornar `mfa_required` quando MFA está ativo
 - [ ] Alterar dashboard: detectar `mfa_required: true` na resposta de login e exibir tela de desafio TOTP
 - [ ] Alterar dashboard: tela de TOTP aceita código de 6 dígitos ou backup code
-- [ ] Escrever teste: `POST /v1/auth/login` com MFA ativo retorna `mfa_required: true` sem access token
-- [ ] Escrever teste: `POST /v1/auth/mfa/challenge` com código correto retorna access + refresh token
-- [ ] Escrever teste: `POST /v1/auth/mfa/challenge` com código errado retorna 401
+- [x] Escrever teste: `POST /v1/auth/login` com MFA ativo retorna `mfa_required: true` sem access token
+- [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código correto retorna access + refresh token
+- [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código errado retorna 401
 
 ### 4.7 SDK TypeScript — @gatekey/sdk — closes #14 (parcial)
 
