@@ -45,7 +45,8 @@ export class MfaModule {
       throw new GatekeyApiError(res.status, String(data.error ?? "unknown"));
     }
 
-    return { secret: String(data.secret), qrCode: String(data.qrCode) };
+    // Backend returns qrCodeUrl, SDK type exposes qrCode
+    return { secret: String(data.secret), qrCode: String(data.qrCodeUrl ?? data.qrCode) };
   }
 
   async verifySetup(totpCode: string, mfaSetupToken?: string): Promise<MfaVerifySetupResult> {

@@ -41,13 +41,17 @@ export class AuthModule {
       throw new GatekeyApiError(res.status, String(data.error ?? "unknown"));
     }
 
-    if (data.mfaToken) {
-      return { type: "mfa_challenge", mfaToken: String(data.mfaToken) };
+    // Backend returns snake_case field names
+    const mfaToken = data.mfa_token ?? data.mfaToken;
+    const mfaSetupToken = data.mfa_setup_token ?? data.mfaSetupToken;
+
+    if (mfaToken) {
+      return { type: "mfa_challenge", mfaToken: String(mfaToken) };
     }
 
-    if (data.mfaSetupToken) {
-      this.mfaSetupTokenStored = String(data.mfaSetupToken);
-      return { type: "mfa_setup_required", mfaSetupToken: String(data.mfaSetupToken) };
+    if (mfaSetupToken) {
+      this.mfaSetupTokenStored = String(mfaSetupToken);
+      return { type: "mfa_setup_required", mfaSetupToken: String(mfaSetupToken) };
     }
 
     const accessToken = String(data.accessToken);
