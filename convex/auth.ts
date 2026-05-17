@@ -162,7 +162,10 @@ export const loginWithPassword = internalAction({
       }
 
       if (isRootWithoutMfa || orgRequiresMfa) {
-        return { success: false as const, error: "mfa_setup_required" };
+        const mfaSetupToken = (await ctx.runAction(internal.mfa.signMfaSetupToken, {
+          userId: user._id as never,
+        })) as string;
+        return { success: false as const, error: "mfa_setup_required", mfaSetupToken };
       }
     }
 

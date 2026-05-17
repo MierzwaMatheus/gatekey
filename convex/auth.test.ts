@@ -779,6 +779,42 @@ test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa
   }
 });
 
+// ── Ciclo MFA 4.6: mfa_setup_required retorna mfaSetupToken ──────────────────
+
+test("loginWithPassword: mfa_setup_required retorna mfaSetupToken para permitir configuração", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run(async (ctx) =>
+    ctx.db.insert("orgs", { name: "SetupOrg", status: "active", updatedAt: Date.now() }),
+  );
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("setup-password", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "needsmfa@test.com",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "needsmfa@test.com",
+    password: "setup-password",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("mfa_setup_required");
+    expect((result as { mfaSetupToken?: string }).mfaSetupToken).toBeTypeOf("string");
+    expect((result as { mfaSetupToken?: string }).mfaSetupToken?.length).toBeGreaterThan(0);
+  }
+  expect((result as { accessToken?: string }).accessToken).toBeUndefined();
+});
+
 // ── Ciclo MFA 4.6: login com MFA ativo ────────────────────────────────────────
 
 test("loginWithPassword: MFA ativo retorna mfa_required com mfaToken, sem accessToken", async () => {

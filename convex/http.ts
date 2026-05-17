@@ -1430,34 +1430,51 @@ http.route({
 
 // ── MFA endpoints ─────────────────────────────────────────────────────────────
 
+async function resolveMfaUserId(
+  ctx: { runAction: (fn: unknown, args: unknown) => Promise<unknown> },
+  authHeader: string | null,
+): Promise<string | null> {
+  if (!authHeader) return null;
+
+  if (authHeader.startsWith("MfaSetup ")) {
+    const token = authHeader.slice("MfaSetup ".length);
+    const result = (await ctx.runAction(internal.mfa.verifyMfaSetupTokenAction, {
+      mfaSetupToken: token,
+    })) as { valid: boolean; userId?: string };
+    return result.valid ? (result.userId ?? null) : null;
+  }
+
+  if (authHeader.startsWith("Bearer ")) {
+    const { jwtVerify, importSPKI } = await import("jose");
+    const jwks = (await ctx.runAction(internal.jwt.getJwks, {})) as { keys: { n: string; e: string; kty: string; alg: string }[] };
+    const keyData = jwks.keys[0];
+    if (!keyData) return null;
+    const spki = `-----BEGIN PUBLIC KEY-----\n${Buffer.from(
+      JSON.stringify({ kty: keyData.kty, n: keyData.n, e: keyData.e }),
+    ).toString("base64")}\n-----END PUBLIC KEY-----`;
+    try {
+      const publicKey = await importSPKI(spki, "RS256").catch(() => null);
+      if (!publicKey) return null;
+      const v = await jwtVerify(authHeader.slice(7), publicKey);
+      return (v.payload as { sub?: string }).sub ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 http.route({
   path: "/v1/auth/mfa/setup",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
     try {
       const authHeader = req.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return withCors({ error: "unauthorized" }, 401);
-      }
-      const { jwtVerify, importSPKI } = await import("jose");
-      const jwks = (await ctx.runAction(internal.jwt.getJwks, {})) as { keys: { n: string; e: string; kty: string; alg: string }[] };
-      const keyData = jwks.keys[0];
-      if (!keyData) return withCors({ error: "no_key" }, 500);
-      const spki = `-----BEGIN PUBLIC KEY-----\n${Buffer.from(
-        JSON.stringify({ kty: keyData.kty, n: keyData.n, e: keyData.e }),
-      ).toString("base64")}\n-----END PUBLIC KEY-----`;
-      let payload: { sub?: string };
-      try {
-        const publicKey = await importSPKI(spki, "RS256").catch(() => null);
-        if (!publicKey) return withCors({ error: "key_error" }, 500);
-        const v = await jwtVerify(authHeader.slice(7), publicKey);
-        payload = v.payload as { sub?: string };
-      } catch {
-        return withCors({ error: "unauthorized" }, 401);
-      }
-      if (!payload.sub) return withCors({ error: "unauthorized" }, 401);
+      const userId = await resolveMfaUserId(ctx as never, authHeader);
+      if (!userId) return withCors({ error: "unauthorized" }, 401);
       const result = await ctx.runAction(internal.mfa.setupMfa, {
-        userId: payload.sub as never,
+        userId: userId as never,
         issuer: "GateKey",
       });
       return withCors(result);
@@ -1473,26 +1490,8 @@ http.route({
   handler: httpAction(async (ctx, req) => {
     try {
       const authHeader = req.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return withCors({ error: "unauthorized" }, 401);
-      }
-      const { jwtVerify, importSPKI } = await import("jose");
-      const jwks = (await ctx.runAction(internal.jwt.getJwks, {})) as { keys: { n: string; e: string; kty: string; alg: string }[] };
-      const keyData = jwks.keys[0];
-      if (!keyData) return withCors({ error: "no_key" }, 500);
-      const spki = `-----BEGIN PUBLIC KEY-----\n${Buffer.from(
-        JSON.stringify({ kty: keyData.kty, n: keyData.n, e: keyData.e }),
-      ).toString("base64")}\n-----END PUBLIC KEY-----`;
-      let payload: { sub?: string };
-      try {
-        const publicKey = await importSPKI(spki, "RS256").catch(() => null);
-        if (!publicKey) return withCors({ error: "key_error" }, 500);
-        const v = await jwtVerify(authHeader.slice(7), publicKey);
-        payload = v.payload as { sub?: string };
-      } catch {
-        return withCors({ error: "unauthorized" }, 401);
-      }
-      if (!payload.sub) return withCors({ error: "unauthorized" }, 401);
+      const userId = await resolveMfaUserId(ctx as never, authHeader);
+      if (!userId) return withCors({ error: "unauthorized" }, 401);
 
       let body: { totpCode?: string };
       try { body = await req.json(); } catch { return withCors({ error: "invalid_body" }, 400); }
@@ -1500,7 +1499,7 @@ http.route({
 
       const ip = req.headers.get("x-forwarded-for") ?? undefined;
       const result = await ctx.runAction(internal.mfa.verifyMfaSetup, {
-        userId: payload.sub as never,
+        userId: userId as never,
         totpCode: body.totpCode,
         ip,
       });

@@ -148,6 +148,46 @@ export const verifyMfaTokenAction = internalAction({
   },
 });
 
+export const signMfaSetupToken = internalAction({
+  args: { userId: v.id("users") },
+  returns: v.string(),
+  handler: async (ctx, { userId }): Promise<string> => {
+    const { SignJWT } = await import("jose");
+    const secret = getMfaHmacSecret();
+    const token = await new SignJWT({ purpose: "mfa_setup" })
+      .setProtectedHeader({ alg: "HS256" })
+      .setSubject(userId as string)
+      .setIssuedAt()
+      .setExpirationTime(`${MFA_TOKEN_TTL_SECONDS}s`)
+      .sign(secret);
+    return token;
+  },
+});
+
+export const verifyMfaSetupTokenAction = internalAction({
+  args: { mfaSetupToken: v.string() },
+  returns: v.union(
+    v.object({ valid: v.literal(true), userId: v.string() }),
+    v.object({ valid: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, { mfaSetupToken }): Promise<
+    | { valid: true; userId: string }
+    | { valid: false; error: string }
+  > => {
+    try {
+      const { jwtVerify } = await import("jose");
+      const secret = getMfaHmacSecret();
+      const { payload } = await jwtVerify(mfaSetupToken, secret);
+      if (payload["purpose"] !== "mfa_setup" || !payload.sub) {
+        return { valid: false as const, error: "invalid_token" };
+      }
+      return { valid: true as const, userId: payload.sub };
+    } catch {
+      return { valid: false as const, error: "invalid_or_expired_token" };
+    }
+  },
+});
+
 function getMfaHmacSecret(): Uint8Array {
   const key = process.env.MFA_HMAC_SECRET ?? "gatekey-mfa-default-secret-change-me";
   return new TextEncoder().encode(key);
