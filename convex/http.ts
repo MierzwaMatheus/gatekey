@@ -23,6 +23,8 @@ http.route({ path: "/v1/auth/.well-known/jwks", method: "OPTIONS", handler: pref
 http.route({ path: "/v1/auth/login", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/auth/refresh", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/auth/logout", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/magic-link", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/auth/magic-link/verify", method: "OPTIONS", handler: preflight });
 
 http.route({
   path: "/v1/auth/.well-known/jwks",
@@ -1355,5 +1357,62 @@ http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight 
 http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/workspaces", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/workspaces/", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/auth/magic-link",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      let body: { email?: string; orgId?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return withCors({ error: "invalid_body" }, 400);
+      }
+      if (!body.email || !body.orgId) {
+        return withCors({ error: "missing_fields" }, 400);
+      }
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const origin = req.headers.get("origin") ?? undefined;
+      await ctx.runAction(internal.auth.requestMagicLink, {
+        email: body.email,
+        orgId: body.orgId as never,
+        ip,
+        baseUrl: origin,
+      });
+      return withCors({ ok: true });
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg.includes("method_disabled")) return withCors({ error: "method_disabled" }, 403);
+      return withCors({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+http.route({
+  path: "/v1/auth/magic-link/verify",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    try {
+      const url = new URL(req.url);
+      const token = url.searchParams.get("token");
+      if (!token) {
+        return withCors({ error: "missing_token" }, 400);
+      }
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.auth.verifyMagicLink, { token, ip });
+      if (!result.success) {
+        return withCors({ error: result.error }, 401);
+      }
+      return withCors({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        sessionId: result.sessionId,
+      });
+    } catch (e) {
+      return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
+    }
+  }),
+});
 
 export default http;
