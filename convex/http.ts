@@ -1340,6 +1340,7 @@ http.route({
 // Preflight OPTIONS — rotas com path fixo
 http.route({ path: "/v1/orgs", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/orgs/", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/orgs/", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/users", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/roles", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/capabilities", method: "OPTIONS", handler: preflight });
@@ -1369,14 +1370,14 @@ http.route({
       } catch {
         return withCors({ error: "invalid_body" }, 400);
       }
-      if (!body.email || !body.orgId) {
+      if (!body.email) {
         return withCors({ error: "missing_fields" }, 400);
       }
       const ip = req.headers.get("x-forwarded-for") ?? undefined;
       const origin = req.headers.get("origin") ?? undefined;
       await ctx.runAction(internal.auth.requestMagicLink, {
         email: body.email,
-        orgId: body.orgId as never,
+        orgId: body.orgId,
         ip,
         baseUrl: origin,
       });
