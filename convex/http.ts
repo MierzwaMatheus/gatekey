@@ -244,7 +244,7 @@ http.route({
 // ── POST /v1/orgs/:id/suspend ─────────────────────────────────────────────────
 
 http.route({
-  path: "/v1/orgs/",
+  pathPrefix: "/v1/orgs/",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
@@ -275,7 +275,7 @@ http.route({
 // ── DELETE /v1/orgs/:id ───────────────────────────────────────────────────────
 
 http.route({
-  path: "/v1/orgs/",
+  pathPrefix: "/v1/orgs/",
   method: "DELETE",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
@@ -300,7 +300,7 @@ http.route({
 // ── GET /v1/orgs/:id/settings ────────────────────────────────────────────────
 
 http.route({
-  path: "/v1/orgs/",
+  pathPrefix: "/v1/orgs/",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
@@ -330,7 +330,7 @@ http.route({
 // ── PATCH /v1/orgs/:id/settings ──────────────────────────────────────────────
 
 http.route({
-  path: "/v1/orgs/",
+  pathPrefix: "/v1/orgs/",
   method: "PATCH",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
