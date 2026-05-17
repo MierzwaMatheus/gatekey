@@ -1,6 +1,7 @@
 import { AuthModule } from "./auth.js";
 import { PermissionsModule } from "./permissions.js";
 import { UsersModule } from "./users.js";
+import { RolesModule } from "./roles.js";
 import type { GatekeyClientOptions } from "./types.js";
 
 function parseJwtExp(token: string): number | null {
@@ -17,6 +18,7 @@ export class GatekeyClient {
   readonly auth: AuthModule;
   readonly permissions: PermissionsModule;
   readonly users: UsersModule;
+  readonly roles: RolesModule;
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
 
@@ -26,6 +28,7 @@ export class GatekeyClient {
     this.auth = new AuthModule(this._rawFetch.bind(this));
     this.permissions = new PermissionsModule(this._request.bind(this));
     this.users = new UsersModule(this._request.bind(this));
+    this.roles = new RolesModule(this._request.bind(this));
   }
 
   /** Direct fetch without auto-refresh interceptor. Used by auth endpoints internally. */

@@ -50,3 +50,15 @@ export interface UserResponse {
   role?: string;
   [key: string]: unknown;
 }
+
+export interface CreateRoleData {
+  name: string;
+  workspaceId: string;
+}
+
+export interface RoleResponse {
+  id: string;
+  name: string;
+  workspaceId: string;
+  [key: string]: unknown;
+}

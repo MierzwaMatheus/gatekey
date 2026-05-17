@@ -3,6 +3,7 @@ export { AuthModule } from "./auth.js";
 export { MfaModule } from "./mfa.js";
 export { PermissionsModule } from "./permissions.js";
 export { UsersModule } from "./users.js";
+export { RolesModule } from "./roles.js";
 export { GatekeyAuthError, GatekeyApiError } from "./errors.js";
 export type {
   GatekeyClientOptions,
@@ -15,4 +16,6 @@ export type {
   CreateUserData,
   UpdateUserData,
   UserResponse,
+  CreateRoleData,
+  RoleResponse,
 } from "./types.js";
