@@ -1,6 +1,7 @@
 export { GatekeyClient } from "./client.js";
 export { AuthModule } from "./auth.js";
 export { MfaModule } from "./mfa.js";
+export { PermissionsModule } from "./permissions.js";
 export { GatekeyAuthError, GatekeyApiError } from "./errors.js";
 export type {
   GatekeyClientOptions,
@@ -9,4 +10,5 @@ export type {
   MfaChallengeResult,
   MfaSetupInitResult,
   MfaVerifySetupResult,
+  CheckResult,
 } from "./types.js";

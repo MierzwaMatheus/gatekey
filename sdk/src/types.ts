@@ -26,3 +26,8 @@ export interface MfaSetupInitResult {
 export type MfaVerifySetupResult =
   | { success: true; backupCodes: string[] }
   | { success: false; error: string };
+
+export interface CheckResult {
+  allow: boolean;
+  reason?: string;
+}

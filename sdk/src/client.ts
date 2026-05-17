@@ -1,4 +1,5 @@
 import { AuthModule } from "./auth.js";
+import { PermissionsModule } from "./permissions.js";
 import type { GatekeyClientOptions } from "./types.js";
 
 function parseJwtExp(token: string): number | null {
@@ -13,14 +14,15 @@ function parseJwtExp(token: string): number | null {
 
 export class GatekeyClient {
   readonly auth: AuthModule;
+  readonly permissions: PermissionsModule;
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
 
   constructor(options: GatekeyClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.apiKey = options.apiKey;
-    // Auth module uses rawFetch to avoid recursive refresh loop on auth endpoints
     this.auth = new AuthModule(this._rawFetch.bind(this));
+    this.permissions = new PermissionsModule(this._request.bind(this));
   }
 
   /** Direct fetch without auto-refresh interceptor. Used by auth endpoints internally. */
