@@ -5,6 +5,10 @@ import { useGatekey } from "./provider.js";
 export interface UsePermissionOptions {
   pollingInterval?: number;
   revalidateOnFocus?: boolean;
+  /** userId to check permissions for. Defaults to the authenticated user when omitted. */
+  userId?: string;
+  /** workspaceId context for the permission check. */
+  workspaceId?: string;
 }
 
 export function usePermission(
@@ -23,12 +27,15 @@ export function usePermission(
   const check = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const result = await client.permissions.check(capability, resourceType, resourceId);
+      const result = await client.permissions.check(capability, resourceType, resourceId, {
+        userId: options.userId,
+        workspaceId: options.workspaceId,
+      });
       setState({ allowed: result.allow, loading: false, error: null });
     } catch (e) {
       setState({ allowed: false, loading: false, error: e instanceof Error ? e : new Error(String(e)) });
     }
-  }, [client, capability, resourceType, resourceId]);
+  }, [client, capability, resourceType, resourceId, options.userId, options.workspaceId]);
 
   useEffect(() => {
     check();
