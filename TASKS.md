@@ -327,14 +327,14 @@
 
 ### 3.6 Playground interativo — closes #11 (com 3.5)
 
-- [ ] Implementar seletor de método HTTP (GET, POST, PATCH, DELETE) e campo de endpoint
-- [ ] Implementar editor de body JSON com syntax highlight
-- [ ] Implementar seletor de API Key da org atual para autenticar a chamada
-- [ ] Implementar botão "Enviar" que executa a chamada e exibe resposta com syntax highlight e badge de status HTTP
-- [ ] Implementar histórico de chamadas da sessão atual persistido no `sessionStorage`
-- [ ] Implementar botão "copy as cURL" que gera o comando curl equivalente
-- [ ] Implementar botão "copy as SDK call" que gera o código TypeScript equivalente usando `@gatekey/sdk`
-- [ ] Implementar painel de documentação inline: ao selecionar um endpoint, exibir descrição, parâmetros e exemplo de resposta
+- [x] Implementar seletor de método HTTP (GET, POST, PATCH, DELETE) e campo de endpoint
+- [x] Implementar editor de body JSON com syntax highlight
+- [x] Implementar seletor de API Key da org atual para autenticar a chamada
+- [x] Implementar botão "Enviar" que executa a chamada e exibe resposta com syntax highlight e badge de status HTTP
+- [x] Implementar histórico de chamadas da sessão atual persistido no `sessionStorage`
+- [x] Implementar botão "copy as cURL" que gera o comando curl equivalente
+- [x] Implementar botão "copy as SDK call" que gera o código TypeScript equivalente usando `@gatekey/sdk`
+- [x] Implementar painel de documentação inline: ao selecionar um endpoint, exibir descrição, parâmetros e exemplo de resposta
 
 ### 3.7 Integração: Dashboard ↔ Convex real-time — closes #9, #10, #11 (com 3.3–3.6)
 
