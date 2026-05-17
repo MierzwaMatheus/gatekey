@@ -312,9 +312,9 @@
 
 - [x] Implementar rota `/org/:orgId/workspace/:wsId` protegida — redireciona se usuário não tem role admin no workspace
 - [x] Implementar listagem de membros: tabela com nome do usuário, role, data de adição
-- [ ] Implementar formulário de adição de membro: seletor de usuário da org + seletor de role do workspace
-- [ ] Implementar ação de remover membro (modal de confirmação)
-- [ ] Implementar ação de trocar role do membro (seletor inline ou modal)
+- [x] Implementar formulário de adição de membro: seletor de usuário da org + seletor de role do workspace
+- [x] Implementar ação de remover membro (modal de confirmação)
+- [x] Implementar ação de trocar role do membro (seletor inline ou modal)
 - [ ] Implementar listagem de roles customizados do workspace: nome, capabilities atribuídas
 - [ ] Implementar formulário de criação de role customizado: nome + seleção de capabilities (checkboxes do catálogo)
 - [ ] Implementar ação de deletar role customizado (bloqueado com mensagem se há bindings ativos)
