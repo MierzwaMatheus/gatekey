@@ -411,7 +411,7 @@
 - [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código correto retorna access + refresh token
 - [x] Escrever teste: `POST /v1/auth/mfa/challenge` com código errado retorna 401
 
-### 4.7 SDK TypeScript — @gatekey/sdk — closes #14 (parcial)
+### 4.7 SDK TypeScript — @gatekey/sdk — closes #14
 
 - [x] Inicializar pacote em `/sdk` com `package.json`, tsconfig, tsup config (dual output ESM + CJS)
 - [x] Implementar classe `GatekeyClient` com construtor `({baseUrl, apiKey?})`
@@ -419,13 +419,14 @@
 - [x] Implementar `client.auth.refresh()` — chama `POST /v1/auth/refresh`, atualiza tokens internamente
 - [x] Implementar `client.auth.logout()` — chama `POST /v1/auth/logout`, limpa tokens
 - [x] Implementar interceptor de requisições internas que chama `refresh()` automaticamente quando access token está a menos de 60s de expirar
-- [ ] Implementar `client.permissions.check(capability, resourceType?, resourceId?)` — chama `POST /v1/check`
-- [ ] Implementar `client.users.create(data)`, `client.users.get(id)`, `client.users.update(id, data)`, `client.users.delete(id)`
-- [ ] Implementar `client.roles.list()`, `client.roles.create(data)`, `client.roles.delete(id)`
-- [ ] Implementar `client.bindings.list(filters?)`, `client.bindings.create(data)`, `client.bindings.delete(id)`
-- [ ] Implementar `client.apiKeys.list()`, `client.apiKeys.create(data)`, `client.apiKeys.revoke(id)`
-- [ ] Tipar parâmetros de capabilities e resourceTypes com generics para autocomplete
-- [ ] Escrever `README.md` do SDK com: instalação, inicialização, exemplos de uso dos métodos principais
+- [x] Implementar `client.auth.mfa.challenge(mfaToken, totpCode)`, `client.auth.mfa.setup(token?)`, `client.auth.mfa.verifySetup(totpCode, token?)` — fluxo MFA pós-login
+- [x] Implementar `client.permissions.check(capability, resourceType?, resourceId?)` — chama `POST /v1/check`
+- [x] Implementar `client.users.create(data)`, `client.users.get(id)`, `client.users.update(id, data)`, `client.users.delete(id)`
+- [x] Implementar `client.roles.list()`, `client.roles.create(data)`, `client.roles.delete(id)`
+- [x] Implementar `client.bindings.list(filters?)`, `client.bindings.create(data)`, `client.bindings.delete(id)`
+- [x] Implementar `client.apiKeys.list()`, `client.apiKeys.create(data)`, `client.apiKeys.revoke(id)`
+- [x] Tipar parâmetros de capabilities e resourceTypes com generics para autocomplete
+- [x] Escrever `README.md` do SDK com: instalação, inicialização, exemplos de uso dos métodos principais
 
 ### 4.8 SDK React — @gatekey/react — closes #14 (parcial)
 
