@@ -2,15 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { MonitorDot, X } from 'lucide-react'
 import { listSessions, revokeSession, type SessionSummary } from '../../lib/root-api'
 
-function formatRelative(ts: number): string {
-  const diff = Date.now() - ts
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'agora'
-  if (mins < 60) return `${mins}m atrás`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h atrás`
-  return `${Math.floor(hrs / 24)}d atrás`
-}
 
 function formatExpiry(ts: number): string {
   const diff = ts - Date.now()
