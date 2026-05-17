@@ -19,9 +19,16 @@ export class GatekeyClient {
   constructor(options: GatekeyClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.apiKey = options.apiKey;
-    this.auth = new AuthModule(this._request.bind(this));
+    // Auth module uses rawFetch to avoid recursive refresh loop on auth endpoints
+    this.auth = new AuthModule(this._rawFetch.bind(this));
   }
 
+  /** Direct fetch without auto-refresh interceptor. Used by auth endpoints internally. */
+  private async _rawFetch(path: string, options: RequestInit = {}): Promise<Response> {
+    return fetch(`${this.baseUrl}${path}`, options);
+  }
+
+  /** Fetch with auto-refresh interceptor. Use for all non-auth API calls. */
   async _request(path: string, options: RequestInit = {}): Promise<Response> {
     const tokens = this.auth.getTokens();
 

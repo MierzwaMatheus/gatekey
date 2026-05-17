@@ -413,12 +413,12 @@
 
 ### 4.7 SDK TypeScript — @gatekey/sdk — closes #14 (parcial)
 
-- [ ] Inicializar pacote em `/sdk` com `package.json`, tsconfig, tsup config (dual output ESM + CJS)
-- [ ] Implementar classe `GatekeyClient` com construtor `({baseUrl, apiKey?})`
-- [ ] Implementar `client.auth.login(email, password)` — chama `POST /v1/auth/login`, armazena tokens internamente
-- [ ] Implementar `client.auth.refresh()` — chama `POST /v1/auth/refresh`, atualiza tokens internamente
-- [ ] Implementar `client.auth.logout()` — chama `POST /v1/auth/logout`, limpa tokens
-- [ ] Implementar interceptor de requisições internas que chama `refresh()` automaticamente quando access token está a menos de 60s de expirar
+- [x] Inicializar pacote em `/sdk` com `package.json`, tsconfig, tsup config (dual output ESM + CJS)
+- [x] Implementar classe `GatekeyClient` com construtor `({baseUrl, apiKey?})`
+- [x] Implementar `client.auth.login(email, password)` — chama `POST /v1/auth/login`, armazena tokens internamente
+- [x] Implementar `client.auth.refresh()` — chama `POST /v1/auth/refresh`, atualiza tokens internamente
+- [x] Implementar `client.auth.logout()` — chama `POST /v1/auth/logout`, limpa tokens
+- [x] Implementar interceptor de requisições internas que chama `refresh()` automaticamente quando access token está a menos de 60s de expirar
 - [ ] Implementar `client.permissions.check(capability, resourceType?, resourceId?)` — chama `POST /v1/check`
 - [ ] Implementar `client.users.create(data)`, `client.users.get(id)`, `client.users.update(id, data)`, `client.users.delete(id)`
 - [ ] Implementar `client.roles.list()`, `client.roles.create(data)`, `client.roles.delete(id)`

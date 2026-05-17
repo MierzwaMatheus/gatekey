@@ -1,13 +1,15 @@
 import { GatekeyApiError, GatekeyAuthError } from "./errors.js";
 import type { LoginResult, TokenStore } from "./types.js";
 
+type RawFetch = (path: string, options?: RequestInit) => Promise<Response>;
+
 export class AuthModule {
   private tokens: TokenStore | null = null;
 
-  constructor(private readonly request: (path: string, options?: RequestInit) => Promise<Response>) {}
+  constructor(private readonly rawFetch: RawFetch) {}
 
   async login(email: string, password: string): Promise<LoginResult> {
-    const res = await this.request("/v1/auth/login", {
+    const res = await this.rawFetch("/v1/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -35,10 +37,10 @@ export class AuthModule {
 
   async refresh(): Promise<void> {
     if (!this.tokens?.refreshToken) {
-      throw new GatekeyAuthError("not_authenticated", "No refresh token available");
+      throw new GatekeyAuthError("not_authenticated");
     }
 
-    const res = await this.request("/v1/auth/refresh", {
+    const res = await this.rawFetch("/v1/auth/refresh", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken: this.tokens.refreshToken }),
@@ -58,10 +60,10 @@ export class AuthModule {
 
   async logout(): Promise<void> {
     if (!this.tokens?.accessToken) {
-      throw new GatekeyAuthError("not_authenticated", "Not authenticated");
+      throw new GatekeyAuthError("not_authenticated");
     }
 
-    const res = await this.request("/v1/auth/logout", {
+    const res = await this.rawFetch("/v1/auth/logout", {
       method: "POST",
       headers: { Authorization: `Bearer ${this.tokens.accessToken}` },
     });
