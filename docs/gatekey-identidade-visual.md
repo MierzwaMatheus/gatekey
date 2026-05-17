@@ -1,285 +1,394 @@
 # IDENTIDADE VISUAL — GateKey
-
-## Stack Técnica
-- Tailwind CSS para toda estilização — NUNCA criar arquivos `.css` separados
-- shadcn/ui como base de componentes, customizados via `className`
-- Todos os valores visuais definidos como **tokens semânticos** no `tailwind.config`
-- NUNCA usar valores hardcoded no código — sempre tokens semânticos
-- NUNCA usar cores, radius ou sombras padrão do Tailwind — apenas tokens deste documento
-- A IA que implementa é RESPONSÁVEL por criar SVGs originais baseados nas descrições abaixo — NÃO use blobs, dot grids ou partículas como substituto de conceito
-- A paleta usa UMA cor accent forte (`--gate-key` âmbar/dourado) + neutros escuros. Nenhuma outra cor vibrante fora do status funcional.
-- Dark mode é o **padrão e modo principal**. Light mode existe mas é secundário.
-
-## Setup Necessário
-
-### Libs adicionais
-| Lib | Pra quê | Instalação |
-|---|---|---|
-| `framer-motion` | Micro-interações de entrada em listas, tabelas e modais | `npm i framer-motion` |
-| `@radix-ui/react-tooltip` | Tooltips para badges de permissão e ícones de status | já incluso no shadcn |
-
-### Assets externos
-Nenhum. Todos os conceitos visuais são implementáveis em SVG inline + CSS puro.
+> Fonte de verdade extraída do código real (Claude Design, maio 2026).
+> Não descreve intenções — documenta o que já existe e funciona.
 
 ---
 
-## A Alma do App
+## Stack & Setup
 
-GateKey não pede permissão — ele **define** quem passa e quem não passa, com precisão cirúrgica. A interface deve comunicar controle, precisão e confiabilidade silenciosa: um sistema que nunca vacila, nunca improvisa, nunca deixa dúvida. Como o cofre de um banco — não é intimidador, é simplesmente **definitivo**.
-
----
-
-## Referências e Princípios
-
-**Supabase:** dark profundo como base, verde como único acento vibrante, tipografia monospace nos códigos e tokens, cards que são cenas conceituais (o card de Realtime tem cursores; o de Storage tem thumbnails organizados). A cor accent aparece no logo, botões primários, ícones ativos, badges de status, destaques de syntax highlighting. Zero gradientes no design estrutural — a profundidade vem de camadas de cinza escuro (midnight → iron → steel), não de efeitos visuais.
-→ Princípio: **profundidade por camadas de neutros, não por gradientes. A cor accent é o único sinal de vida na interface.**
-→ Aplicação no GateKey: `--gate-midnight`, `--gate-iron`, `--gate-steel` criam a hierarquia. `--gate-key` (âmbar) é o único elemento cromático vibrante. Tudo que está ativo, permitido, ou requer atenção usa âmbar.
-
-**Linear:** navegação por atalhos de teclado como cidadão de primeira classe, interface de alta densidade que não parece lotada, tipografia com peso preciso (nunca bold demais, nunca light demais). Dados em tabela sem parecer planilha.
-→ Princípio: **densidade de informação com espaçamento intencional — cada pixel de margem conta uma história de hierarquia.**
-→ Aplicação no GateKey: tabelas de bindings, sessões e API Keys precisam de alta densidade sem sensação de peso. Atingido com line-height apertado (1.4), padding vertical reduzido nas células (8px), e separadores sutis (1px, 8% opacidade).
-
-**Vercel:** hierarquia visual só com peso tipográfico e escala — nenhuma cor é necessária para entender o que é título, subtítulo e dado. Ícones de status (check, x, dot pulsante) como linguagem primária de feedback.
-→ Princípio: **tipografia como sistema de hierarquia autossuficiente. Cor é intensificador, não estrutura.**
-→ Aplicação no GateKey: headings de seção em `--gate-text` peso 500, labels em `--gate-muted`, valores em `--gate-text` peso 400. O âmbar aparece apenas onde há ação disponível ou estado notável.
+- **CSS:** arquivo `styles.css` separado com custom properties no `:root`. Sem Tailwind — CSS puro e classes semânticas.
+- **Fonts (carregar via Google Fonts ou self-hosted):**
+  - `Space Grotesk` — display, títulos de página, valores grandes nos stats
+  - `Inter` — interface geral
+  - `JetBrains Mono` — qualquer dado técnico: IDs, IPs, timestamps, tokens, labels de filtro, badges de nav
+- **Ícones:** SVG inline custom (definidos no componente `Icon`). Sem lib externa.
+- **Logo:** SVG inline `LogoMark` — octógono `10 3 h12 l7 7 v12 l-7 7 H10 l-7-7 V10z` + ponteiro interno em `L` + círculo central. Stroke `#F0A500`, strokeWidth 1.6, strokeLinejoin miter.
 
 ---
 
-## Decisões de Identidade
+## Tokens de Cor
 
-### ESTRUTURA
+```css
+:root {
+  /* Fundos — do mais escuro ao mais claro */
+  --bg:            #0d1117;   /* página */
+  --sidebar:       #0a0e14;   /* sidebar (mais escuro que bg) */
+  --card:          #141b26;   /* cards, tabela, panels */
+  --card-elev:     #1c2333;   /* inputs, kv-blocks, superfície elevada */
+  --border:        #232a36;   /* bordas default */
+  --border-strong: #30363d;   /* bordas com mais peso */
+  --border-soft:   #1a212c;   /* separadores sutis entre linhas */
 
-#### Navegação
-**O que:** Sidebar vertical fixa, estreita (220px), sem ícones decorativos soltos — cada item de navegação tem ícone + label em linha, com indicador de estado ativo em barra lateral âmbar (2px, altura 60% do item).
+  /* Texto */
+  --text:        #c9d1d9;   /* texto principal */
+  --text-strong: #e6edf3;   /* títulos, valores em destaque */
+  --muted:       #8b949e;   /* labels, metadados secundários */
+  --muted-2:     #6e7681;   /* deltas, sub-labels */
+  --muted-3:     #4d5560;   /* placeholders, numeração, decoração */
 
-**Por que:** O sistema tem três painéis hierárquicos distintos (Root, Org Admin, Workspace Admin). A sidebar precisa comunicar em qual contexto o usuário está — não apenas qual página.
+  /* Accent — UMA cor. Âmbar. */
+  --accent:        #f0a500;
+  --accent-dim:    #b07a00;                   /* hover do accent */
+  --accent-soft:   rgba(240, 165, 0, 0.08);  /* bg de nav ativo, chip ativo */
+  --accent-soft-2: rgba(240, 165, 0, 0.14);  /* hover mais forte */
 
-**Como:** O header da sidebar exibe o contexto atual (nome da org + workspace selecionado) com um switcher de contexto. Abaixo, os itens de nav agrupados por seção. O item ativo tem background `surface-card` + borda esquerda `accent-primary`. Sem submenu expansível — navegação flat por tabs quando necessário dentro de uma seção.
+  /* Status — apenas para feedback funcional */
+  --green: #3fb950;   /* ativo, live, ok */
+  --red:   #f85149;   /* revogado, erro, danger */
 
-**Nunca:** hamburger menu em desktop, ícones sem label, submenu aninhado com mais de 1 nível.
+  /* Interação */
+  --row-hover: rgba(255, 255, 255, 0.025);  /* hover em linhas de tabela */
+  --row-focus: rgba(240, 165, 0, 0.04);     /* linha selecionada */
 
-#### Layout de conteúdo
-**O que:** Layout de duas colunas em páginas de detalhe (lista à esquerda, detalhe à direita), layout de coluna única em dashboards com cards. Sem hero sections — o GateKey é uma ferramenta, não um produto de marketing.
-
-**Por que:** A interface gerencia entidades (usuários, roles, bindings, API Keys) — o padrão de lista + detalhe é o mais adequado para operações CRUD frequentes.
-
-**Como:** Coluna esquerda: 360px fixo, lista com filtro e busca no topo. Coluna direita: flex-1, painel de detalhe com seções colapsáveis. Em mobile: stack vertical, detalhe substitui lista (com botão de voltar).
-
-**Nunca:** tabs aninhadas com mais de 2 níveis, modais para fluxos de mais de 3 passos (usar página dedicada).
-
-#### Hierarquia de atenção
-**O que:** Em qualquer tela, o olho deve ir em sequência: (1) contexto atual (org/workspace no header), (2) título da seção, (3) dado ou ação principal, (4) metadados secundários.
-
-**Como:** Tamanho de fonte decrescente (18 → 14 → 13 → 12px), peso decrescente (500 → 400), cor decrescente (`--gate-text` → `--gate-muted`). Ações primárias em botão âmbar, ações secundárias em outline neutro, ações destrutivas em vermelho apenas no estado hover/confirmação.
-
----
-
-### LINGUAGEM
-
-#### Tipografia
-**O que:** Interface em **Inter** (weights 400 e 500 apenas). Tokens, IDs, hashes, API Keys, código inline e mensagens de erro técnicas em **JetBrains Mono**.
-
-**Por que:** Inter é legível em densidades altas — o GateKey exibe muita informação por tela (bindings, sessões, audit log). JetBrains Mono no código distingue visualmente dados técnicos de labels de interface, como o Supabase faz com o SQL Editor.
-
-**Como:** Todo `userId`, `roleId`, `resourceId`, `sessionId`, chave de API Key (com mascaramento parcial `gk_live_pk_...••••`) e qualquer capability (`document:read`) é renderizado em monospace. Nunca Inter para dados técnicos — eles precisam ser escaneáveis e copy-pastáveis.
-
-**Nunca:** font-weight 600 ou 700, tamanhos abaixo de 12px, combinações de mais de duas famílias tipográficas.
-
-#### Geometria
-**O que:** Bordas altamente arredondadas para cards e painéis (`radius-card`: 12px), moderadamente arredondadas para botões (`radius-button`: 8px) e inputs (`radius-input`: 8px), levemente arredondadas para badges e chips (`radius-badge`: 6px).
-
-**Por que:** O GateKey tem identidade técnica mas não deve parecer "corporativo angular". O arredondamento suaviza sem perder a precisão.
-
-**Como:** Cards de painel usam 12px. Botões e inputs usam 8px. Células de tabela sem radius (bordas apenas com linha separadora). Pills de status (ALLOW/DENY) usam full radius (9999px).
-
-**Nunca:** border-radius 0 em cards ou painéis, radius inconsistente por componente.
-
-#### Cor como sistema
-**O que:** Base dark (`--gate-midnight` #0D1117 como superfície de página, `--gate-iron` #1C2333 para cards e painéis, `--gate-steel` #30363D para bordas e divisores). Uma cor accent: `--gate-key` #F0A500 (âmbar/dourado). Cores de status apenas para feedback funcional.
-
-**Como:** O âmbar aparece em: logo, botões primários, ícones ativos na sidebar, badges de roles/capabilities, indicadores de sessão ativa, cursor do playground interativo, acentos de syntax highlighting de API Keys. Tudo mais é escala de cinza escuro + texto em `--gate-text` / `--gate-muted`.
-
-**Nunca:** gradientes como identidade visual, múltiplas cores de acento por categoria, glassmorphism em componentes estruturais.
-
-#### Profundidade
-**O que:** Profundidade criada exclusivamente por camadas de superfície (midnight → iron → steel) e box-shadow etérea. Sem gradientes decorativos.
-
-**Como:** `shadow-card`: `0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)` — a sombra é escura (sistema dark) e a borda interna em branco a 6% cria a separação do fundo. `shadow-hover`: adiciona `0 4px 16px rgba(0,0,0,0.5)`. O `shadow-float` para modais e dropdowns usa `0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)`.
-
-**Nunca:** sombras coloridas/âmbar, drop-shadow em ícones, glow borders como estado padrão.
-
-#### Iconografia
-**O que:** Ícones Lucide outline, 16px inline e 18px em headers de seção. Nunca filled, nunca com background colorido padrão — exceto quando há estado de alerta ativo (então `--gate-danger` no ícone de revogação).
-
-**Por que:** Consistência com a linguagem do shadcn/ui. Ícones outline são menos agressivos em interfaces de alta densidade.
-
-**Nunca:** ícones emoji, ícones duotone sem uma razão muito específica, mix de estilos (alguns outline, alguns filled) na mesma tela.
+  /* Tipografia */
+  --mono:    "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --sans:    "Inter", system-ui, -apple-system, sans-serif;
+}
+```
 
 ---
 
-### RIQUEZA VISUAL
+## Tipografia
 
-#### Textura Ambiente
-**O que:** Um pattern de linhas de circuito extremamente sutil no fundo da página (`surface-page`). Evoca a metáfora de grafo de relações — o coração do ReBAC.
+| Uso | Família | Tamanho | Peso | Letter-spacing |
+|---|---|---|---|---|
+| Título de página (`.page-title`) | `--display` | 26px | 500 | -0.02em |
+| Número decorativo no título (`.num`) | `--mono` | 20px | 400 | 0 |
+| Subtítulo de página | `--sans` | 12.5px | 400 | — |
+| Header de seção de nav | `--mono` | 9px | 400 | 0.18em, uppercase |
+| Item de nav | `--sans` | 12.5px | 400/500 | — |
+| Header de tabela (`thead`) | `--mono` | 9.5px | 400 | 0.14em, uppercase |
+| Dado técnico na tabela | `--mono` | 11.5–12px | 500 | -0.005em |
+| Sub-info na tabela | `--mono` | 10px | 400 | 0.02em |
+| Labels de filtro | `--mono` | 9.5px | 400 | 0.06–0.16em |
+| Stat value | `--display` | 28px | 500 | -0.02em |
+| Stat label | `--mono` | 9.5px | 400 | 0.16em, uppercase |
+| Pills / badges | `--mono` | 8.5px | 600 | 0.14em |
+| Botões | `--mono` | 11px | 400/600 | 0.06em, uppercase |
+| Status bar | `--mono` | 9.5px | 400 | 0.1em, uppercase |
+| Metadados `page-coords` | `--mono` | 9.5px | 400 | 0.08em |
+| Versão / breadcrumb | `--mono` | 9.5–11px | 400 | 0.04–0.16em |
 
-**Temática:** O GateKey é um sistema de grafos. Um fundo com nós conectados por linhas finas (como um PCB simplificado ou um mapa de relações) comunica visualmente o que o sistema faz: rastrear conexões entre usuários, roles e recursos.
-
-**Tratamento:** SVG inline como background-image, com `opacity: 0.035`. Monocromático em `--gate-text` (#C9D1D9). O pattern é composto de pontos (círculos de 2px) conectados por linhas de 1px, em grid irregular de 48px × 48px com variação de 30%. Fixo (não scroll). Aparece apenas na `surface-page` — nunca dentro de cards ou painéis.
-
-#### Conceitos Visuais por Componente
-
-##### Card de verificação de permissão (endpoint `/check` / Playground)
-**Representa:** A decisão binária do PDP — o momento em que o sistema declara ALLOW ou DENY com motivo. Não é uma tabela de dados; é um **veredito**.
-
-**Metáfora visual:** Um portão (a metáfora central do GateKey) em estado aberto ou fechado. À esquerda, o pedido entra (usuário + capability + recurso). À direita, o resultado sai com o caminho percorrido no grafo (binding direto → container pai → workspace).
-
-**Cena detalhada:** No topo do card, três pills em linha: `userId`, `capability` e `resourceId` — cada um em monospace com fundo `surface-elevated`. Uma linha fina âmbar conecta os três pills a um ponto central. Desse ponto, uma seta larga desce para o resultado. O resultado ocupa 60% do card: se ALLOW, uma pill grande verde (`--gate-safe`) com ícone de check e o path de decisão embaixo em texto muted (`binding direto: role "editor" → doc_abc`). Se DENY, pill vermelho (`--gate-danger`) com ícone de cadeado fechado e o motivo específico (`capability "document:write" not in role "viewer"`). O portão — um octógono outline simplificado em 32px — fica centralizado entre o input e o output, como o árbitro da decisão. Em estado ALLOW, o octógono tem a borda âmbar. Em DENY, vermelho.
-
-**Viabilidade:** CÓDIGO PURO — SVG inline + Tailwind.
-
-##### Card de binding (user → role → resource)
-**Representa:** A relação tripartite que é o átomo do ReBAC — a conexão entre uma identidade, um papel e um recurso específico. É a "chave no portão" em forma de dado.
-
-**Metáfora visual:** Um grafo de três nós conectados. Não é uma linha de tabela — é um diagrama de relação vivo.
-
-**Cena detalhada:** O card é horizontal (full-width em lista). À esquerda, um nó circular (40px) com o avatar/iniciais do usuário sobre fundo `surface-elevated`, abaixo o `userId` em monospace 11px. Uma linha fina (1px, cor `--gate-steel`) conecta ao nó central: um hexágono (representando o role) com o nome do role em 12px bold e âmbar. Uma segunda linha conecta ao nó direito: um retângulo arredondado (representando o recurso) com o `resourceType` em maiúsculas 10px muted e o `resourceId` em monospace abaixo. A linha inteira de usuário → role → recurso é a cena visual. Ao hover, as linhas pulsam suavemente para âmbar (transition 200ms). Botão de revogar (ícone de x) aparece no hover alinhado à direita, fundo `--gate-danger` em 10% opacidade.
-
-**Viabilidade:** CÓDIGO PURO — SVG inline para os nós e conectores, Tailwind para o container.
-
-##### Painel de Audit Log
-**Representa:** O registro imutável de tudo que aconteceu — a memória permanente do sistema. Não é uma tabela qualquer; é uma **linha do tempo com peso histórico**.
-
-**Metáfora visual:** Timeline vertical com eventos que têm intensidade visual proporcional ao impacto da ação. Um `binding.create` é discreto. Uma `session.revoke` é mais destacada. Uma `org.suspend` (ação Root) tem tratamento visual diferenciado.
-
-**Cena detalhada:** À esquerda de cada linha do audit log, uma coluna de 24px com um ícone de evento (12px, Lucide outline) sobre um círculo de 20px. O círculo tem cor baseada no tipo de evento: ações de criação em `--gate-steel` sutil, ações de revogação em `--gate-danger` a 20% de opacidade, ações de Root (impersonation, criação de org) em `--gate-key` a 20% de opacidade. Uma linha vertical fina (1px, `--gate-steel`) conecta os círculos de cima a baixo — é o "fio da linha do tempo". O conteúdo de cada evento: ator (nome + role em pill) + ação em monospace bold (`binding.create`) + target em monospace muted. Timestamp em monospace 11px no canto direito, sempre no formato relativo (`2m ago`) com full timestamp em tooltip. Eventos de DENY no audit têm um subtle left border âmbar (2px) — são os momentos em que o sistema exerceu seu poder de negar.
-
-**Viabilidade:** CÓDIGO PURO — linha do tempo com div + border-left para o fio, ícones Lucide.
-
-##### Card de API Key
-**Representa:** Uma credencial de acesso server-side com escopos declarados — uma chave real com poderes específicos. O momento de criação é único: o secret é exibido apenas uma vez.
-
-**Metáfora visual:** Uma chave física estilizada em SVG, onde os "dentes" da chave representam os escopos ativados. Mais escopos = mais dentes = mais poder.
-
-**Cena detalhada:** No header do card, o identificador público da key em monospace (`gk_live_pk_...••••`) com um botão de copy. Abaixo, uma representação SVG inline de uma chave horizontal simplificada (40px de altura, 160px de largura): o cabo é um retângulo arredondado, e os dentes são retângulos verticais de 8px × 12px espaçados de 10 em 10px. Cada dente corresponde a um escopo ativo (`users:write`, `bindings:write`, etc.) e tem um tooltip com o nome do escopo. Dentes presentes = escopo ativo (cor `--gate-key`). Dentes ausentes (espaço vazio) = escopo não concedido. Abaixo da chave visual: a lista de escopos em pills de 11px monospace. Ao fundo do card (extremidade direita): o status `ACTIVE` em pill verde ou `REVOKED` em pill vermelho. Data de criação e último uso em texto muted.
-
-**Viabilidade:** CÓDIGO PURO — chave em SVG inline, dentes como `<rect>` elementos.
-
-##### Dashboard de Org Admin — card de uso de cotas
-**Representa:** Os limites que definem o espaço de atuação da org — não como restrições punitivas, mas como a definição do território.
-
-**Metáfora visual:** Barras de progresso, mas não retangulares genéricas. Barras segmentadas onde cada segmento representa uma unidade (usuário, workspace, etc.) — como uma régua graduada.
-
-**Cena detalhada:** Para cada quota (usuários, workspaces, API Keys, sessões), uma linha composta de: label à esquerda (12px, muted), seguida de uma barra segmentada de 200px de largura. A barra é composta de N quadrinhos de 12px × 12px com gap de 2px, onde N é o limite máximo da quota. Quadrinhos preenchidos = entidades existentes (cor `--gate-key` em 80% opacidade). Quadrinhos vazios = capacidade disponível (cor `--gate-steel`). Ao hover sobre a barra, um tooltip mostra `X de Y usados`. Se a quota atingir 80%, os quadrinhos mudam para âmbar mais saturado. A 100%, para `--gate-danger`. À direita da barra, a contagem em monospace (`23/50`). O card inteiro tem um conceito visual: uma grade de quadrinhos que "preenche" visualmente o espaço disponível — como um inventário físico.
-
-**Viabilidade:** CÓDIGO PURO — grid de divs com Tailwind + dinâmica via dados reais.
-
-##### Empty State (lista vazia de bindings / roles / usuários)
-**Representa:** Um sistema pronto mas ainda não configurado — o portão existe, mas nenhuma chave foi criada. Não é uma falha; é um estado inicial neutro.
-
-**Metáfora visual:** O octógono/logo do GateKey em wireframe, com uma chave ausente (apenas o contorno pontilhado onde a chave deveria estar). A mensagem comunica o próximo passo, não o vazio.
-
-**Cena detalhada:** Centralizado na área de conteúdo, um SVG de 120px × 120px: o octógono em outline fino (1.5px, `--gate-steel`), com um espaço interno em forma de chave em outline pontilhado (dash array 4 2, `--gate-muted`). A ausência da chave sólida é o conceito — o portão está aqui, a chave ainda não. Abaixo do ícone, título em 15px `--gate-text` sem peso excessivo, subtítulo em 13px `--gate-muted` com instrução direta. Botão âmbar de ação primária (`+ Criar binding`, `+ Criar role`, etc.). Sem ilustrações de pessoas, sem "parece que está vazio aqui!", sem emojis.
-
-**Viabilidade:** CÓDIGO PURO — SVG inline com octógono e chave pontilhada.
+**Regra:** Interface em `--sans`. Dados técnicos (IDs, IPs, tokens, timestamps, counters, versões, labels de nav numerados, filtros) em `--mono`. Títulos de página em `--display`.
 
 ---
 
-## Tokens de Design
+## Geometria & Bordas
 
-### Cores — Fundos
-| Token | Valor | Uso |
-|---|---|---|
-| `surface-page` | `#0D1117` | Fundo principal da aplicação |
-| `surface-card` | `#1C2333` | Cards, painéis, sidebar |
-| `surface-elevated` | `#30363D` | Inputs, dropdowns, tooltips, código inline |
-| `surface-hover` | `rgba(255,255,255,0.04)` | Hover em linhas de tabela, itens de lista |
+**Sem border-radius.** Toda a interface usa ângulos retos — cards, inputs, modais, botões, pills, chips, avatares. A sensação de precisão vem da ausência de arredondamento.
 
-### Cores — Texto
-| Token | Valor | Uso |
-|---|---|---|
-| `text-primary` | `#C9D1D9` | Títulos, valores, texto principal |
-| `text-secondary` | `#8B949E` | Labels, subtítulos, metadados |
-| `text-muted` | `rgba(139,148,158,0.6)` | Placeholders, texto desabilitado |
+**Cantos cortados (corner brackets):** o elemento de identidade mais característico do GateKey. Implementado com `::before`/`::after` em `position: absolute`, criando uma marca de 5–10px nos cantos opostos com borda âmbar. Aparece em: tabela, modais, inputs em foco, context pill da sidebar, avatares, toasts, empty state.
 
-### Cores — Accent (âmbar/dourado — UMA COR)
-| Token | Valor | Uso |
-|---|---|---|
-| `accent-primary` | `#F0A500` | Botões primários, ícones ativos, badges de role, indicator de nav ativo |
-| `accent-hover` | `#7D5500` | Hover state do accent |
-| `accent-subtle` | `rgba(240,165,0,0.12)` | Fundos translúcidos de badges, hover tints, pills de capability |
+```css
+/* Padrão de canto cortado — aplicado em .table, .modal, .empty, .toast */
+.elemento::before,
+.elemento::after {
+  content: "";
+  position: absolute;
+  width: 6px;      /* varia: 5px (small), 6px (default), 10px (modal) */
+  height: 6px;
+  border-color: var(--accent);
+  border-style: solid;
+  z-index: 2;
+  pointer-events: none;
+}
+.elemento::before {
+  top: -1px; left: -1px;
+  border-width: 1px 0 0 1px;  /* canto superior esquerdo */
+}
+.elemento::after {
+  bottom: -1px; right: -1px;
+  border-width: 0 1px 1px 0;  /* canto inferior direito */
+}
+```
 
-### Cores — Status (APENAS para feedback funcional)
-| Token | Valor | Uso |
-|---|---|---|
-| `status-allow` | `#3FB950` | Resultado ALLOW no PDP, sessão ativa, API Key ativa |
-| `status-deny` | `#F85149` | Resultado DENY no PDP, sessão revogada, key revogada |
-| `status-warning` | `#E3B341` | Quota acima de 80%, sessão próxima de expirar |
-
-### Bordas
-| Token | Valor | Uso |
-|---|---|---|
-| `border-default` | `rgba(48,54,61,1)` | Contornos de cards, divisores de seção |
-| `border-subtle` | `rgba(255,255,255,0.06)` | Borda interna de cards (efeito de profundidade) |
-| `border-accent` | `rgba(240,165,0,0.3)` | Borda de elemento com foco ou em estado ativo |
-
-### Geometria
-| Token | Valor | Uso |
-|---|---|---|
-| `radius-card` | `12px` | Cards, painéis, modais |
-| `radius-button` | `8px` | Botões primários e secundários |
-| `radius-input` | `8px` | Inputs, selects, textareas |
-| `radius-badge` | `6px` | Badges de role, pills de capability |
-| `radius-pill` | `9999px` | Status pills (ALLOW/DENY/ACTIVE) |
-
-### Sombras
-| Token | Valor | Uso |
-|---|---|---|
-| `shadow-card` | `0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06)` | Cards e painéis padrão |
-| `shadow-hover` | `0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08)` | Cards em hover |
-| `shadow-float` | `0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)` | Dropdowns, modais, tooltips |
-| `shadow-accent` | `0 0 0 1px rgba(240,165,0,0.4)` | Focus ring de inputs e botões |
+**Inputs em foco** têm o mesmo efeito de canto cortado + `border-color: var(--accent)` — sem outline, sem box-shadow.
 
 ---
 
-## Componentes Shadcn — Overrides
+## Layout do App
 
-| Componente | Override (tokens semânticos) |
-|---|---|
-| `<Card>` | `bg-surface-card border border-border-default rounded-card shadow-card` |
-| `<Button variant="default">` | `bg-accent-primary text-black hover:bg-accent-hover rounded-button font-medium` |
-| `<Button variant="outline">` | `border-border-default text-text-primary hover:bg-surface-hover rounded-button` |
-| `<Button variant="destructive">` | `bg-transparent border border-status-deny text-status-deny hover:bg-status-deny hover:text-black rounded-button` |
-| `<Badge>` | `bg-accent-subtle text-accent-primary border-0 rounded-badge font-mono text-[11px]` |
-| `<Input>` | `bg-surface-elevated border-border-default text-text-primary placeholder:text-text-muted rounded-input focus-visible:ring-0 focus-visible:border-border-accent` |
-| `<Table>` | `text-text-primary border-border-default` com `<TableRow>` em `hover:bg-surface-hover transition-colors` |
-| `<Avatar>` | `bg-surface-elevated text-text-secondary rounded-full` |
-| `<Tooltip>` | `bg-surface-elevated text-text-primary border border-border-default shadow-float rounded-badge text-[12px] font-mono` |
-| `<Dialog>` | `bg-surface-card border border-border-default shadow-float rounded-card` |
-| `<Select>` | `bg-surface-elevated border-border-default text-text-primary rounded-input` |
+```
+┌──────────────────────────────────────────────────┐
+│ sidebar (220px fixo) │ main (flex: 1)            │
+│                      │ ┌──────────────────────┐  │
+│  sidebar-meta        │ │ topbar (52px)         │  │
+│  sidebar-head        │ ├──────────────────────┤  │
+│    brand             │ │ content (overflow)    │  │
+│    context-pill      │ │   page-head           │  │
+│  nav-section         │ │   stats-strip         │  │
+│    nav-items         │ │   filters             │  │
+│  sidebar-foot        │ │   table / empty       │  │
+│    settings          │ ├──────────────────────┤  │
+│    user-chip         │ │ status-bar (22px)     │  │
+└──────────────────────┴─┴──────────────────────┴──┘
+```
+
+- `grid-template-columns: 220px 1fr`
+- `height: 100vh`, `overflow: hidden` no `.app`
+- `.content` tem `overflow: auto`, `padding: 22px 24px 64px`
 
 ---
 
-## Regra de Ouro
+## Componentes
 
-Ao criar qualquer tela ou componente no GateKey:
+### Sidebar
 
-1. Siga as decisões de identidade em todas as três camadas — estrutura, linguagem e riqueza visual
-2. shadcn/ui é a base — customize sempre via `className` com tokens semânticos
-3. NUNCA valores crus — sempre os tokens definidos neste documento
-4. UMA cor accent: âmbar (`accent-primary`) para tudo que é ativo, permitido ou requer ação. Nenhuma outra cor vibrante fora de status funcional (allow/deny/warning)
-5. Componentes de entidade (binding, API Key, audit event, sessão) DEVEM ter um conceito visual — não são linhas de tabela genéricas
-6. Código, IDs e tokens técnicos SEMPRE em JetBrains Mono — nunca Inter para dados que precisam ser escaneáveis
-7. A textura de fundo de circuito é sutil demais para o usuário notar conscientemente — ela trabalha abaixo do limiar de percepção, criando profundidade sem ruído
-8. **GateKey é definitivo: a interface nunca hesita, nunca decora sem propósito, nunca confunde ação com status.**
+```
+sidebar-meta     → "// gatekey.iam" + versão em mono 9.5px, --muted-3, uppercase
+sidebar-head     → brand + context-pill
+  brand          → LogoMark (22px) + "GateKey" em --display 16px bold + "CTRL" pill
+  context-pill   → border 1px --border + cantos cortados âmbar 5px
+                   ctx-tag: "scope context" em mono 8.5px uppercase --muted-3
+                   ctx-row: "root :: acme-prod" + dot pulsante âmbar
+nav-section      → "/ administração" em mono 9px uppercase --muted-3
+  nav-item       → padding 9px 14px, border-left 2px transparent
+    [ativo]      → border-left 2px --accent + bg --accent-soft + cor --text-strong
+    numeração    → mono 9.5px --muted-3 (fica âmbar quando ativo)
+    ícone SVG    → 14px, cor herdada
+    label        → flex:1, weight 400 (500 quando ativo)
+    count        → mono 10px --muted-2 (âmbar quando ativo)
+sidebar-foot     → settings + user-chip
+  avatar         → 28×28px, border 1px --border-strong, sem radius
+                   iniciais em mono 10px --accent, cantos cortados âmbar 3px
+  user-name      → mono 11.5px --text
+  user-sub       → mono 9.5px --muted-3 uppercase
+```
 
-## Teste Final
+**Dot pulsante** (`.ctx-dot`, `.live-clock-dot`):
+```css
+animation: pulse 2.4s ease-in-out infinite;
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(240, 165, 0, 0.12); }
+  50%       { box-shadow: 0 0 0 3px rgba(240, 165, 0, 0.22); }
+}
+```
 
-Coloque o GateKey ao lado de um dashboard shadcn padrão com dark mode ativado. As diferenças devem ser óbvias em três níveis:
+---
 
-- **ESTRUTURA:** sidebar com contexto de hierarquia (org/workspace), layout lista + detalhe, ausência total de hero sections ou marketing interno
-- **LINGUAGEM:** JetBrains Mono para todos os dados técnicos, âmbar como único elemento vibrante em um mar de cinza escuro, geometria consistente com tokens semânticos, sombras com borda interna translúcida
-- **RIQUEZA:** card de binding como grafo de três nós, audit log como timeline com intensidade por tipo de evento, API Key com chave SVG de dentes = escopos, empty state com octógono + chave ausente, quotas como grade de segmentos — nenhum desses seria possível em outro app porque cada um conta a história específica do que o componente representa no GateKey
+### Topbar
 
-Se os cards forem caixas com texto e ícone Lucide solto, está incompleto.
-Se aparecer qualquer cor vibrante além do âmbar (exceto status funcional), está errado.
-Se dados técnicos estiverem em Inter, está errado.
+- 52px de altura, `border-bottom: 1px solid var(--border-strong)`
+- **Efeito scan:** linha âmbar de 80px percorre toda a largura em 6s na borda inferior:
+
+```css
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: -1px;
+  height: 1px; width: 80px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: scan 6s linear infinite;
+}
+@keyframes scan {
+  0%   { left: 0; }
+  100% { left: calc(100% - 80px); }
+}
+```
+
+- Breadcrumb em mono: `scope` (--muted-3 uppercase 9.5px) → `root` (--muted) → `›` → `sessions.active` (--text)
+- Live clock com dot verde pulsante + timestamp UTC
+- Search bar: border 1px --border, mono 10.5px, atalho `⌘K` em kbd pill
+- Icon buttons: 28×28px, border 1px --border, hover vira âmbar
+
+---
+
+### Page Head
+
+```
+page-prefix  → "// · module · sessions.active · scope · root"
+               slash em âmbar, resto em --muted-3
+page-title   → .num ("01") em mono --muted-3 + texto em --display 26px
+page-sub     → --sans 12.5px --muted, max-width 580px
+page-coords  → spans mono 9.5px: node / ts / tenant / caller
+               key em --muted, valor em --text
+page-actions → btn-ghost + btn-primary
+```
+
+Separador: `border-bottom: 1px dashed --border-soft` + linha âmbar sólida de 32px à esquerda via `::after { bottom: -1px; left: 0; width: 32px; height: 1px; background: var(--accent) }`.
+
+---
+
+### Stats Strip
+
+5 células em `grid-template-columns: repeat(5, 1fr)`, separadas por `gap: 1px` sobre fundo `--border`.
+
+```
+stat          → bg --card, padding 14px 16px
+stat::before  → linha de 24px no topo: --muted-3 (danger → --red, warn → --accent)
+stat-label    → mono 9.5px uppercase --muted + tick "[24h]" à direita
+stat-value    → --display 28px weight 500 + delta em mono 10.5px --muted-2
+stat-bar      → 2px height, --border como track, fill colorido
+```
+
+`data-kind="danger"` → valor e fill em `--red`
+`data-kind="warn"` → valor e fill em `--accent`
+
+---
+
+### Filtros
+
+```
+filters-head → label com ::before { content: "//" } em --accent
+filters-row  → dois fields lado a lado, max-width 380px cada
+field-label  → mono 9.5px --muted lowercase + "›" âmbar via ::before
+input        → height 34px, border 1px --border, bg transparent
+               foco: border --accent + cantos cortados 4px âmbar
+               inner: mono 12px --text, placeholder --muted-3
+chip-row     → chips de filtro agrupados por "device" e "urgency"
+chip         → mono 10.5px, border 1px --border, bg transparent, --muted
+               [active]: âmbar text + --accent-soft bg + --accent border
+chip-sep     → 1px × 14px --border-strong entre grupos
+```
+
+---
+
+### Tabela
+
+Grid de colunas: `28px minmax(260px, 2fr) 1.1fr 1fr 0.85fr 1fr 0.9fr`
+
+```
+table-meta   → mono 9.5px uppercase: contagem + sort + poll status ("● live" em --green)
+thead        → height 32px, bg rgba(255,255,255,0.012), border-bottom --border-strong
+trow         → min-height 46px, border-bottom 1px --border-soft
+               hover: bg --row-hover + índice vira âmbar
+               [focused]: bg --row-focus + border-left 2px --accent
+               [revoked]: opacity 0.5
+```
+
+**Colunas:**
+- `c-idx` — mono 9.5px --muted-3 (âmbar no hover/foco)
+- `c-user` — userId em mono 12px weight 500 --text-strong + sub (location · ua) em mono 10px --muted-2
+- `c-ip` — IP em mono 11.5px + sufixo "/32" em --muted-3 9.5px
+- `c-device` — ícone 13px + texto uppercase 0.08em + "mfa · tipo" em --muted abaixo
+- `c-created` — relPast() em mono --text
+- `c-expires` — relFuture() com cor por urgência: verde (>24h), âmbar (<24h), vermelho (<1h). Wrapped em `[valor]` com colchetes em --muted-3
+- `c-actions` — btn-revoke com `opacity: 0; transform: translateX(4px)` → aparece no hover da row. Hover do botão: --red
+
+**Pills de status:**
+```css
+.pill-active  → color: --green; bg: rgba(63,185,80,0.07); border: rgba(63,185,80,0.32)
+                dot 4px verde + texto "ATIVA"
+.pill-revoked → color: --red; bg: rgba(248,81,73,0.06); border: rgba(248,81,73,0.32)
+```
+
+**Empty state (sem matches):**
+```
+grid 3 colunas: barra âmbar 3px | título + query params | btn "reset"
+título: mono 11px --text uppercase "// no matches"
+sub: mono 10.5px --muted com os params ativos interpolados
+```
+Cantos cortados âmbar 6px no container. Sem ícone, sem ilustração.
+
+---
+
+### Botões
+
+```css
+.btn-ghost, .btn-primary {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  height: 30px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* SEM border-radius */
+}
+
+.btn-ghost {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #0a0700;   /* preto quente, não puro */
+  font-weight: 600;
+  border: 1px solid var(--accent);
+}
+.btn-primary:hover { background: #ffb71a; border-color: #ffb71a; }
+```
+
+Botão destrutivo (modal): bg --red, border --red, color #fff.
+
+---
+
+### Modal
+
+- Width 480px, bg --card, **border 1px --accent** (não --border)
+- Cantos cortados âmbar 10px (maior que o padrão de 6px)
+- `modal-head` → mono 11px uppercase âmbar + ícone warn + label-right em --muted-3
+- `modal-body` → --sans 12px --muted, kv-block em --sidebar com border --border-soft
+  - `kv` → grid 88px 1fr, key --muted lowercase, value --text, tudo mono 11px
+- `modal-foot` → btn-ghost + btn-primary destrutivo
+- Scrim: `rgba(5, 8, 12, 0.7)` + `backdrop-filter: blur(3px)`
+
+---
+
+### Status Bar
+
+22px, fixo no bottom, bg --sidebar, border-top 1px --border-strong.
+Mono 9.5px uppercase --muted-3. Itens: `● api · 142ms` (dot verde) · region · build · ts · tenant.
+
+---
+
+### Toast
+
+Fixed bottom-right 22px. bg --card, border 1px --accent, cantos cortados 5px âmbar.
+Mono 11px. Prefix `[ok]` em âmbar.
+```css
+@keyframes toast-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+```
+
+---
+
+## Os 8 Padrões que fazem o GateKey parecer GateKey
+
+1. **Cantos cortados âmbar** — sem border-radius, marcas diagonais com `::before`/`::after`. Em tudo que é container relevante.
+
+2. **Monospace em tudo técnico** — IDs, IPs, timestamps, versões, labels de nav numerados, filtros, contadores. A alternância Inter/JetBrains dentro do mesmo componente é intencional.
+
+3. **Scan animado no topbar** — gradiente âmbar de 80px atravessando a borda inferior em 6s.
+
+4. **Numeração sequencial** — itens de nav com `01`, `02`..., linhas de tabela com índice, stats com código `001`–`005`. Linguagem de sistema.
+
+5. **Slash como pontuação** — `//` antes de seções, `·` como separador, `::` no context pill. Âmbar nos slashes, --muted-3 no resto.
+
+6. **Urgência como cor de dado** — expiração muda de cor (verde/âmbar/vermelho) sem pill ou badge. A cor do valor em si é o indicador.
+
+7. **Dot pulsante** — dot verde (live clock) e dot âmbar (context pill). Animação lenta 2–2.4s via box-shadow, não scale.
+
+8. **Hover revela ação** — "Revogar" não existe visualmente até o hover da linha. Fade + translateX(4px→0).
+
+---
+
+## O que NUNCA fazer
+
+- `border-radius` em qualquer componente estrutural
+- Gradientes decorativos (o scan do topbar é o único, e é animado/funcional)
+- Sombras coloridas ou glow
+- Ícones de libs externas — SVGs são custom inline
+- Textura de fundo (X, losango, dot grid, noise) — fundo liso `--bg`
+- Mais de uma cor accent — `--accent` é âmbar e só âmbar
+- Inter para dados técnicos
+- Full-width em botões primários de formulário
+- Empty state com ícone grande centralizado solto — o padrão é barra âmbar lateral + texto mono + params interpolados

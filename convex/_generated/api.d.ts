@@ -19,6 +19,7 @@ import type * as hierarchy from "../hierarchy.js";
 import type * as http from "../http.js";
 import type * as jwt from "../jwt.js";
 import type * as jwtStore from "../jwtStore.js";
+import type * as jwtVerify from "../jwtVerify.js";
 import type * as pdp from "../pdp.js";
 import type * as pep from "../pep.js";
 import type * as pepMutation from "../pepMutation.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   jwt: typeof jwt;
   jwtStore: typeof jwtStore;
+  jwtVerify: typeof jwtVerify;
   pdp: typeof pdp;
   pep: typeof pep;
   pepMutation: typeof pepMutation;
