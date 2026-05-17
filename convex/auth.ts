@@ -377,6 +377,99 @@ export const createUser = internalAction({
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 
+export const verifyMagicLink = internalAction({
+  args: {
+    token: v.string(),
+    ip: v.optional(v.string()),
+    deviceInfo: v.optional(v.string()),
+  },
+  returns: v.union(
+    v.object({
+      success: v.literal(true),
+      accessToken: v.string(),
+      refreshToken: v.string(),
+      sessionId: v.string(),
+    }),
+    v.object({ success: v.literal(false), error: v.string() }),
+  ),
+  handler: async (ctx, args): Promise<
+    | { success: true; accessToken: string; refreshToken: string; sessionId: string }
+    | { success: false; error: string }
+  > => {
+    const crypto = await import("crypto");
+    const tokenHash = crypto.createHash("sha256").update(args.token).digest("hex");
+
+    const tokenRecord = (await ctx.runQuery(internal.authStore.getMagicLinkTokenByHash, {
+      tokenHash,
+    })) as { _id: string; userId: string; expiresAt: number; usedAt?: number } | null;
+
+    if (!tokenRecord || tokenRecord.usedAt || tokenRecord.expiresAt < Date.now()) {
+      if (tokenRecord && !tokenRecord.usedAt && tokenRecord.expiresAt < Date.now()) {
+        await ctx.runMutation(internal.authStore.consumeMagicLinkToken, {
+          tokenId: tokenRecord._id as never,
+        });
+        await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+          actorType: "user",
+          actorId: tokenRecord.userId as string,
+          action: "auth.magiclink.expired",
+          target: { type: "session" },
+          ip: args.ip,
+          result: "deny",
+          reason: "token_expired",
+        });
+      }
+      return { success: false as const, error: "invalid_or_expired" };
+    }
+
+    await ctx.runMutation(internal.authStore.consumeMagicLinkToken, {
+      tokenId: tokenRecord._id as never,
+    });
+
+    const orgMembership = (await ctx.runQuery(internal.authStore.getFirstActiveOrgForUser, {
+      userId: tokenRecord.userId as never,
+    })) as { orgId: string } | null;
+    const orgId = orgMembership?.orgId;
+
+    let accessExpirySeconds = 3600;
+    if (orgId) {
+      const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+        orgId: orgId as never,
+      })) as { jwtExpiryAccess: number } | null;
+      if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+    }
+
+    const sessionResult = (await ctx.runAction(internal.jwt.createSessionWithRefreshToken, {
+      userId: tokenRecord.userId as never,
+      orgId: orgId as never,
+      ip: args.ip,
+      deviceInfo: args.deviceInfo,
+    })) as { sessionId: string; refreshToken: string };
+    const { sessionId, refreshToken } = sessionResult;
+
+    const accessToken = (await ctx.runAction(internal.jwt.signJwt, {
+      sub: tokenRecord.userId as string,
+      orgId: orgId ?? "",
+      workspaceIds: [],
+      roles: {},
+      capabilities: [],
+      sessionId: sessionId as unknown as string,
+      expiresInSeconds: accessExpirySeconds,
+    })) as string;
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: tokenRecord.userId as string,
+      action: "auth.magiclink.used",
+      target: { type: "session", id: sessionId as string },
+      orgId: orgId as never,
+      ip: args.ip,
+      result: "allow",
+    });
+
+    return { success: true as const, accessToken, refreshToken, sessionId };
+  },
+});
+
 export const requestMagicLink = internalAction({
   args: {
     email: v.string(),
