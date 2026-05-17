@@ -8,6 +8,8 @@ import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
 import { useAuth } from '../lib/auth-context'
 import { useNavigate } from '@tanstack/react-router'
 
+const DEFAULT_ORG_ID = (import.meta.env.VITE_DEFAULT_ORG_ID ?? '') as string
+
 function UtcClock() {
   const [time, setTime] = useState(() => {
     const d = new Date()
@@ -23,12 +25,17 @@ function UtcClock() {
   return <span>{time}</span>
 }
 
+type Tab = 'password' | 'magic-link'
+
 export function LoginPage() {
   const { setAuth } = useAuth()
   const navigate = useNavigate()
+  const [tab, setTab] = useState<Tab>('password')
   const [isLoading, setIsLoading] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
+  const [magicLinkSent, setMagicLinkSent] = useState(false)
+  const [magicEmail, setMagicEmail] = useState('')
 
   const {
     register,
@@ -68,6 +75,31 @@ export function LoginPage() {
     }
   }
 
+  async function onMagicLinkSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!magicEmail) return
+    setIsLoading(true)
+    setApiError(null)
+    try {
+      await authService.requestMagicLink(magicEmail, DEFAULT_ORG_ID)
+      setMagicLinkSent(true)
+    } catch (err) {
+      if (err instanceof AuthError && err.reason === 'method_disabled') {
+        setApiError('MÉTODO NÃO HABILITADO NESTA ORG.')
+      } else {
+        setApiError('ERRO AO ENVIAR LINK. TENTE NOVAMENTE.')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function handleTabChange(next: Tab) {
+    setTab(next)
+    setApiError(null)
+    setMagicLinkSent(false)
+  }
+
   return (
     <div className="min-h-screen bg-surface-page flex items-center justify-center p-4">
       {/* card with orange left border */}
@@ -85,6 +117,25 @@ export function LoginPage() {
             <span className="font-mono text-[10px] tracking-widest text-text-muted uppercase">
               FORM · A-014 · REV 07
             </span>
+          </div>
+
+          {/* tabs */}
+          <div className="flex border-b border-border-subtle">
+            {(['password', 'magic-link'] as Tab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => handleTabChange(t)}
+                className={[
+                  'flex-1 py-2.5 font-mono text-[10px] tracking-widest uppercase transition-colors',
+                  tab === t
+                    ? 'text-accent-primary border-b-2 border-accent-primary -mb-px'
+                    : 'text-text-muted hover:text-text-secondary',
+                ].join(' ')}
+              >
+                {t === 'password' ? 'SENHA' : 'LINK MÁGICO'}
+              </button>
+            ))}
           </div>
 
           {/* metadata */}
@@ -118,7 +169,9 @@ export function LoginPage() {
               Solicitar acesso.
             </h1>
             <p className="font-mono text-[11px] text-text-muted mb-5">
-              portador deve apresentar credencial válida.
+              {tab === 'password'
+                ? 'portador deve apresentar credencial válida.'
+                : 'informe o identificador para receber o link de acesso.'}
             </p>
 
             {apiError && (
@@ -127,7 +180,64 @@ export function LoginPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            {/* magic link tab */}
+            {tab === 'magic-link' && (
+              magicLinkSent ? (
+                <div className="py-6 text-center space-y-3">
+                  <p className="font-mono text-[11px] tracking-widest text-accent-primary uppercase">LINK TRANSMITIDO</p>
+                  <p className="font-mono text-[11px] text-text-muted">
+                    Verifique <span className="text-text-primary">{magicEmail}</span>.<br />
+                    O link expira em 15 minutos.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { setMagicLinkSent(false); setMagicEmail('') }}
+                    className="font-mono text-[10px] text-text-muted hover:text-text-secondary uppercase tracking-widest transition-colors"
+                  >
+                    ← TENTAR OUTRO EMAIL
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={onMagicLinkSubmit} noValidate className="space-y-4">
+                  <div>
+                    <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
+                      <span className="text-accent-primary">A</span> PORTADOR / IDENTIFICADOR
+                    </p>
+                    <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
+                      <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
+                      <input
+                        type="email"
+                        autoComplete="email"
+                        placeholder="a.ribeiro@conduit.io"
+                        value={magicEmail}
+                        onChange={e => setMagicEmail(e.target.value)}
+                        className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      type="button"
+                      disabled
+                      className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase leading-tight text-center cursor-not-allowed opacity-60"
+                    >
+                      ESC ·{'\n'}SAIR
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isLoading || !magicEmail}
+                      className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90 active:brightness-75"
+                      style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
+                    >
+                      {isLoading ? 'ENVIANDO…' : 'TRANSMITIR LINK →'}
+                    </button>
+                  </div>
+                </form>
+              )
+            )}
+
+            {/* password tab */}
+            {tab === 'password' && <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
               {/* email field */}
               <div>
                 <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
@@ -211,7 +321,7 @@ export function LoginPage() {
                   {isLoading ? 'AUTENTICANDO…' : 'EMITIR CREDENCIAL →'}
                 </button>
               </div>
-            </form>
+            </form>}
           </div>
 
           {/* status bar */}

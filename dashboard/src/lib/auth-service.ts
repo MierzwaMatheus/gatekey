@@ -128,4 +128,28 @@ async function refresh(sessionId: string, refreshToken: string, orgId: string): 
   return { ...tokens, orgId }
 }
 
-export const authService = { login, logout, refresh, getStoredTokens, clearTokens }
+async function requestMagicLink(email: string, orgId: string): Promise<void> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/magic-link`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, orgId }),
+  })
+
+  if (res.status === 403) throw new AuthError('method_disabled')
+  if (!res.ok) throw new AuthError('unknown_error')
+}
+
+async function verifyMagicLink(token: string): Promise<AuthTokens & { orgId: string }> {
+  const res = await fetch(`${CONVEX_URL}/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}`)
+
+  if (res.status === 401) throw new AuthError('invalid_or_expired')
+  if (!res.ok) throw new AuthError('unknown_error')
+
+  const tokens = await res.json() as AuthTokens
+  const { orgId } = parseJwtPayload(tokens.accessToken)
+  saveTokens(tokens, orgId)
+
+  return { ...tokens, orgId }
+}
+
+export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink }
