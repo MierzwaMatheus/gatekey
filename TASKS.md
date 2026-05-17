@@ -340,7 +340,7 @@
 
 - [x] Confirmar que listagem de usuários usa `useQuery` do Convex — atualiza sem reload
 - [x] Confirmar que listagem de sessões usa `useQuery` — sessão revogada some da lista em tempo real
-- [ ] Confirmar que listagem de bindings usa `useQuery` — novo binding aparece instantaneamente
+- [x] Confirmar que listagem de bindings usa `useQuery` — novo binding aparece instantaneamente
 - [ ] Confirmar que audit log usa `useQuery` — novos eventos aparecem sem refresh manual
 - [ ] Escrever teste manual: revogar sessão no painel Root → na aba com aquela sessão, próxima ação retorna 401
 

@@ -1,44 +1,40 @@
-import { useState, useEffect, useRef } from 'react'
-import { listBindings, deleteBinding, type WorkspaceBinding } from '../../lib/workspace-api'
+import { useState } from 'react'
+import { useQuery } from 'convex/react'
+import { api } from '@convex/_generated/api'
+import type { Id } from '@convex/_generated/dataModel'
+import { deleteBinding, type WorkspaceBinding } from '../../lib/workspace-api'
 
 interface BindingsListProps {
   token: string
+  orgId: string
   wsId: string
-  refreshKey?: number
 }
 
-export function BindingsList({ token, wsId, refreshKey }: BindingsListProps) {
-  const [bindings, setBindings] = useState<WorkspaceBinding[] | null>(null)
+export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
   const [revokeTarget, setRevokeTarget] = useState<WorkspaceBinding | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    abortRef.current?.abort()
-    const ac = new AbortController()
-    abortRef.current = ac
-    setBindings(null)
+  const queryResult = useQuery(
+    api.bindings.listBindingsQuery,
+    token
+      ? { token, orgId: orgId as Id<'orgs'>, workspaceId: wsId as Id<'workspaces'> }
+      : 'skip',
+  )
 
-    listBindings(token, wsId)
-      .then((data) => { if (!ac.signal.aborted) setBindings(data) })
-      .catch(() => { if (!ac.signal.aborted) setBindings([]) })
-
-    return () => ac.abort()
-  }, [token, wsId, refreshKey])
+  const bindings = queryResult as WorkspaceBinding[] | undefined
 
   async function handleRevoke() {
     if (!revokeTarget) return
     setActionLoading(true)
     try {
       await deleteBinding(token, revokeTarget._id)
-      setBindings((prev) => prev?.filter((b) => b._id !== revokeTarget._id) ?? null)
       setRevokeTarget(null)
     } finally {
       setActionLoading(false)
     }
   }
 
-  if (bindings === null) {
+  if (bindings === undefined) {
     return (
       <div data-testid="bindings-loading" className="space-y-2">
         {[1, 2, 3].map((i) => (

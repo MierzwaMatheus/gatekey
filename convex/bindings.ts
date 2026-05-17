@@ -1,7 +1,8 @@
-import { internalMutation, internalQuery, type QueryCtx, type MutationCtx } from "./_generated/server";
+import { internalMutation, internalQuery, query, type QueryCtx, type MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { verifyJwtToken } from "./jwtVerify";
 
 async function assertOrgAdminOrRoot(
   ctx: QueryCtx | MutationCtx,
@@ -27,6 +28,61 @@ async function assertOrgAdminOrRoot(
     throw new Error("forbidden: org_admin_required");
   }
 }
+
+// ── listBindingsQuery — query pública para real-time via useQuery ─────────────
+
+export const listBindingsQuery = query({
+  args: {
+    token: v.string(),
+    orgId: v.id("orgs"),
+    workspaceId: v.id("workspaces"),
+    userId: v.optional(v.id("users")),
+    resourceType: v.optional(v.string()),
+  },
+  returns: v.array(v.any()),
+  handler: async (ctx, args) => {
+    const keys = await ctx.db
+      .query("key_pairs")
+      .withIndex("by_status_and_createdAt", (q) => q.eq("status", "active"))
+      .take(10);
+
+    let callerId: Id<"users">;
+    try {
+      const payload = await verifyJwtToken(
+        args.token,
+        keys.map((k) => ({ publicKeyJwk: k.publicKeyJwk })),
+      );
+      callerId = payload.sub as Id<"users">;
+    } catch {
+      return [];
+    }
+
+    await assertOrgAdminOrRoot(ctx as never, callerId, args.orgId);
+
+    let bindings;
+    if (args.userId) {
+      bindings = await ctx.db
+        .query("bindings")
+        .withIndex("by_workspaceId_and_userId", (q) =>
+          q.eq("workspaceId", args.workspaceId).eq("userId", args.userId!),
+        )
+        .collect();
+    } else {
+      bindings = await ctx.db
+        .query("bindings")
+        .withIndex("by_workspaceId_and_userId", (q) =>
+          q.eq("workspaceId", args.workspaceId),
+        )
+        .collect();
+    }
+
+    if (args.resourceType) {
+      bindings = bindings.filter((b) => b.resourceType === args.resourceType);
+    }
+
+    return bindings;
+  },
+});
 
 // ── listBindings ──────────────────────────────────────────────────────────────
 
