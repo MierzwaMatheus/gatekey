@@ -944,7 +944,8 @@ http.route({
     const userIdFilter = url.searchParams.get("userId") ?? undefined;
 
     const sessions = await ctx.runQuery(internal.sessions.listSessions, {
-      orgId: caller.orgId as never,
+      orgId: (caller.orgId || undefined) as never,
+      callerId: caller.callerId as never,
       userId: userIdFilter as never,
     });
     return jsonResponse(sessions);
@@ -968,7 +969,7 @@ http.route({
       await ctx.runAction(internal.sessions.revokeSession, {
         sessionId: sessionId as never,
         callerId: caller.callerId as never,
-        orgId: caller.orgId as never,
+        orgId: (caller.orgId || undefined) as never,
         ip,
       });
       return jsonResponse({ success: true });
