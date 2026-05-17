@@ -315,9 +315,9 @@
 - [x] Implementar formulário de adição de membro: seletor de usuário da org + seletor de role do workspace
 - [x] Implementar ação de remover membro (modal de confirmação)
 - [x] Implementar ação de trocar role do membro (seletor inline ou modal)
-- [ ] Implementar listagem de roles customizados do workspace: nome, capabilities atribuídas
-- [ ] Implementar formulário de criação de role customizado: nome + seleção de capabilities (checkboxes do catálogo)
-- [ ] Implementar ação de deletar role customizado (bloqueado com mensagem se há bindings ativos)
+- [x] Implementar listagem de roles customizados do workspace: nome, capabilities atribuídas
+- [x] Implementar formulário de criação de role customizado: nome + seleção de capabilities (checkboxes do catálogo)
+- [x] Implementar ação de deletar role customizado (bloqueado com mensagem se há bindings ativos)
 - [ ] Implementar listagem de bindings: tabela com userId, role, resourceType, resourceId (ou "workspace inteiro")
 - [ ] Implementar formulário de criação de binding: seletor usuário + seletor role + campo resourceType + campo resourceId (opcional)
 - [ ] Implementar ação de revogar binding (modal de confirmação)
