@@ -28,7 +28,7 @@ async function setupBase(t: ReturnType<typeof convexTest>) {
   const PASSWORD = "admin-secret-123";
   const passwordHash = await argon2.hash(PASSWORD);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -139,7 +139,7 @@ test("listAuditLog: Org Admin acessa apenas logs da própria org", async () => {
   const { rootId, orgId, adminId, workspaceId, editorRole } = await setupBase(t);
 
   // criar segunda org
-  const org2Id = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId: org2Id } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Other Corp",
     adminEmail: "admin2@other.io",

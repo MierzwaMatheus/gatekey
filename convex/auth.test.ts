@@ -384,3 +384,33 @@ test("loginWithPassword: sessions_per_user atingido retorna quota_exceeded", asy
     expect(result.error).toBe("quota_exceeded");
   }
 });
+
+// ── Ciclo: mustChangePassword no login ───────────────────────────────────────
+
+test("loginWithPassword: usuário com mustChangePassword=true retorna flag no resultado", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+  const bcrypt = await import("bcryptjs");
+  const hash = await bcrypt.hash("temp-pass", 10);
+  const userId = await t.run(async (ctx) =>
+    ctx.db.insert("users", {
+      email: "newadmin@acme.io",
+      passwordHash: hash,
+      mustChangePassword: true,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await addOrgMember(t, userId as string, orgId as string);
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "newadmin@acme.io",
+    password: "temp-pass",
+  });
+
+  expect(result.success).toBe(true);
+  if (result.success) {
+    expect(result.mustChangePassword).toBe(true);
+  }
+});

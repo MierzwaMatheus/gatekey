@@ -10,6 +10,7 @@ export default defineSchema({
     lockedUntil: v.optional(v.number()),
     updatedAt: v.number(),
     isRoot: v.optional(v.boolean()),
+    mustChangePassword: v.optional(v.boolean()),
   }).index("by_email", ["email"]),
 
   orgs: defineTable({

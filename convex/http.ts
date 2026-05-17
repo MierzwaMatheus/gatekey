@@ -68,6 +68,7 @@ http.route({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         sessionId: result.sessionId,
+        mustChangePassword: result.mustChangePassword,
       });
     } catch (e) {
       return withCors({ error: "internal_error", detail: (e as Error).message }, 500);
@@ -224,12 +225,12 @@ http.route({
       return jsonResponse({ error: "missing_fields" }, 400);
     }
     try {
-      const orgId = await ctx.runMutation(internal.hierarchy.createOrg, {
+      const result = await ctx.runAction(internal.auth.createOrgWithBootstrap, {
         callerId: caller.callerId as never,
         name: body.name,
         adminEmail: body.adminEmail,
       });
-      return jsonResponse({ orgId });
+      return jsonResponse({ orgId: result.orgId, adminTempPassword: result.adminTempPassword });
     } catch (e) {
       const msg = (e as Error).message ?? "";
       if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
@@ -337,14 +338,24 @@ http.route({
     const orgId = parts[0];
     const sub = parts[1];
     if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
-    let body: { quotas?: Record<string, number> } = {};
+    let body: {
+      quotas?: Record<string, number>;
+      loginMethods?: string[];
+      mfaRequired?: boolean;
+      jwtExpiryAccess?: number;
+      jwtExpiryRefresh?: number;
+    } = {};
     try { body = await req.json(); } catch { /* empty */ }
     try {
-      if (sub === "settings" && body.quotas) {
-        await ctx.runMutation(internal.hierarchy.updateOrgQuotas, {
+      if (sub === "settings") {
+        await ctx.runMutation(internal.hierarchy.updateOrgSettings, {
           callerId: caller.callerId as never,
           orgId: orgId as never,
           quotas: body.quotas,
+          loginMethods: body.loginMethods,
+          mfaRequired: body.mfaRequired,
+          jwtExpiryAccess: body.jwtExpiryAccess,
+          jwtExpiryRefresh: body.jwtExpiryRefresh,
         });
         return jsonResponse({ success: true });
       }
@@ -1075,6 +1086,80 @@ http.route({
   }),
 });
 
+// ── GET /v1/workspaces ───────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/workspaces",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!caller.orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      const workspaces = await ctx.runQuery(internal.hierarchy.listWorkspaces, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse(workspaces);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/workspaces ──────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/workspaces",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!caller.orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    let body: { name?: string } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    if (!body.name) return jsonResponse({ error: "missing_name" }, 400);
+    try {
+      const wsId = await ctx.runMutation(internal.hierarchy.createWorkspace, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        name: body.name,
+      });
+      return jsonResponse({ workspaceId: wsId }, 201);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) return jsonResponse({ error: "QuotaExceeded", quota: "workspaces_per_org" }, 429);
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── GET /v1/users (list) ─────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/users",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!caller.orgId) return jsonResponse({ error: "missing_org_id" }, 400);
+    try {
+      const users = await ctx.runQuery(internal.hierarchy.listUsersForOrg, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      return jsonResponse(users);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── GET /v1/audit-log ────────────────────────────────────────────────────────
 
 http.route({
@@ -1137,5 +1222,7 @@ http.route({ pathPrefix: "/v1/roles/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/bindings/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/workspaces", method: "OPTIONS", handler: preflight });
+http.route({ pathPrefix: "/v1/workspaces/", method: "OPTIONS", handler: preflight });
 
 export default http;

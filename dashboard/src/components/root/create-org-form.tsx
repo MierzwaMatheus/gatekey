@@ -13,7 +13,7 @@ type CreateOrgData = z.infer<typeof createOrgSchema>
 
 interface CreateOrgFormProps {
   token: string
-  onSuccess: (orgId: string) => void
+  onSuccess: (orgId: string, tempPassword: string | null) => void
 }
 
 export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
@@ -31,7 +31,7 @@ export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
     try {
       const result = await createOrg(token, { name: data.name, adminEmail: data.adminEmail })
       reset()
-      onSuccess(result.orgId)
+      onSuccess(result.orgId, result.adminTempPassword)
     } catch (err) {
       setApiError((err as Error).message ?? 'Erro ao criar organização')
     }

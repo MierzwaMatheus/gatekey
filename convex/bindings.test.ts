@@ -30,7 +30,7 @@ async function setupOrgWithAdminAndWorkspaceAndToken(t: ReturnType<typeof convex
   const PASSWORD = "admin-secret-123";
   const passwordHash = await argon2.hash(PASSWORD);
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",
@@ -77,7 +77,7 @@ async function setupOrgWithAdminAndWorkspace(t: ReturnType<typeof convexTest>) {
     ctx.db.insert("roles", { name: "admin", isBase: true }),
   );
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",

@@ -5,6 +5,7 @@ import { listOrgs, type OrgSummary } from '../../lib/root-api'
 interface OrgsListProps {
   token: string
   onSelectOrg: (orgId: string) => void
+  refreshKey?: number
 }
 
 function StatusPill({ status, orgId }: { status: OrgSummary['status']; orgId: string }) {
@@ -81,17 +82,19 @@ function formatRelative(ts: number): string {
   return `${Math.floor(hrs / 24)}d`
 }
 
-export function OrgsList({ token, onSelectOrg }: OrgsListProps) {
+export function OrgsList({ token, onSelectOrg, refreshKey = 0 }: OrgsListProps) {
   const [orgs, setOrgs] = useState<OrgSummary[] | null>(null)
   const [error, setError] = useState(false)
 
   useEffect(() => {
     let cancelled = false
+    setOrgs(null)
+    setError(false)
     listOrgs(token)
       .then((data) => { if (!cancelled) setOrgs(data) })
       .catch(() => { if (!cancelled) setError(true) })
     return () => { cancelled = true }
-  }, [token])
+  }, [token, refreshKey])
 
   if (error) {
     return (

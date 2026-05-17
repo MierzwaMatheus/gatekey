@@ -289,24 +289,24 @@
 
 ### 3.4 Painel Org Admin — closes #10
 
-- [ ] Implementar rota `/org/:orgId` protegida — redireciona se usuário não tem role org_admin na org
-- [ ] Implementar listagem de usuários: tabela com nome, email, status, último login
-- [ ] Implementar formulário de criação de usuário: campos email, nome, senha inicial, role
-- [ ] Implementar ação de suspender usuário (modal de confirmação)
-- [ ] Implementar ação de resetar senha do usuário (modal com campo de nova senha)
-- [ ] Implementar listagem de workspaces da org com link para o painel de cada um
-- [ ] Implementar formulário de criação de workspace
-- [ ] Implementar listagem de capabilities customizadas da org
-- [ ] Implementar formulário de criação de capability customizada (nome + descrição)
-- [ ] Implementar listagem de API Keys da org: publicId, scopes, description, lastUsedAt, status
-- [ ] Implementar formulário de criação de API Key: descrição + checkboxes de escopos
-- [ ] Implementar modal pós-criação de API Key: exibir secret com alerta "copie agora — não será exibido novamente"
-- [ ] Implementar botão de revogar API Key com confirmação
-- [ ] Implementar audit log da org: tabela paginada com filtros
-- [ ] Implementar tela de download do cold tier: seletor de período + botão "Gerar link de download"
-- [ ] Implementar configurações de login: toggle para email+senha, magic link, OAuth Google, OAuth GitHub
-- [ ] Implementar configuração de MFA: toggle obrigatório ou opt-in
-- [ ] Implementar configuração de expiração de JWT: campos para access token (min) e refresh token (dias)
+- [x] Implementar rota `/org/:orgId` protegida — redireciona se usuário não tem role org_admin na org
+- [x] Implementar listagem de usuários: tabela com nome, email, status, último login
+- [x] Implementar formulário de criação de usuário: campos email, nome, senha inicial, role
+- [x] Implementar ação de suspender usuário (modal de confirmação)
+- [x] Implementar ação de resetar senha do usuário (modal com campo de nova senha)
+- [x] Implementar listagem de workspaces da org com link para o painel de cada um
+- [x] Implementar formulário de criação de workspace
+- [x] Implementar listagem de capabilities customizadas da org
+- [x] Implementar formulário de criação de capability customizada (nome + descrição)
+- [x] Implementar listagem de API Keys da org: publicId, scopes, description, lastUsedAt, status
+- [x] Implementar formulário de criação de API Key: descrição + checkboxes de escopos
+- [x] Implementar modal pós-criação de API Key: exibir secret com alerta "copie agora — não será exibido novamente"
+- [x] Implementar botão de revogar API Key com confirmação
+- [x] Implementar audit log da org: tabela paginada com filtros
+- [x] Implementar tela de download do cold tier: seletor de período + botão "Gerar link de download"
+- [x] Implementar configurações de login: toggle para email+senha, magic link, OAuth Google, OAuth GitHub
+- [x] Implementar configuração de MFA: toggle obrigatório ou opt-in
+- [x] Implementar configuração de expiração de JWT: campos para access token (min) e refresh token (dias)
 
 ### 3.5 Painel Workspace Admin — closes #11 (parcial)
 

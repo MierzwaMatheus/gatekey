@@ -19,9 +19,13 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 interface AuthProviderProps {
   children: ReactNode
   initialRole?: UserRole | null
+  initialState?: AuthState
 }
 
-function loadInitialState(initialRole?: UserRole | null): AuthState {
+function loadInitialState(initialRole?: UserRole | null, initialState?: AuthState): AuthState {
+  if (initialState) {
+    return initialState
+  }
   if (initialRole) {
     return { token: 'mock-token', role: initialRole, orgId: null }
   }
@@ -51,8 +55,8 @@ function clearStoredTokens() {
   keys.forEach((key) => localStorage.removeItem(key))
 }
 
-export function AuthProvider({ children, initialRole = null }: AuthProviderProps) {
-  const [state, setState] = useState<AuthState>(() => loadInitialState(initialRole))
+export function AuthProvider({ children, initialRole = null, initialState }: AuthProviderProps) {
+  const [state, setState] = useState<AuthState>(() => loadInitialState(initialRole, initialState))
 
   function clearAuth() {
     clearStoredTokens()

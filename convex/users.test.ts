@@ -20,7 +20,7 @@ async function setupOrgWithAdmin(t: ReturnType<typeof convexTest>) {
     }),
   );
 
-  const orgId = await t.mutation(internal.hierarchy.createOrg, {
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
     name: "Acme Corp",
     adminEmail: "admin@acme.io",

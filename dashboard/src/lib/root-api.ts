@@ -145,11 +145,13 @@ export function updateOrgQuotas(token: string, orgId: string, quotas: Partial<Or
   })
 }
 
-export function createOrg(token: string, data: { name: string; adminEmail: string }): Promise<{ orgId: string }> {
-  return apiFetch<{ orgId: string }>('/v1/orgs', token, {
+export async function createOrg(token: string, data: { name: string; adminEmail: string }): Promise<{ orgId: string; adminTempPassword: string | null }> {
+  const result = await apiFetch<{ orgId: string; adminTempPassword: string | null }>('/v1/orgs', token, {
     method: 'POST',
     body: JSON.stringify(data),
   })
+  console.log('[createOrg] resposta da API:', result)
+  return result
 }
 
 export function suspendOrg(token: string, orgId: string): Promise<void> {
