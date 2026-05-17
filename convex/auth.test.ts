@@ -563,6 +563,59 @@ test("verifyMagicLink: token já usado retorna success:false com error:invalid_o
   }
 });
 
+// ── Ciclo Magic Link: audit event expired + templates ────────────────────────
+
+test("verifyMagicLink: token expirado registra auth.magiclink.expired no audit_log", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await setupOrg(t);
+  const userId = await createUser(t, "expiredaudit@test.com", "irrelevant");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("org_members", {
+      userId: userId as never,
+      orgId: orgId as never,
+      role: "member",
+      status: "active",
+    });
+  });
+
+  const crypto = await import("crypto");
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  await t.run(async (ctx) => {
+    await ctx.db.insert("magic_link_tokens", {
+      tokenHash,
+      userId: userId as never,
+      expiresAt: Date.now() - 1000,
+    });
+  });
+
+  await t.action(internal.auth.verifyMagicLink, { token: rawToken });
+
+  const events = await t.run(async (ctx) =>
+    ctx.db
+      .query("audit_log")
+      .filter((q) => q.eq(q.field("action"), "auth.magiclink.expired"))
+      .collect(),
+  );
+  expect(events.length).toBe(1);
+});
+
+test("magicLinkHtml: template PT-BR contém link correto", async () => {
+  const { magicLinkHtml } = await import("./emailTemplates");
+  const html = magicLinkHtml("https://app.gatekey.dev/verify?token=abc", "pt-BR");
+  expect(html).toContain("https://app.gatekey.dev/verify?token=abc");
+  expect(html).toContain("Entrar");
+});
+
+test("magicLinkHtml: template EN contém link correto", async () => {
+  const { magicLinkHtml } = await import("./emailTemplates");
+  const html = magicLinkHtml("https://app.gatekey.dev/verify?token=abc", "en");
+  expect(html).toContain("https://app.gatekey.dev/verify?token=abc");
+  expect(html).toContain("Sign in");
+});
+
 test("loginWithPassword: usuário com mustChangePassword=true retorna flag no resultado", async () => {
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);

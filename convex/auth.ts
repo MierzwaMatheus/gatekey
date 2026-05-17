@@ -511,13 +511,16 @@ export const requestMagicLink = internalAction({
       const resendApiKey = process.env.RESEND_API_KEY;
       if (resendApiKey) {
         const { Resend } = await import("resend");
+        const { magicLinkHtml } = await import("./emailTemplates");
         const resend = new Resend(resendApiKey);
         const link = `${args.baseUrl ?? "https://app.gatekey.dev"}/auth/magic-link/verify?token=${rawToken}`;
+        const locale = (orgSettings as { defaultLanguage?: string }).defaultLanguage ?? "en";
+        const isPtBr = locale === "pt-BR";
         await resend.emails.send({
           from: "GateKey <noreply@gatekey.dev>",
           to: args.email,
-          subject: "Your magic link",
-          html: `<p>Click <a href="${link}">here</a> to sign in. This link expires in 15 minutes.</p>`,
+          subject: isPtBr ? "Seu link de acesso" : "Your sign-in link",
+          html: magicLinkHtml(link, locale),
         });
       }
     } catch {
