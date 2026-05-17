@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @import "tailwindcss";
 
 /* ── Variáveis brutas da paleta ─────────────────────────────── */
@@ -61,10 +59,4 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
-/* ── Base global ────────────────────────────────────────────── */
-body {
-  background-color: var(--gate-midnight);
-  color: var(--gate-text);
-  font-family: 'Inter', sans-serif;
-  font-weight: 400;
-}
+/* body styles gerenciados pelo styles.css */

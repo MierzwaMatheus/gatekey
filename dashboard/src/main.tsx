@@ -4,6 +4,7 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { ConvexProviderWithAuth } from './lib/convex-provider'
 import { AuthProvider } from './lib/auth-context'
 import { routeTree } from './routeTree.gen'
+import './styles.css'
 import './globals.css'
 
 const router = createRouter({ routeTree })
