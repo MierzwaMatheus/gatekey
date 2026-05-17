@@ -6,6 +6,7 @@ import {
   Link2,
   Layers,
   ScrollText,
+  Terminal,
 } from 'lucide-react'
 import { useAuth } from '../../lib/auth-context'
 
@@ -22,6 +23,7 @@ export type WorkspaceSection =
   | 'bindings'
   | 'resource-types'
   | 'audit-log'
+  | 'playground'
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'nav-members', label: 'Membros', icon: Users, section: 'members' },
@@ -29,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'nav-bindings', label: 'Bindings', icon: Link2, section: 'bindings' },
   { id: 'nav-resource-types', label: 'Resource Types', icon: Layers, section: 'resource-types' },
   { id: 'nav-audit-log', label: 'Audit Log', icon: ScrollText, section: 'audit-log' },
+  { id: 'nav-playground', label: 'Playground', icon: Terminal, section: 'playground' },
 ]
 
 const ALLOWED_ROLES = new Set(['root', 'org_admin', 'workspace_admin'])

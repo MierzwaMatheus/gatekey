@@ -12,6 +12,7 @@ import { CreateBindingForm } from '../../../../../components/workspace/create-bi
 import { ResourceTypesList } from '../../../../../components/workspace/resource-types-list'
 import { CreateResourceTypeForm } from '../../../../../components/workspace/create-resource-type-form'
 import { AuditLogWorkspace } from '../../../../../components/workspace/audit-log-workspace'
+import { PlaygroundPanel } from '../../../../../components/workspace/playground-panel'
 import { LogOut, Plus } from 'lucide-react'
 
 const SECTION_TITLES: Record<WorkspaceSection, string> = {
@@ -20,12 +21,13 @@ const SECTION_TITLES: Record<WorkspaceSection, string> = {
   bindings: 'Bindings',
   'resource-types': 'Resource Types',
   'audit-log': 'Audit Log',
+  playground: 'Playground',
 }
 
 export function WorkspacePage() {
   const { token } = useAuth()
   const { handleLogout, isLoggingOut } = useLogout()
-  const { wsId } = useParams({ strict: false }) as { wsId: string }
+  const { wsId, orgId } = useParams({ strict: false }) as { wsId: string; orgId: string }
   const [section, setSection] = useState<WorkspaceSection>('members')
   const [showAddMember, setShowAddMember] = useState(false)
   const [showCreateRole, setShowCreateRole] = useState(false)
@@ -113,6 +115,9 @@ export function WorkspacePage() {
 
       case 'audit-log':
         return <AuditLogWorkspace token={tok} wsId={wsId} />
+
+      case 'playground':
+        return <PlaygroundPanel token={tok} wsId={wsId} orgId={orgId ?? ''} />
 
       default:
         return null
