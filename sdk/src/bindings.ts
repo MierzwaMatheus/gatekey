@@ -6,7 +6,7 @@ type Request = (path: string, options?: RequestInit) => Promise<Response>;
 export class BindingsModule {
   constructor(private readonly request: Request) {}
 
-  async list(filters: BindingFilters): Promise<BindingResponse[]> {
+  async list<TRes extends string = string>(filters: BindingFilters<TRes>): Promise<BindingResponse<TRes>[]> {
     const params = new URLSearchParams({ workspaceId: filters.workspaceId });
     if (filters.userId) params.set("userId", filters.userId);
     if (filters.resourceType) params.set("resourceType", filters.resourceType);
@@ -17,7 +17,7 @@ export class BindingsModule {
     return body.bindings;
   }
 
-  async create(data: CreateBindingData): Promise<BindingResponse> {
+  async create<TRes extends string = string>(data: CreateBindingData<TRes>): Promise<BindingResponse<TRes>> {
     const res = await this.request("/v1/bindings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

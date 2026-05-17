@@ -63,26 +63,26 @@ export interface RoleResponse {
   [key: string]: unknown;
 }
 
-export interface BindingFilters {
+export interface BindingFilters<TRes extends string = string> {
   workspaceId: string;
   userId?: string;
-  resourceType?: string;
+  resourceType?: TRes;
 }
 
-export interface CreateBindingData {
+export interface CreateBindingData<TRes extends string = string> {
   userId: string;
   roleId: string;
-  resourceType: string;
+  resourceType: TRes;
   resourceId?: string;
   parentResourceId?: string;
   workspaceId: string;
 }
 
-export interface BindingResponse {
+export interface BindingResponse<TRes extends string = string> {
   id: string;
   userId: string;
   roleId: string;
-  resourceType: string;
+  resourceType: TRes;
   resourceId?: string;
   workspaceId: string;
   [key: string]: unknown;

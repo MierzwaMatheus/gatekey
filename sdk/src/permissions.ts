@@ -6,7 +6,11 @@ type Request = (path: string, options?: RequestInit) => Promise<Response>;
 export class PermissionsModule {
   constructor(private readonly request: Request) {}
 
-  async check(capability: string, resourceType?: string, resourceId?: string): Promise<CheckResult> {
+  async check<TCap extends string = string, TRes extends string = string>(
+    capability: TCap,
+    resourceType?: TRes,
+    resourceId?: string
+  ): Promise<CheckResult> {
     const body: Record<string, string> = { capability };
     if (resourceType !== undefined) body.resourceType = resourceType;
     if (resourceId !== undefined) body.resourceId = resourceId;
