@@ -430,14 +430,14 @@
 
 ### 4.8 SDK React — @gatekey/react — closes #14 (parcial)
 
-- [ ] Inicializar pacote em `/sdk-react` com tsup, peer dependencies em `react` e `@gatekey/sdk`
-- [ ] Implementar `GatekeyProvider` — `React.Context` com instância de `GatekeyClient`
-- [ ] Implementar `useGatekey()` — hook que retorna a instância do `GatekeyClient` do contexto
-- [ ] Implementar `usePermission(capability, resourceType?, resourceId?)` — chama `client.permissions.check`, retorna `{allowed: boolean, loading: boolean, error: Error | null}`
-- [ ] Implementar `useUser()` — retorna dados do usuário autenticado atual com estado de loading
-- [ ] Implementar `useWorkspace(workspaceId)` — retorna dados do workspace com estado de loading
-- [ ] Implementar revalidação automática de `usePermission` quando bindings podem ter mudado (polling ou evento)
-- [ ] Escrever `README.md` do pacote com: instalação, configuração do Provider, exemplos dos 3 hooks
+- [x] Inicializar pacote em `/sdk-react` com tsup, peer dependencies em `react` e `@gatekey/sdk`
+- [x] Implementar `GatekeyProvider` — `React.Context` com instância de `GatekeyClient`
+- [x] Implementar `useGatekey()` — hook que retorna a instância do `GatekeyClient` do contexto
+- [x] Implementar `usePermission(capability, resourceType?, resourceId?)` — chama `client.permissions.check`, retorna `{allowed: boolean, loading: boolean, error: Error | null}`
+- [x] Implementar `useUser()` — retorna dados do usuário autenticado atual com estado de loading
+- [x] Implementar `useWorkspace(workspaceId)` — retorna dados do workspace com estado de loading
+- [x] Implementar revalidação automática de `usePermission` quando bindings podem ter mudado (polling ou evento)
+- [x] Escrever `README.md` do pacote com: instalação, configuração do Provider, exemplos dos 3 hooks
 
 ### 4.9 Integração: SDK ↔ API — closes #14 (com 4.7–4.8)
 
