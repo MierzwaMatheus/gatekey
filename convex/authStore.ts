@@ -114,3 +114,36 @@ export const getFirstActiveOrgForUser = internalQuery({
       .first();
   },
 });
+
+export const storeMagicLinkToken = internalMutation({
+  args: {
+    tokenHash: v.string(),
+    userId: v.id("users"),
+    expiresAt: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, { tokenHash, userId, expiresAt }) => {
+    await ctx.db.insert("magic_link_tokens", { tokenHash, userId, expiresAt });
+    return null;
+  },
+});
+
+export const getMagicLinkTokenByHash = internalQuery({
+  args: { tokenHash: v.string() },
+  returns: v.any(),
+  handler: async (ctx, { tokenHash }) => {
+    return await ctx.db
+      .query("magic_link_tokens")
+      .withIndex("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+      .first();
+  },
+});
+
+export const consumeMagicLinkToken = internalMutation({
+  args: { tokenId: v.id("magic_link_tokens") },
+  returns: v.null(),
+  handler: async (ctx, { tokenId }) => {
+    await ctx.db.patch(tokenId, { usedAt: Date.now() });
+    return null;
+  },
+});

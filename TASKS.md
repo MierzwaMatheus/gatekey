@@ -350,16 +350,16 @@
 
 ### 4.1 Magic link — closes #12 (parcial)
 
-- [ ] Instalar e configurar Resend (`@resend/node`) como Convex Action
-- [ ] Implementar `POST /v1/auth/magic-link` — gera token único (32 bytes, TTL 15 min), armazena hash, envia email via Resend com link `?token=...`
-- [ ] Implementar `GET /v1/auth/magic-link/verify?token=...` — busca token por hash, valida TTL, invalida token, cria sessão, retorna access + refresh token
-- [ ] Criar tabela `magic_link_tokens` com campos: tokenHash, userId, expiresAt, usedAt
-- [ ] Implementar invalidação imediata do token após uso (setar `usedAt`)
-- [ ] Criar template HTML de email de magic link com suporte a PT-BR e EN
-- [ ] Selecionar idioma do template baseado em `org_settings.defaultLanguage` da org do usuário
-- [ ] Chamar `writeAuditEvent` com action `auth.magiclink.sent`, `auth.magiclink.used`, `auth.magiclink.expired`
-- [ ] Escrever teste: token expirado (TTL ultrapassado) retorna 401
-- [ ] Escrever teste: apresentar o mesmo token duas vezes retorna 401 na segunda
+- [x] Instalar e configurar Resend (`@resend/node`) como Convex Action
+- [x] Implementar `POST /v1/auth/magic-link` — gera token único (32 bytes, TTL 15 min), armazena hash, envia email via Resend com link `?token=...`
+- [x] Implementar `GET /v1/auth/magic-link/verify?token=...` — busca token por hash, valida TTL, invalida token, cria sessão, retorna access + refresh token
+- [x] Criar tabela `magic_link_tokens` com campos: tokenHash, userId, expiresAt, usedAt
+- [x] Implementar invalidação imediata do token após uso (setar `usedAt`)
+- [x] Criar template HTML de email de magic link com suporte a PT-BR e EN
+- [x] Selecionar idioma do template baseado em `org_settings.defaultLanguage` da org do usuário
+- [x] Chamar `writeAuditEvent` com action `auth.magiclink.sent`, `auth.magiclink.used`, `auth.magiclink.expired`
+- [x] Escrever teste: token expirado (TTL ultrapassado) retorna 401
+- [x] Escrever teste: apresentar o mesmo token duas vezes retorna 401 na segunda
 
 ### 4.2 OAuth — Google — closes #12 (parcial)
 
