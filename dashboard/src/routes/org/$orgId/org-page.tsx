@@ -44,6 +44,7 @@ export function OrgPage() {
             <UsersList
               key={usersKey}
               token={tok}
+              orgId={orgId}
               onAddUser={() => setShowCreateUser(true)}
             />
             {showCreateUser && (

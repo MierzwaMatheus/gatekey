@@ -15,8 +15,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@convex/*": ["../convex/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "../convex"],
   "exclude": ["src/__tests__"]
 }

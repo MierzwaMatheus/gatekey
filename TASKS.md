@@ -338,7 +338,7 @@
 
 ### 3.7 Integração: Dashboard ↔ Convex real-time — closes #9, #10, #11 (com 3.3–3.6)
 
-- [ ] Confirmar que listagem de usuários usa `useQuery` do Convex — atualiza sem reload
+- [x] Confirmar que listagem de usuários usa `useQuery` do Convex — atualiza sem reload
 - [ ] Confirmar que listagem de sessões usa `useQuery` — sessão revogada some da lista em tempo real
 - [ ] Confirmar que listagem de bindings usa `useQuery` — novo binding aparece instantaneamente
 - [ ] Confirmar que audit log usa `useQuery` — novos eventos aparecem sem refresh manual

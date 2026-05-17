@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -194,6 +194,45 @@ test("deleteUser: Org Admin suspende usuário da própria org", async () => {
 
   const user = await t.run((ctx) => ctx.db.get(created.id));
   expect(user?.status).toBe("suspended");
+});
+
+// ── Ciclo 8: listUsersQuery (real-time, public query) ────────────────────────
+
+test("listUsersQuery: retorna lista de usuários da org com JWT válido de admin", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "test-session",
+    expiresInSeconds: 3600,
+  });
+
+  const users = await t.query(api.users.listUsersQuery, { token, orgId });
+
+  expect(Array.isArray(users)).toBe(true);
+  expect(users.length).toBeGreaterThan(0);
+  const admin = users.find((u: { email: string }) => u.email === "admin@acme.io");
+  expect(admin).toBeDefined();
+  expect(admin).not.toHaveProperty("passwordHash");
+});
+
+test("listUsersQuery: retorna array vazio com token inválido", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { orgId } = await setupOrgWithAdmin(t);
+
+  const users = await t.query(api.users.listUsersQuery, {
+    token: "invalid.token.here",
+    orgId,
+  });
+
+  expect(users).toEqual([]);
 });
 
 // ── Ciclo 7: getUserPermissions ──────────────────────────────────────────────
