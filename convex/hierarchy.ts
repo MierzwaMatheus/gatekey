@@ -643,13 +643,34 @@ export const getOrgSettings = internalQuery({
   args: { callerId: v.id("users"), orgId: v.id("orgs") },
   handler: async (ctx, args) => {
     const caller = await ctx.db.get(args.callerId);
-    if (!caller || !caller.isRoot) throw new Error("forbidden: root_required");
+    if (!caller) throw new Error("forbidden: user_not_found");
+    if (!caller.isRoot) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
     const settings = await ctx.db
       .query("org_settings")
       .filter((q) => q.eq(q.field("orgId"), args.orgId))
       .first();
     if (!settings) throw new Error("not_found: org_settings");
-    return { quotas: settings.quotas };
+    return {
+      quotas: settings.quotas,
+      loginMethods: settings.loginMethods,
+      mfaRequired: settings.mfaRequired,
+      jwtExpiryAccess: settings.jwtExpiryAccess,
+      jwtExpiryRefresh: settings.jwtExpiryRefresh,
+    };
   },
 });
 
@@ -670,5 +691,147 @@ export const updateOrgQuotas = internalMutation({
     const merged = { ...(settings.quotas as Record<string, number>), ...args.quotas };
     await ctx.db.patch(settings._id, { quotas: merged });
     return null;
+  },
+});
+
+export const updateOrgSettings = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    loginMethods: v.optional(v.array(v.string())),
+    mfaRequired: v.optional(v.boolean()),
+    jwtExpiryAccess: v.optional(v.number()),
+    jwtExpiryRefresh: v.optional(v.number()),
+    quotas: v.optional(v.record(v.string(), v.number())),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+    if (!caller.isRoot) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    if (!settings) throw new Error("not_found: org_settings");
+
+    const patch: Record<string, unknown> = {};
+    if (args.loginMethods !== undefined) patch.loginMethods = args.loginMethods;
+    if (args.mfaRequired !== undefined) patch.mfaRequired = args.mfaRequired;
+    if (args.jwtExpiryAccess !== undefined) patch.jwtExpiryAccess = args.jwtExpiryAccess;
+    if (args.jwtExpiryRefresh !== undefined) patch.jwtExpiryRefresh = args.jwtExpiryRefresh;
+    if (args.quotas !== undefined) {
+      patch.quotas = { ...(settings.quotas as Record<string, number>), ...args.quotas };
+    }
+
+    await ctx.db.patch(settings._id, patch as never);
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "org.settings.update",
+      target: { type: "org_settings", id: args.orgId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
+export const listWorkspaces = internalQuery({
+  args: { callerId: v.id("users"), orgId: v.id("orgs") },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+    if (!caller.isRoot) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+    const workspaces = await ctx.db
+      .query("workspaces")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    return await Promise.all(
+      workspaces.map(async (ws) => {
+        const members = await ctx.db
+          .query("workspace_members")
+          .filter((q) =>
+            q.and(
+              q.eq(q.field("workspaceId"), ws._id),
+              q.eq(q.field("status"), "active"),
+            ),
+          )
+          .collect();
+        return {
+          _id: ws._id,
+          name: ws.name,
+          status: ws.status,
+          membersCount: members.length,
+          createdAt: ws._creationTime,
+        };
+      }),
+    );
+  },
+});
+
+export const listUsersForOrg = internalQuery({
+  args: { callerId: v.id("users"), orgId: v.id("orgs") },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: user_not_found");
+    if (!caller.isRoot) {
+      const membership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!membership || membership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+    const members = await ctx.db
+      .query("org_members")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    const users = await Promise.all(
+      members.map(async (m) => {
+        const user = await ctx.db.get(m.userId);
+        if (!user) return null;
+        const { passwordHash: _pw, ...safeUser } = user;
+        return { ...safeUser, orgRole: m.role, orgStatus: m.status };
+      }),
+    );
+    return users.filter(Boolean);
   },
 });
