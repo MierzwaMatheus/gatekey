@@ -1,25 +1,14 @@
 @import "tailwindcss";
 
-/* ── Variáveis brutas da paleta ─────────────────────────────── */
-:root {
-  --gate-midnight: #0D1117;
-  --gate-iron:     #1C2333;
-  --gate-steel:    #30363D;
-  --gate-key:      #F0A500;
-  --gate-key-dim:  #7D5500;
-  --gate-safe:     #3FB950;
-  --gate-danger:   #F85149;
-  --gate-text:     #C9D1D9;
-  --gate-muted:    #8B949E;
-}
-
-/* ── Tokens semânticos do Tailwind v4 ───────────────────────── */
+/* ── Tokens semânticos do Tailwind v4 (gate-* definidos em styles.css) ── */
 @theme inline {
   /* Cores de superfície */
-  --color-surface-page:     var(--gate-midnight);
-  --color-surface-card:     var(--gate-iron);
-  --color-surface-elevated: var(--gate-steel);
-  --color-surface-hover:    rgba(255,255,255,0.04);
+  --color-surface-page:         var(--gate-midnight);
+  --color-surface-sidebar:      var(--gate-void);
+  --color-surface-intermediate: var(--gate-shadow);
+  --color-surface-card:         var(--gate-iron);
+  --color-surface-elevated:     var(--gate-steel);
+  --color-surface-hover:        rgba(255,255,255,0.04);
 
   /* Texto */
   --color-text-primary:   var(--gate-text);
@@ -37,7 +26,8 @@
   --color-status-warning: #E3B341;
 
   /* Bordas */
-  --color-border-default: rgba(48,54,61,1);
+  --color-border-default: var(--gate-dim);
+  --color-border-strong:  var(--gate-steel);
   --color-border-subtle:  rgba(255,255,255,0.06);
   --color-border-accent:  rgba(240,165,0,0.3);
 

@@ -14,14 +14,33 @@ import { CreateResourceTypeForm } from '../../../../../components/workspace/crea
 import { AuditLogWorkspace } from '../../../../../components/workspace/audit-log-workspace'
 import { PlaygroundPanel } from '../../../../../components/workspace/playground-panel'
 import { LogOut, Plus } from 'lucide-react'
+import { PageHeader } from '../../../../../components/ui/page-header'
 
-const SECTION_TITLES: Record<WorkspaceSection, string> = {
-  members: 'Membros',
-  roles: 'Roles',
-  bindings: 'Bindings',
-  'resource-types': 'Resource Types',
-  'audit-log': 'Audit Log',
-  playground: 'Playground',
+const SECTION_META: Record<WorkspaceSection, { number: string; title: string; module: string; submodule: string; description: string }> = {
+  members: {
+    number: '01', title: 'Membros', module: 'MEMBERS', submodule: 'LIST',
+    description: 'Membros com acesso a este workspace. Gerencie associações de usuário e papéis.',
+  },
+  roles: {
+    number: '02', title: 'Roles', module: 'ROLES', submodule: 'LIST',
+    description: 'Papéis definidos neste workspace. Cada papel agrupa um conjunto de capabilities.',
+  },
+  bindings: {
+    number: '03', title: 'Bindings', module: 'BINDINGS', submodule: 'LIST',
+    description: 'Vínculos entre membros e papéis no workspace. Definem o que cada usuário pode fazer.',
+  },
+  'resource-types': {
+    number: '04', title: 'Resource Types', module: 'RESOURCES', submodule: 'TYPES',
+    description: 'Tipos de recurso registrados neste workspace para controle de acesso.',
+  },
+  'audit-log': {
+    number: '05', title: 'Audit Log', module: 'AUDIT', submodule: 'LOG',
+    description: 'Registro de operações realizadas no contexto deste workspace.',
+  },
+  playground: {
+    number: '06', title: 'Playground', module: 'PLAYGROUND', submodule: 'REPL',
+    description: 'Ambiente de teste para avaliação de políticas de acesso em tempo real.',
+  },
 }
 
 export function WorkspacePage() {
@@ -171,22 +190,26 @@ export function WorkspacePage() {
   return (
     <WorkspaceLayout activeSection={section} onSectionChange={setSection} wsId={wsId}>
       <div className="p-6 space-y-5">
-        <div className="flex items-center justify-between pb-4 border-b border-border-default">
-          <h1 className="text-[18px] font-medium text-text-primary">
-            {SECTION_TITLES[section]}
-          </h1>
-          <div className="flex items-center gap-2">
-            {renderActionButton()}
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
-            >
-              <LogOut size={13} />
-              {isLoggingOut ? 'Saindo…' : 'Sair'}
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          {...SECTION_META[section]}
+          scope="WORKSPACE"
+          context={`ws_${wsId.slice(-6)}`}
+          tenant={wsId.slice(-8)}
+          caller="ws_admin@gatekey"
+          actions={
+            <>
+              {renderActionButton()}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                <LogOut size={13} />
+                {isLoggingOut ? 'Saindo…' : 'Sair'}
+              </button>
+            </>
+          }
+        />
 
         {renderSection()}
       </div>

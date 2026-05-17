@@ -11,15 +11,37 @@ import { CapabilitiesList } from '../../components/root/capabilities-list'
 import { ApiKeysBrowser } from '../../components/root/api-keys-browser'
 import { ColdStorageConfig } from '../../components/root/cold-storage-config'
 import { LogOut, Copy, Check } from 'lucide-react'
+import { PageHeader } from '../../components/ui/page-header'
 
-const SECTION_TITLES: Record<RootSection, string> = {
-  orgs: 'Organizações',
-  sessions: 'Sessões Ativas',
-  'audit-log': 'Audit Log',
-  capabilities: 'Capabilities',
-  'api-keys': 'API Keys',
-  quotas: 'Configurar Cotas',
-  'cold-storage': 'Cold Storage',
+const SECTION_META: Record<RootSection, { number: string; title: string; module: string; submodule: string; description: string }> = {
+  orgs: {
+    number: '01', title: 'Organizações', module: 'ORGS', submodule: 'LIST',
+    description: 'Organizações cadastradas no sistema. Gerencie tenants, crie novas orgs e configure cotas.',
+  },
+  sessions: {
+    number: '02', title: 'Sessões Ativas', module: 'SESSIONS', submodule: 'ACTIVE',
+    description: 'Tokens emitidos e atualmente válidos no escopo root. Inclui sessões de usuário e tokens de serviço de longa duração. Polling ativo a cada 5s.',
+  },
+  'audit-log': {
+    number: '03', title: 'Audit Log', module: 'AUDIT', submodule: 'LOG',
+    description: 'Registro imutável de todas as operações realizadas no sistema. Filtro por ator, recurso e resultado.',
+  },
+  capabilities: {
+    number: '04', title: 'Capabilities', module: 'CAPABILITIES', submodule: 'LIST',
+    description: 'Permissões globais disponíveis para atribuição em workspaces.',
+  },
+  'api-keys': {
+    number: '05', title: 'API Keys', module: 'API-KEYS', submodule: 'BROWSER',
+    description: 'Chaves de API emitidas no escopo root. Visualize escopo, expiração e último uso.',
+  },
+  quotas: {
+    number: '06', title: 'Configurar Cotas', module: 'QUOTAS', submodule: 'CONFIG',
+    description: 'Configuração de limites de recursos por organização.',
+  },
+  'cold-storage': {
+    number: '07', title: 'Cold Storage', module: 'STORAGE', submodule: 'COLD',
+    description: 'Configuração de armazenamento frio para audit logs e dados históricos.',
+  },
 }
 
 interface TempPasswordModal {
@@ -151,20 +173,23 @@ export function RootPage() {
     )}
     <RootLayout activeSection={section} onSectionChange={setSection}>
       <div className="p-6 space-y-5">
-        {/* Page header */}
-        <div className="flex items-center justify-between pb-4 border-b border-border-default">
-          <h1 className="text-[18px] font-medium text-text-primary">
-            {SECTION_TITLES[section]}
-          </h1>
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
-          >
-            <LogOut size={13} />
-            {isLoggingOut ? 'Saindo…' : 'Sair'}
-          </button>
-        </div>
+        <PageHeader
+          {...SECTION_META[section]}
+          scope="ROOT"
+          context="root"
+          tenant="root"
+          caller="root@gatekey"
+          actions={
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
+            >
+              <LogOut size={13} />
+              {isLoggingOut ? 'Saindo…' : 'Sair'}
+            </button>
+          }
+        />
 
         {/* Section content */}
         {renderSection()}

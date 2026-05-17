@@ -1,5 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
 import { listRoles, deleteRole, listCapabilities, type WorkspaceRole } from '../../lib/workspace-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridCell,
+  DenseGridActionsCell,
+  DenseGridActionBtn,
+  DenseGridStatusBadge,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 interface RolesListProps {
   token: string
@@ -70,48 +86,46 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
 
   return (
     <>
-      <div data-testid="roles-list">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-default">
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Nome</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Tipo</th>
-              <th className="text-left py-2 px-3 text-[11px] font-medium text-text-secondary uppercase tracking-wide">Capabilities</th>
-              <th className="py-2 px-3" />
-            </tr>
-          </thead>
+      <DenseGridContainer testId="roles-list">
+        <DenseGridHeader label="Roles" stats={[{ label: 'total', value: roles.length }]} />
+        <DenseGridTable>
+          <DenseGridThead>
+            <DenseGridThNum />
+            <DenseGridTh>Nome</DenseGridTh>
+            <DenseGridTh>Tipo</DenseGridTh>
+            <DenseGridTh>Capabilities</DenseGridTh>
+            <DenseGridTh align="right">Ações</DenseGridTh>
+          </DenseGridThead>
           <tbody>
-            {roles.map((r) => (
-              <tr
-                key={r._id}
-                data-testid={`role-row-${r._id}`}
-                className="border-b border-border-default hover:bg-surface-hover group"
-              >
-                <td className="py-2.5 px-3 text-text-primary font-medium">{r.name}</td>
-                <td className="py-2.5 px-3">
-                  <span className="px-2 py-0.5 rounded-pill text-xs bg-surface-elevated text-text-secondary">
-                    {r.isBase ? 'base' : 'custom'}
+            {roles.map((r, i) => (
+              <DenseGridRow key={r._id} testId={`role-row-${r._id}`}>
+                <DenseGridRowNum index={i} />
+                <DenseGridCellStack primary={r.name} />
+                <DenseGridCell>
+                  <DenseGridStatusBadge value={r.isBase ? 'base' : 'custom'} type="neutral" />
+                </DenseGridCell>
+                <DenseGridCell>
+                  <span className="text-[11px] text-[#6E7681]">
+                    {r.capabilities.map((capId) => capNames[capId] ?? capId).join(', ') || '—'}
                   </span>
-                </td>
-                <td className="py-2.5 px-3 text-text-secondary text-xs">
-                  {r.capabilities.map((capId) => capNames[capId] ?? capId).join(', ') || '—'}
-                </td>
-                <td className="py-2.5 px-3">
+                </DenseGridCell>
+                <DenseGridActionsCell>
                   {!r.isBase && (
-                    <button
-                      data-testid={`btn-delete-${r._id}`}
+                    <DenseGridActionBtn
+                      variant="danger"
+                      testId={`btn-delete-${r._id}`}
                       onClick={() => { setDeleteTarget(r); setDeleteError(null) }}
-                      className="opacity-0 group-hover:opacity-100 px-2 py-1 text-[11px] text-status-deny border border-border-default rounded hover:bg-surface-hover cursor-pointer transition-opacity"
                     >
                       Deletar
-                    </button>
+                    </DenseGridActionBtn>
                   )}
-                </td>
-              </tr>
+                </DenseGridActionsCell>
+              </DenseGridRow>
             ))}
           </tbody>
-        </table>
-      </div>
+        </DenseGridTable>
+        <DenseGridFooter showing={roles.length} />
+      </DenseGridContainer>
 
       {deleteTarget && (
         <div

@@ -4,6 +4,20 @@ import { MonitorDot, X } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { revokeSession, type SessionSummary } from '../../lib/root-api'
+import {
+  DenseGridContainer,
+  DenseGridHeader,
+  DenseGridTable,
+  DenseGridThead,
+  DenseGridTh,
+  DenseGridThNum,
+  DenseGridRow,
+  DenseGridRowNum,
+  DenseGridCellStack,
+  DenseGridActionsCell,
+  DenseGridActionBtn,
+  DenseGridFooter,
+} from '../ui/dense-grid'
 
 
 function formatExpiry(ts: number): string {
@@ -146,51 +160,63 @@ export function SessionsList({ token }: SessionsListProps) {
       ) : filtered.length === 0 ? (
         <EmptyState />
       ) : (
-        <div>
-          {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-2 border-b border-border-default">
-            <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide flex-1">UserId</span>
-            <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-28">IP</span>
-            <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-24">Dispositivo</span>
-            <span className="text-[11px] font-medium text-text-secondary uppercase tracking-wide w-28 text-right">Expiração</span>
-            <span className="w-8" />
-          </div>
-
-          {filtered.map((session) => (
-            <div
-              key={session._id}
-              data-testid={`session-row-${session._id}`}
-              className="group flex items-center gap-3 px-4 py-[8px] border-b border-border-default/30 hover:bg-surface-hover transition-colors duration-200"
-            >
-              <span
-                data-testid={`session-userid-${session._id}`}
-                className="flex-1 text-[12px] font-mono text-text-primary truncate"
-              >
-                {session.userId}
-              </span>
-              <span
-                data-testid={`session-ip-${session._id}`}
-                className="w-28 text-[12px] font-mono text-text-secondary"
-              >
-                {session.ip ?? '—'}
-              </span>
-              <span className="w-24 text-[11px] text-text-muted truncate">
-                {session.deviceInfo ? session.deviceInfo.slice(0, 20) : '—'}
-              </span>
-              <span className="w-28 text-right text-[11px] font-mono text-text-muted">
-                {formatExpiry(session.expiresAt)}
-              </span>
-              <button
-                data-testid={`btn-revoke-${session._id}`}
-                onClick={() => setRevoking(session)}
-                className="w-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded p-1 hover:bg-status-deny/10 text-status-deny"
-                title="Revogar sessão"
-              >
-                <X size={13} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <DenseGridContainer>
+          <DenseGridHeader
+            label="Sessions / Live"
+            stats={[{ label: 'ativas', value: filtered.length }]}
+          />
+          <DenseGridTable>
+            <DenseGridThead>
+              <DenseGridThNum />
+              <DenseGridTh>UserId</DenseGridTh>
+              <DenseGridTh>IP</DenseGridTh>
+              <DenseGridTh>Dispositivo</DenseGridTh>
+              <DenseGridTh>Expiração</DenseGridTh>
+              <DenseGridTh align="right">Ações</DenseGridTh>
+            </DenseGridThead>
+            <tbody>
+              {filtered.map((session, i) => (
+                <DenseGridRow key={session._id} testId={`session-row-${session._id}`}>
+                  <DenseGridRowNum index={i} />
+                  <DenseGridCellStack
+                    primary={
+                      <span data-testid={`session-userid-${session._id}`}>{session.userId}</span>
+                    }
+                  />
+                  <DenseGridCellStack
+                    primary={
+                      <span data-testid={`session-ip-${session._id}`} className="text-[11px] text-[#8B949E]">
+                        {session.ip ?? '—'}
+                      </span>
+                    }
+                  />
+                  <DenseGridCellStack
+                    primary={
+                      <span className="text-[11px] text-[#6E7681]">
+                        {session.deviceInfo ? session.deviceInfo.slice(0, 24) : '—'}
+                      </span>
+                    }
+                  />
+                  <DenseGridCellStack
+                    primary={
+                      <span className="text-[11px] text-[#6E7681]">{formatExpiry(session.expiresAt)}</span>
+                    }
+                  />
+                  <DenseGridActionsCell>
+                    <DenseGridActionBtn
+                      variant="danger"
+                      testId={`btn-revoke-${session._id}`}
+                      onClick={() => setRevoking(session)}
+                    >
+                      Revogar
+                    </DenseGridActionBtn>
+                  </DenseGridActionsCell>
+                </DenseGridRow>
+              ))}
+            </tbody>
+          </DenseGridTable>
+          <DenseGridFooter showing={filtered.length} />
+        </DenseGridContainer>
       )}
 
       {revoking && (
