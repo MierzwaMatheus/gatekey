@@ -223,3 +223,66 @@ test("verifyMfaSetup: código TOTP inválido retorna erro", async () => {
     expect(result.error).toBe("invalid_code");
   }
 });
+
+// ── Ciclo 4: challengeMfa (TOTP) ─────────────────────────────────────────────
+
+async function setupActiveMfa(t: ReturnType<typeof convexTest>, userId: string) {
+  const { TOTP, Secret } = await import("otpauth");
+  const secret = new Secret({ size: 20 });
+  const pendingSecret = secret.base32;
+
+  await t.mutation(internal.mfaStore.upsertPendingMfaConfig, {
+    userId: userId as never,
+    pendingSecret,
+    pendingSecretExpiresAt: Date.now() + 600_000,
+  });
+  await t.mutation(internal.mfaStore.activateMfaConfig, {
+    userId: userId as never,
+    secret: pendingSecret,
+    backupCodes: ["backup001", "backup002"],
+  });
+
+  const totp = new TOTP({ algorithm: "SHA1", digits: 6, period: 30, secret });
+  return { secret: pendingSecret, totp };
+}
+
+test("challengeMfa: código TOTP válido retorna accessToken, refreshToken e sessionId", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  const { totp } = await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+  const code = totp.generate();
+
+  const result = await t.action(internal.mfa.challengeMfa, {
+    mfaToken,
+    totpCode: code,
+  });
+
+  expect(result.success).toBe(true);
+  if (result.success) {
+    expect(result.accessToken.split(".").length).toBe(3);
+    expect(result.refreshToken).toBeTypeOf("string");
+    expect(result.sessionId).toBeTypeOf("string");
+  }
+});
+
+test("challengeMfa: código TOTP inválido retorna erro", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const userId = await setupUser(t);
+  await setupActiveMfa(t, userId as string);
+
+  const mfaToken = await t.action(internal.mfa.signMfaToken, { userId: userId as never });
+
+  const result = await t.action(internal.mfa.challengeMfa, {
+    mfaToken,
+    totpCode: "000000",
+  });
+
+  expect(result.success).toBe(false);
+  if (!result.success) {
+    expect(result.error).toBe("invalid_code");
+  }
+});
