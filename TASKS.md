@@ -310,7 +310,7 @@
 
 ### 3.5 Painel Workspace Admin — closes #11 (parcial)
 
-- [ ] Implementar rota `/org/:orgId/workspace/:wsId` protegida — redireciona se usuário não tem role admin no workspace
+- [x] Implementar rota `/org/:orgId/workspace/:wsId` protegida — redireciona se usuário não tem role admin no workspace
 - [ ] Implementar listagem de membros: tabela com nome do usuário, role, data de adição
 - [ ] Implementar formulário de adição de membro: seletor de usuário da org + seletor de role do workspace
 - [ ] Implementar ação de remover membro (modal de confirmação)
