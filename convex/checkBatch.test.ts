@@ -279,6 +279,73 @@ test("POST /v1/check/batch: array vazio retorna 422", async () => {
   expect(res.status).toBe(422);
 });
 
+// ── Ciclo 8: integração — batch misto (ALLOW + DENY no binding + DENY suspenso) ─
+
+test("checkBatch integração: batch com 3 itens mistos retorna resultados individuais corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId, roleId } = await setupBatchContext(t);
+
+  // usuário 2: sem binding
+  const userId2 = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user2@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("workspace_members", { userId: userId2, workspaceId, status: "active" }));
+
+  // usuário 3: suspenso com binding
+  const userId3 = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user3@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("workspace_members", { userId: userId3, workspaceId, status: "active" }));
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: userId3,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_suspended",
+      workspaceId,
+    }),
+  );
+
+  // usuário 1 (userId): binding válido
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_allow",
+      workspaceId,
+    }),
+  );
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_allow" },
+      { userId: userId2, capability: "document:read", resourceType: "document", resourceId: "doc_no_binding" },
+      { userId: userId3, capability: "document:read", resourceType: "document", resourceId: "doc_suspended" },
+    ],
+  });
+
+  expect(result).toHaveLength(3);
+  expect(result[0]).toEqual({ allowed: true, reason: "direct_binding" });
+  expect(result[1]).toEqual({ allowed: false, reason: "no_binding_found" });
+  expect(result[2]).toEqual({ allowed: false, reason: "user_inactive" });
+});
+
 test("POST /v1/check/batch: mais de 100 itens retorna 422", async () => {
   const t = convexTest(schema, modules);
   const { workspaceId, userId } = await setupBatchContext(t);

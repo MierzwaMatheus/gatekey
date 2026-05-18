@@ -15,15 +15,15 @@
 - [x] Escrever teste unitário: falha em um item não interrompe o processamento dos demais
 - [x] Criar função `checkBatch(items: CheckRequest[])` em `convex/checkBatch.ts` — itera sobre o array chamando `pdpDecide` para cada item, retorna array de `{allowed, reason, source}` na mesma ordem
 - [x] Garantir que `checkBatch` retorna resultados **na mesma ordem** do array de entrada mesmo com processamento paralelo
-- [ ] Chamar `writeAuditEvent` para cada item do batch com o resultado individual (action: `permission.check`, result: allow/deny, reason)
-- [ ] Registrar rota `POST /v1/check/batch` em `convex/http.ts` apontando para handler que chama `checkBatch`
-- [ ] Aplicar PEP na rota `POST /v1/check/batch` exigindo escopo `check` (mesma regra do `/check` singular)
-- [ ] Adicionar preflight CORS para `POST /v1/check/batch` em `convex/http.ts`
-- [ ] Adicionar schema Zod de validação do body: array de objetos `{userId, capability, resourceType, resourceId?}` com no mínimo 1 item e no máximo 100
-- [ ] Retornar 422 com mensagem clara quando body não passa na validação Zod (array vazio, excede 100 itens, campo obrigatório ausente)
+- [x] Chamar `writeAuditEvent` para cada item do batch com o resultado individual (action: `permission.check`, result: allow/deny, reason)
+- [x] Registrar rota `POST /v1/check/batch` em `convex/http.ts` apontando para handler que chama `checkBatch`
+- [x] Aplicar PEP na rota `POST /v1/check/batch` exigindo escopo `check` (mesma regra do `/check` singular)
+- [x] Adicionar preflight CORS para `POST /v1/check/batch` em `convex/http.ts`
+- [x] Adicionar schema Zod de validação do body: array de objetos `{userId, capability, resourceType, resourceId?}` com no mínimo 1 item e no máximo 100
+- [x] Retornar 422 com mensagem clara quando body não passa na validação Zod (array vazio, excede 100 itens, campo obrigatório ausente)
 - [ ] Atualizar spec OpenAPI em `convex/openapi.ts` com documentação do endpoint `/check/batch`: descrição, body schema, response schema, exemplos
 - [ ] Escrever teste de integração: batch com 3 itens — primeiro ALLOW, segundo DENY por falta de binding, terceiro DENY por usuário suspenso — verificar cada resultado individualmente
-- [ ] Escrever teste de integração: API Key com escopo `["users:read"]` (sem `check`) recebe 403 ao chamar `POST /v1/check/batch`
+- [x] Escrever teste de integração: API Key com escopo `["users:read"]` (sem `check`) recebe 403 ao chamar `POST /v1/check/batch`
 - [ ] Escrever teste de integração: batch de 1 item com binding de herança de container — retorna `{allowed: true, source: "container-binding"}`
 - [ ] Escrever teste de integração: 3 chamadas ao audit log são registradas para um batch de 3 itens
 
