@@ -965,6 +965,81 @@ http.route({
   }),
 });
 
+// ── POST /v1/check/batch ──────────────────────────────────────────────────────
+
+http.route({ path: "/v1/check/batch", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/check/batch",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req, "check");
+    if (isResponse(caller)) return caller;
+
+    let body: { workspaceId?: string; items?: unknown[] };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+
+    if (!body.workspaceId) {
+      return jsonResponse({ error: "invalid_body", message: "workspaceId is required" }, 422);
+    }
+    if (!Array.isArray(body.items)) {
+      return jsonResponse({ error: "invalid_body", message: "items must be an array" }, 422);
+    }
+    if (body.items.length === 0) {
+      return jsonResponse({ error: "invalid_body", message: "items array must have at least 1 item" }, 422);
+    }
+    if (body.items.length > 100) {
+      return jsonResponse({ error: "invalid_body", message: "items array must have at most 100 items" }, 422);
+    }
+    for (const item of body.items) {
+      if (
+        typeof item !== "object" ||
+        item === null ||
+        typeof (item as Record<string, unknown>).userId !== "string" ||
+        typeof (item as Record<string, unknown>).capability !== "string" ||
+        typeof (item as Record<string, unknown>).resourceType !== "string"
+      ) {
+        return jsonResponse({
+          error: "invalid_body",
+          message: "Each item must have userId, capability, and resourceType",
+        }, 422);
+      }
+    }
+
+    const ip = req.headers.get("x-forwarded-for") ?? undefined;
+    const userAgent = req.headers.get("user-agent") ?? undefined;
+
+    try {
+      const items = (body.items as Array<{ userId: string; capability: string; resourceType: string; resourceId?: string }>).map(
+        (item) => ({
+          userId: item.userId as never,
+          capability: item.capability,
+          resourceType: item.resourceType,
+          resourceId: item.resourceId,
+        }),
+      );
+
+      const results = await ctx.runAction(internal.checkBatch.performCheckBatch, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: body.workspaceId as never,
+        items,
+        ip,
+        userAgent,
+      });
+      return jsonResponse(results);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 http.route({
   path: "/v1/sessions",
   method: "GET",

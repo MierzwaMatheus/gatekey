@@ -255,6 +255,89 @@ export const OPENAPI_SPEC = {
         },
       },
     },
+    "/v1/check/batch": {
+      post: {
+        summary: "Batch permission check (dry-run — nenhum dado é persistido além do audit log)",
+        description: "Verifica múltiplas permissões em paralelo. Retorna um array de decisões na mesma ordem do array de entrada. Requer escopo `check`.",
+        tags: ["Permissions"],
+        security: [{ BearerJWT: [] }, { ApiKey: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["workspaceId", "items"],
+                properties: {
+                  workspaceId: { type: "string" },
+                  items: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 100,
+                    items: {
+                      type: "object",
+                      required: ["userId", "capability", "resourceType"],
+                      properties: {
+                        userId: { type: "string" },
+                        capability: { type: "string", example: "document:read" },
+                        resourceType: { type: "string", example: "document" },
+                        resourceId: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+              example: {
+                workspaceId: "ws_abc123",
+                items: [
+                  { userId: "user_1", capability: "document:read", resourceType: "document", resourceId: "doc_xyz" },
+                  { userId: "user_2", capability: "document:write", resourceType: "document" },
+                ],
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Array de decisões PDP na mesma ordem do input",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      allowed: { type: "boolean" },
+                      reason: { type: "string", example: "direct_binding" },
+                    },
+                  },
+                },
+                example: [
+                  { allowed: true, reason: "direct_binding" },
+                  { allowed: false, reason: "no_binding_found" },
+                ],
+              },
+            },
+          },
+          "401": { description: "Token ausente ou inválido" },
+          "403": { description: "Escopo check ausente na API Key" },
+          "422": {
+            description: "Body inválido (array vazio, mais de 100 itens, campo obrigatório ausente)",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    error: { type: "string" },
+                    message: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     "/v1/users": {
       get: {
         summary: "List users in org",
