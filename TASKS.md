@@ -504,7 +504,7 @@
 ### 5.4 Integração: CLI ↔ Schema + JWT + Root — closes #17 (com 5.3)
 
 - [x] Confirmar que o schema deployado pelo CLI é idêntico ao usado em desenvolvimento (mesma fonte de verdade)
-- [ ] Confirmar que o par RS256 gerado pelo CLI é o mesmo consultado por `signJwt` e `verifyJwt` em runtime
+- [x] Confirmar que o par RS256 gerado pelo CLI é o mesmo consultado por `signJwt` e `verifyJwt` em runtime
 - [ ] Confirmar que o usuário Root criado pelo CLI consegue fazer login no dashboard com as credenciais salvas em `.gatekey-root`
 - [ ] Escrever teste E2E de setup completo: `gatekey init` → login → criação de org → criação de workspace → criação de usuário → binding → `/check` retorna ALLOW
 
