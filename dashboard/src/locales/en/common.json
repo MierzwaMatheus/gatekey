@@ -139,5 +139,10 @@
     "saving": "Saving…",
     "saved": "Saved successfully",
     "error": "Error loading settings."
+  },
+
+  "cold_storage": {
+    "alert_message": "Cold storage is not configured and there are audit events older than 25 days. Configure R2 to avoid data loss.",
+    "configure": "Configure now"
   }
 }

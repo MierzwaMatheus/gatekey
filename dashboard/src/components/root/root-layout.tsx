@@ -1,6 +1,8 @@
 import { type ReactNode } from 'react'
 import { Navigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { useQuery } from 'convex/react'
+import { api } from '../../../../convex/_generated/api'
 import { useAuth } from '../../lib/auth-context'
 import { Icon, LogoMark } from '../ui/icons'
 import { TopBar } from '../ui/topbar'
@@ -41,6 +43,7 @@ interface RootLayoutProps {
 export function RootLayout({ children, activeSection = 'orgs', onSectionChange }: RootLayoutProps) {
   const { t } = useTranslation('common')
   const { role } = useAuth()
+  const coldStorageAlert = useQuery(api.auditLog.checkColdStorageAlert)
 
   if (!role || role !== 'root') {
     return <Navigate to="/login" />
@@ -115,6 +118,21 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
 
       <main className="main">
         <TopBar scope="root" context="global" section={t(`nav.${activeSection.replace('-', '_')}`)} />
+        {coldStorageAlert?.shouldAlert && (
+          <div
+            data-testid="cold-storage-alert"
+            className="mx-6 mt-4 flex items-center gap-3 rounded border border-[var(--gate-danger)] bg-[var(--gate-danger)]/10 px-4 py-3 text-sm text-[var(--gate-danger)]"
+          >
+            <Icon name="alert-triangle" size={16} />
+            <span>{t('cold_storage.alert_message')}</span>
+            <button
+              className="ml-auto text-xs underline opacity-70 hover:opacity-100"
+              onClick={() => onSectionChange?.('cold-storage')}
+            >
+              {t('cold_storage.configure')}
+            </button>
+          </div>
+        )}
         <div className="content">
           {children}
         </div>

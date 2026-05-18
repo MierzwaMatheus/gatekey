@@ -224,3 +224,120 @@ export const listAuditLog = internalQuery({
     return query.paginate(args.paginationOpts);
   },
 });
+
+export const getAuditEventsForExport = internalQuery({
+  args: {
+    orgId: v.id("orgs"),
+    beforeTimestamp: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("audit_log")
+      .withIndex("by_orgId_and_timestamp", (q) =>
+        q.eq("orgId", args.orgId).lt("timestamp", args.beforeTimestamp),
+      )
+      .paginate(args.paginationOpts);
+  },
+});
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
+
+export const listOrgsWithStaleEvents = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const threshold = Date.now() - THIRTY_DAYS_MS;
+    const staleEvent = await ctx.db
+      .query("audit_log")
+      .filter((q) => q.lt(q.field("timestamp"), threshold))
+      .first();
+    if (!staleEvent) return [];
+
+    const allOrgs = await ctx.db.query("orgs").collect();
+    const orgsWithStale: Id<"orgs">[] = [];
+
+    for (const org of allOrgs) {
+      const event = await ctx.db
+        .query("audit_log")
+        .withIndex("by_orgId_and_timestamp", (q) =>
+          q.eq("orgId", org._id).lt("timestamp", threshold),
+        )
+        .first();
+      if (event) orgsWithStale.push(org._id);
+    }
+
+    return orgsWithStale;
+  },
+});
+
+export const checkColdStorageAlert = query({
+  args: {},
+  handler: async (ctx) => {
+    const threshold = Date.now() - TWENTY_FIVE_DAYS_MS;
+    const coldStorageConfigured = !!process.env.R2_ACCOUNT_ID;
+
+    const staleEvent = await ctx.db
+      .query("audit_log")
+      .filter((q) => q.lt(q.field("timestamp"), threshold))
+      .first();
+
+    return {
+      hasStaleEvents: !!staleEvent,
+      coldStorageConfigured,
+      shouldAlert: !!staleEvent && !coldStorageConfigured,
+    };
+  },
+});
+
+export const getAuditExportByPeriod = query({
+  args: {
+    orgId: v.id("orgs"),
+    startTs: v.number(),
+    endTs: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const exports = await ctx.db
+      .query("audit_exports")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    return (
+      exports.find(
+        (e) => e.period.start >= args.startTs && e.period.end <= args.endTs,
+      ) ?? null
+    );
+  },
+});
+
+export const getAuditExportByPeriodInternal = internalQuery({
+  args: {
+    orgId: v.id("orgs"),
+    startTs: v.number(),
+    endTs: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const exports = await ctx.db
+      .query("audit_exports")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    return (
+      exports.find(
+        (e) => e.period.start >= args.startTs && e.period.end <= args.endTs,
+      ) ?? null
+    );
+  },
+});
+
+export const recordAuditExport = internalMutation({
+  args: {
+    orgId: v.id("orgs"),
+    period: v.object({ start: v.number(), end: v.number() }),
+    storagePath: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return ctx.db.insert("audit_exports", {
+      ...args,
+      createdAt: Date.now(),
+    });
+  },
+});

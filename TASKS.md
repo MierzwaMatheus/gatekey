@@ -462,24 +462,24 @@
 
 ### 5.1 Audit log cold tier — closes #16 (parcial)
 
-- [ ] Criar Convex Scheduled Function `exportAuditLogs` configurada para rodar diariamente
-- [ ] Implementar query que retorna todos os eventos de `audit_log` com `timestamp < now - 30 days`
-- [ ] Implementar serialização dos eventos em formato NDJSON (uma linha JSON por evento)
-- [ ] Implementar compressão gzip do NDJSON resultante
-- [ ] Implementar upload para Cloudflare R2 usando a SDK `@cloudflare/workers-types` — path: `{orgId}/{YYYY}/{MM}/{DD}/logs.ndjson.gz`
+- [x] Criar Convex Scheduled Function `exportAuditLogs` configurada para rodar diariamente
+- [x] Implementar query que retorna todos os eventos de `audit_log` com `timestamp < now - 30 days`
+- [x] Implementar serialização dos eventos em formato NDJSON (uma linha JSON por evento)
+- [x] Implementar compressão gzip do NDJSON resultante
+- [x] Implementar upload para Cloudflare R2 usando a SDK `@cloudflare/workers-types` — path: `{orgId}/{YYYY}/{MM}/{DD}/logs.ndjson.gz`
 - [ ] Implementar upload alternativo para AWS S3 usando `@aws-sdk/client-s3` — mesmo particionamento
 - [ ] Implementar lógica de escolha R2 vs S3 baseada na configuração `cold_storage_provider` da instância
-- [ ] Registrar cada exportação na tabela `audit_exports` com orgId, período e storagePath
-- [ ] Implementar alerta no dashboard quando `cold_storage_provider` não está configurado e existem logs com mais de 25 dias
-- [ ] Escrever teste: Scheduler exporta eventos com mais de 30 dias, eventos recentes permanecem no hot tier
+- [x] Registrar cada exportação na tabela `audit_exports` com orgId, período e storagePath
+- [x] Implementar alerta no dashboard quando `cold_storage_provider` não está configurado e existem logs com mais de 25 dias
+- [x] Escrever teste: Scheduler exporta eventos com mais de 30 dias, eventos recentes permanecem no hot tier
 
 ### 5.2 Integração: Cold tier ↔ Dashboard — closes #16 (com 5.1)
 
-- [ ] Implementar `GET /v1/audit-exports?start=YYYY-MM-DD&end=YYYY-MM-DD` — localiza arquivo no cold tier, gera URL pré-assinada com TTL de 15 min, retorna link; PEP requer `audit:read`
-- [ ] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
-- [ ] Implementar tela equivalente no painel Root para qualquer org
-- [ ] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
-- [ ] Confirmar que URL pré-assinada retorna 403 após 15 minutos de expiração
+- [x] Implementar `GET /v1/audit-exports?start=YYYY-MM-DD&end=YYYY-MM-DD` — localiza arquivo no cold tier, gera URL pré-assinada com TTL de 15 min, retorna link; PEP requer `audit:read`
+- [x] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
+- [x] Implementar tela equivalente no painel Root para qualquer org
+- [x] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
+- [x] Confirmar que URL pré-assinada retorna 403 após 15 minutos de expiração
 
 ### 5.3 CLI gatekey init — closes #17 (parcial)
 

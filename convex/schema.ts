@@ -145,6 +145,7 @@ export default defineSchema({
       end: v.number(),
     }),
     storagePath: v.string(),
+    createdAt: v.number(),
   }),
 
   magic_link_tokens: defineTable({

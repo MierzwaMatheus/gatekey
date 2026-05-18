@@ -1544,4 +1544,60 @@ http.route({
   }),
 });
 
+// ── GET /v1/audit-exports ─────────────────────────────────────────────────────
+
+http.route({ path: "/v1/audit-exports", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/audit-exports",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const startParam = url.searchParams.get("start");
+    const endParam = url.searchParams.get("end");
+
+    if (!startParam || !endParam) {
+      return jsonResponse({ error: "missing_params", required: ["start", "end"] }, 400);
+    }
+
+    const startTs = new Date(startParam).getTime();
+    const endTs = new Date(endParam).getTime();
+
+    if (isNaN(startTs) || isNaN(endTs)) {
+      return jsonResponse({ error: "invalid_date_format", expected: "YYYY-MM-DD" }, 400);
+    }
+
+    const orgId = caller.orgId as never;
+
+    try {
+      const exportRecord = await ctx.runQuery(internal.auditLog.getAuditExportByPeriodInternal, {
+        orgId,
+        startTs,
+        endTs,
+      });
+
+      if (!exportRecord) {
+        return jsonResponse({ error: "not_found" }, 404);
+      }
+
+      const downloadUrl = await ctx.runAction(internal.coldStorage.generatePresignedUrl, {
+        storagePath: exportRecord.storagePath,
+      });
+
+      return jsonResponse({
+        downloadUrl,
+        expiresAt: Date.now() + 15 * 60 * 1000,
+        period: exportRecord.period,
+      });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not configured")) return jsonResponse({ error: "cold_storage_not_configured" }, 503);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 export default http;
