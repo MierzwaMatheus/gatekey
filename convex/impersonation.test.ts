@@ -414,6 +414,254 @@ test("POST /v1/impersonation/end: Root encerra sessão e token fica inválido", 
   expect(verifyResult.valid).toBe(false);
 });
 
+// ── Ciclo 10: testes de integração completos ─────────────────────────────────
+
+test("integração: Root inicia impersonation, executa ação, audit log mostra actor.type root_impersonating", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "IntegOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: targetUserId,
+      orgId,
+      role: "admin",
+      status: "active",
+    }),
+  );
+
+  // Record impersonation audit event as Root
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "root_impersonating",
+    actorId: rootUserId as unknown as string,
+    actorImpersonating: targetUserId as unknown as string,
+    action: "binding.create",
+    target: { type: "binding" },
+    orgId,
+    result: "allow",
+  });
+
+  const events = await t.run((ctx) => ctx.db.query("audit_log").collect());
+  const impersonationEvent = events.find(
+    (e) => e.actorType === "root_impersonating",
+  );
+  expect(impersonationEvent).toBeDefined();
+  expect(impersonationEvent!.actorId).toBe(rootUserId as unknown as string);
+  expect(impersonationEvent!.actorImpersonating).toBe(targetUserId as unknown as string);
+});
+
+test("integração: após POST /v1/impersonation/end, o token retorna 401 em requests subsequentes", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-end-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "EndIntegOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-end-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: targetUserId,
+      orgId,
+      role: "admin",
+      status: "active",
+    }),
+  );
+
+  const rootToken = await t.action(internal.jwt.signJwt, {
+    sub: rootUserId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  const startRes = await t.fetch("/v1/impersonation/start", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetUserId: targetUserId as unknown as string }),
+  });
+  const { impersonationToken } = await startRes.json() as { impersonationToken: string };
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+
+  await t.fetch("/v1/impersonation/end", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ impersonationSessionId: session!._id }),
+  });
+
+  const res = await t.fetch(`/v1/users/${targetUserId as unknown as string}`, {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${impersonationToken}` },
+  });
+  expect(res.status).toBe(401);
+});
+
+test("integração: usuário não-Root tentando POST /v1/impersonation/start recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "nonroot-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "NonRootOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-nonroot-integ@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  const res = await t.fetch("/v1/impersonation/start", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetUserId: targetUserId as unknown as string }),
+  });
+
+  expect(res.status).toBe(403);
+});
+
+test("integração: token de impersonation expirado (TTL 1h vencido) retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-ttl@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "TtlOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-ttl@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const expiredToken = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+    targetOrgId: orgId as unknown as string,
+    expiresInSeconds: -10,
+  });
+
+  const res = await t.fetch(`/v1/users/${targetUserId as unknown as string}`, {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${expiredToken}` },
+  });
+
+  expect(res.status).toBe(401);
+});
+
 // ── Ciclo 9: audit log com actor.type root_impersonating ─────────────────────
 
 test("writeAuditEvent: aceita actorType root_impersonating com actorImpersonating", async () => {
