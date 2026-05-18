@@ -90,6 +90,9 @@ export default defineSchema({
     resourceId: v.optional(v.string()),
     parentResourceId: v.optional(v.string()),
     workspaceId: v.id("workspaces"),
+    type: v.optional(v.union(v.literal("allow"), v.literal("deny"))),
+    expiresAt: v.optional(v.number()),
+    deniedBy: v.optional(v.id("users")),
   })
     .index("by_workspaceId_and_userId", ["workspaceId", "userId"])
     .index("by_resourceType_and_resourceId", ["resourceType", "resourceId"])
