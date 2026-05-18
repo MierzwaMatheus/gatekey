@@ -151,6 +151,35 @@ test("impersonation_sessions: permite busca por targetUserId", async () => {
   expect(found!.rootUserId).toBe(rootUserId as unknown as string);
 });
 
+// ── Ciclo 4: createImpersonationToken persiste hash na tabela ─────────────────
+
+test("createImpersonationToken: armazena registro em impersonation_sessions com tokenHash e expiresAt", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const before = Date.now();
+  await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+  const after = Date.now();
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+
+  expect(session).not.toBeNull();
+  expect(session!.targetUserId).toBe(targetUserId as unknown as string);
+  expect(session!.tokenHash).toBeTypeOf("string");
+  expect(session!.tokenHash.length).toBeGreaterThan(0);
+  expect(session!.expiresAt).toBeGreaterThanOrEqual(before + 3600000 - 1000);
+  expect(session!.expiresAt).toBeLessThanOrEqual(after + 3600000 + 1000);
+  expect(session!.endedAt).toBeUndefined();
+});
+
 // ── Ciclo 2 (continuação): verifyImpersonationToken ──────────────────────────
 
 test("verifyImpersonationToken: token expirado (exp no passado) é rejeitado", async () => {

@@ -7,6 +7,7 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { SignJWT, importJWK, type JWK } from "jose";
+import { createHash } from "node:crypto";
 import { verifyJwtToken } from "./jwtVerify";
 
 export const createImpersonationToken = internalAction({
@@ -26,7 +27,7 @@ export const createImpersonationToken = internalAction({
     const privateKey = await importJWK(privateKeyJwk, "RS256");
     const now = Math.floor(Date.now() / 1000);
     const ttl = args.expiresInSeconds ?? 3600;
-    return await new SignJWT({
+    const token = await new SignJWT({
       impersonating: args.targetUserId,
       actor: { type: "root_impersonating" },
     })
@@ -35,6 +36,15 @@ export const createImpersonationToken = internalAction({
       .setIssuedAt(now)
       .setExpirationTime(now + ttl)
       .sign(privateKey);
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const expiresAt = Date.now() + ttl * 1000;
+    await ctx.runMutation(internal.impersonationStore.storeImpersonationSession, {
+      rootUserId: args.rootUserId,
+      targetUserId: args.targetUserId,
+      tokenHash,
+      expiresAt,
+    });
+    return token;
   },
 });
 
