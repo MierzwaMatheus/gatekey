@@ -6,6 +6,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -207,4 +208,106 @@ test("checkBatch: grava um evento de audit por item no batch", async () => {
   );
   const checkEntries = auditEntries.filter((e) => e.action === "permission.check");
   expect(checkEntries).toHaveLength(3);
+});
+
+// ── Ciclo 7: integração HTTP — API Key sem escopo check → 403 ─────────────────
+
+test("POST /v1/check/batch: API Key sem escopo check recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupBatchContext(t);
+
+  // Criar API Key com escopo users:read (sem check) com hash bcrypt real
+  // O publicId armazenado no DB é o sufixo após "gk_live_pk_"
+  // O token no header é: Bearer gk_live_pk_{publicId}_{secret}
+  const secret = "testsecret123456789012345678901";
+  const secretHash = await bcrypt.hash(secret, 1);
+  const publicIdSuffix = "testbatch00001";
+  await t.run((ctx) =>
+    ctx.db.insert("api_keys", {
+      orgId,
+      publicId: publicIdSuffix,
+      secretHash,
+      scopes: ["users:read"],
+      description: "key without check scope",
+      status: "active",
+    }),
+  );
+
+  const res = await t.fetch("/v1/check/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer gk_live_pk_${publicIdSuffix}_${secret}`,
+    },
+    body: JSON.stringify({
+      workspaceId: String(workspaceId),
+      items: [
+        { userId: String(userId), capability: "document:read", resourceType: "document" },
+      ],
+    }),
+  });
+
+  expect(res.status).toBe(403);
+});
+
+// ── Ciclo 7: validação Zod — body inválido → 422 ──────────────────────────────
+
+test("POST /v1/check/batch: array vazio retorna 422", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId } = await setupBatchContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: "fakeid",
+    orgId: "fakeorgid",
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  const res = await t.fetch("/v1/check/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ workspaceId: String(workspaceId), items: [] }),
+  });
+
+  expect(res.status).toBe(422);
+});
+
+test("POST /v1/check/batch: mais de 100 itens retorna 422", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId, userId } = await setupBatchContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: "fakeid",
+    orgId: "fakeorgid",
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  const items = Array.from({ length: 101 }, () => ({
+    userId: String(userId),
+    capability: "document:read",
+    resourceType: "document",
+  }));
+
+  const res = await t.fetch("/v1/check/batch", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: JSON.stringify({ workspaceId: String(workspaceId), items }),
+  });
+
+  expect(res.status).toBe(422);
 });
