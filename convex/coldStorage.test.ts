@@ -241,6 +241,60 @@ test("checkColdStorageAlert retorna hasStale=true quando há eventos com mais de
   expect(result.hasStaleEvents).toBe(true);
 });
 
+// ── Ciclo 8: teste de integração — exportação preserva eventos recentes ────────
+
+test("exportAuditLogs exporta eventos antigos e preserva eventos recentes no hot tier", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "IntegrationOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const now = Date.now();
+  const oldTimestamp = now - THIRTY_DAYS_MS - 60_000;
+  const recentTimestamp = now - 60_000;
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: oldTimestamp,
+      actorType: "system",
+      actorId: "system",
+      action: "old.event",
+      target: { type: "org" },
+      orgId,
+      result: "allow",
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: recentTimestamp,
+      actorType: "system",
+      actorId: "system",
+      action: "recent.event",
+      target: { type: "org" },
+      orgId,
+      result: "allow",
+    }),
+  );
+
+  await t.action(internal.coldStorage.exportAuditLogs, { mockMode: true });
+
+  // Registro de exportação criado
+  const exports = await t.run((ctx) => ctx.db.query("audit_exports").collect());
+  expect(exports).toHaveLength(1);
+  expect(exports[0].orgId).toBe(orgId);
+
+  // Todos os eventos ainda existem no hot tier (não são removidos pela exportação)
+  const allEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+  expect(allEvents).toHaveLength(2);
+
+  // O evento recente NÃO está no intervalo exportado
+  const exportedPeriodEnd = exports[0].period.end;
+  const recentEvent = allEvents.find((e) => e.action === "recent.event");
+  expect(recentEvent!.timestamp).toBeGreaterThanOrEqual(exportedPeriodEnd);
+});
+
 test("checkColdStorageAlert retorna hasStale=false quando não há eventos antigos", async () => {
   const t = convexTest(schema, modules);
 
