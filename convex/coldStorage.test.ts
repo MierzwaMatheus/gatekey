@@ -295,6 +295,53 @@ test("exportAuditLogs exporta eventos antigos e preserva eventos recentes no hot
   expect(recentEvent!.timestamp).toBeGreaterThanOrEqual(exportedPeriodEnd);
 });
 
+// ── Ciclo 5.2-1: getAuditExportByPeriod retorna export do período solicitado ───
+
+test("getAuditExportByPeriod retorna registro quando há export no período solicitado", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "PeriodOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const start = new Date("2024-01-01").getTime();
+  const end = new Date("2024-01-31").getTime();
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_exports", {
+      orgId,
+      period: { start, end },
+      storagePath: `${orgId}/2024/01/31/logs.ndjson.gz`,
+      createdAt: end,
+    }),
+  );
+
+  const result = await t.query(api.auditLog.getAuditExportByPeriod, {
+    orgId,
+    startTs: start,
+    endTs: end,
+  });
+
+  expect(result).not.toBeNull();
+  expect(result!.storagePath).toBe(`${orgId}/2024/01/31/logs.ndjson.gz`);
+});
+
+test("getAuditExportByPeriod retorna null quando não há export no período solicitado", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "EmptyPeriodOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const result = await t.query(api.auditLog.getAuditExportByPeriod, {
+    orgId,
+    startTs: new Date("2024-01-01").getTime(),
+    endTs: new Date("2024-01-31").getTime(),
+  });
+
+  expect(result).toBeNull();
+});
+
 test("checkColdStorageAlert retorna hasStale=false quando não há eventos antigos", async () => {
   const t = convexTest(schema, modules);
 

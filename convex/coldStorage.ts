@@ -70,7 +70,7 @@ export const exportAuditLogsForOrg = internalAction({
 
     // Paginar todos os eventos antigos
     while (true) {
-      const page = await ctx.runQuery(internal.auditLog.getAuditEventsForExport, {
+      const page: { page: unknown[]; isDone: boolean; continueCursor: string } = await ctx.runQuery(internal.auditLog.getAuditEventsForExport, {
         orgId: args.orgId,
         beforeTimestamp: args.exportEnd,
         paginationOpts: { numItems: 200, cursor },
