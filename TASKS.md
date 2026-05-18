@@ -475,7 +475,7 @@
 
 ### 5.2 Integração: Cold tier ↔ Dashboard — closes #16 (com 5.1)
 
-- [ ] Implementar `GET /v1/audit-exports?start=YYYY-MM-DD&end=YYYY-MM-DD` — localiza arquivo no cold tier, gera URL pré-assinada com TTL de 15 min, retorna link; PEP requer `audit:read`
+- [x] Implementar `GET /v1/audit-exports?start=YYYY-MM-DD&end=YYYY-MM-DD` — localiza arquivo no cold tier, gera URL pré-assinada com TTL de 15 min, retorna link; PEP requer `audit:read`
 - [ ] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
 - [ ] Implementar tela equivalente no painel Root para qualquer org
 - [ ] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
