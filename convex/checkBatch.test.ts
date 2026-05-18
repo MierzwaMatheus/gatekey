@@ -121,3 +121,32 @@ test("checkBatch: item sem binding retorna no_binding_found naquele índice", as
   expect(result).toHaveLength(1);
   expect(result[0]).toEqual({ allowed: false, reason: "no_binding_found" });
 });
+
+// ── Ciclo 4: binding válido → allowed:true ────────────────────────────────────
+
+test("checkBatch: item com binding válido retorna allowed:true naquele índice", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId, roleId } = await setupBatchContext(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_abc",
+      workspaceId,
+    }),
+  );
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_abc" },
+    ],
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0].allowed).toBe(true);
+});

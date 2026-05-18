@@ -10,7 +10,7 @@
 
 - [x] Escrever teste unitário: `checkBatch([])` com array vazio retorna array vazio
 - [x] Escrever teste unitário: `checkBatch` com item cujo usuário está suspenso retorna `{allowed: false, reason: "user_inactive"}` naquele índice
-- [ ] Escrever teste unitário: `checkBatch` com item sem binding retorna `{allowed: false, reason: "no_binding_found"}` naquele índice
+- [x] Escrever teste unitário: `checkBatch` com item sem binding retorna `{allowed: false, reason: "no_binding_found"}` naquele índice
 - [ ] Escrever teste unitário: `checkBatch` com item com binding válido retorna `{allowed: true}` naquele índice
 - [ ] Escrever teste unitário: falha em um item não interrompe o processamento dos demais
 - [ ] Criar função `checkBatch(items: CheckRequest[])` em `convex/checkBatch.ts` — itera sobre o array chamando `pdpDecide` para cada item, retorna array de `{allowed, reason, source}` na mesma ordem
