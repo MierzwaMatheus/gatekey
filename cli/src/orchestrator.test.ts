@@ -42,7 +42,7 @@ describe("runSetupSteps", () => {
     const result = await runSetupSteps(baseConfig, runner);
 
     expect(result.success).toBe(false);
-    expect(result.failedStep).toBe("deploySchema");
+    if (!result.success) expect(result.failedStep).toBe("deploySchema");
     expect(runner.generateKeyPair).not.toHaveBeenCalled();
     expect(runner.createRootUser).not.toHaveBeenCalled();
   });
@@ -55,7 +55,7 @@ describe("runSetupSteps", () => {
     const result = await runSetupSteps(baseConfig, runner);
 
     expect(result.success).toBe(false);
-    expect(result.failedStep).toBe("generateKeyPair");
+    if (!result.success) expect(result.failedStep).toBe("generateKeyPair");
     expect(runner.createRootUser).not.toHaveBeenCalled();
   });
 
@@ -75,6 +75,6 @@ describe("runSetupSteps", () => {
     const result = await runSetupSteps(baseConfig, runner);
 
     expect(result.success).toBe(false);
-    expect(result.rootAlreadyExists).toBe(true);
+    if (!result.success) expect(result.rootAlreadyExists).toBe(true);
   });
 });
