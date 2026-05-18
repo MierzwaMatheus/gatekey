@@ -476,9 +476,9 @@
 ### 5.2 Integração: Cold tier ↔ Dashboard — closes #16 (com 5.1)
 
 - [x] Implementar `GET /v1/audit-exports?start=YYYY-MM-DD&end=YYYY-MM-DD` — localiza arquivo no cold tier, gera URL pré-assinada com TTL de 15 min, retorna link; PEP requer `audit:read`
-- [ ] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
+- [x] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
 - [ ] Implementar tela equivalente no painel Root para qualquer org
-- [ ] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
+- [x] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
 - [ ] Confirmar que URL pré-assinada retorna 403 após 15 minutos de expiração
 
 ### 5.3 CLI gatekey init — closes #17 (parcial)
