@@ -1149,6 +1149,23 @@ http.route({
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const userAgent = req.headers.get("user-agent") ?? undefined;
 
+    const rlBatch = await ctx.runMutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: caller.orgId as never,
+      endpoint: "checkBatch",
+      defaultLimit: 20,
+      windowMs: 60 * 1000,
+    });
+    if (!rlBatch.allowed) {
+      const retryAfterSecs = Math.ceil(rlBatch.retryAfterMs / 1000);
+      return new Response(
+        JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": String(retryAfterSecs), ...CORS_HEADERS },
+        },
+      );
+    }
+
     try {
       const items = (body.items as Array<{ userId: string; capability: string; resourceType: string; resourceId?: string }>).map(
         (item) => ({

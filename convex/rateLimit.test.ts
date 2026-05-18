@@ -303,3 +303,41 @@ test("audit log registra ratelimit.exceeded quando checkOrgRateLimit bloqueia", 
   expect(rateLimitEvent).toBeDefined();
   expect(rateLimitEvent?.target.type).toBe("check");
 });
+
+// ── Integração: check/batch rate limit por orgId ──────────────────────────────
+
+test("org com checkBatchPerMin: 3 — 4ª chamada ao checkOrgRateLimit(checkBatch) retorna allowed: false", async () => {
+  const t = convexTest(schema, modules);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "BatchOrg", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+      rateLimits: { checkBatchPerMin: 3 },
+    }),
+  );
+
+  for (let i = 0; i < 3; i++) {
+    await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: orgId as never,
+      endpoint: "checkBatch",
+      defaultLimit: 20,
+      windowMs: 60000,
+    });
+  }
+
+  const result = await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgId as never,
+    endpoint: "checkBatch",
+    defaultLimit: 20,
+    windowMs: 60000,
+  });
+
+  expect(result.allowed).toBe(false);
+});
