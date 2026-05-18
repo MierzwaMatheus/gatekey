@@ -126,9 +126,10 @@ export default defineSchema({
 
   audit_log: defineTable({
     timestamp: v.number(),
-    actorType: v.union(v.literal("user"), v.literal("api_key"), v.literal("system")),
+    actorType: v.union(v.literal("user"), v.literal("api_key"), v.literal("system"), v.literal("root_impersonating")),
     actorId: v.string(),
     actorRole: v.optional(v.string()),
+    actorImpersonating: v.optional(v.string()),
     action: v.string(),
     target: v.object({
       type: v.string(),
@@ -176,6 +177,17 @@ export default defineSchema({
     count: v.number(),
     windowStart: v.number(),
   }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
+
+  impersonation_sessions: defineTable({
+    rootUserId: v.string(),
+    targetUserId: v.string(),
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_rootUserId", ["rootUserId"])
+    .index("by_targetUserId", ["targetUserId"]),
 
   key_pairs: defineTable({
     kid: v.string(),

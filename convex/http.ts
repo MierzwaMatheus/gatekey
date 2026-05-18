@@ -166,11 +166,17 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const API_KEY_PREFIX = "gk_live_pk_";
 
+type CallerContext = {
+  callerId: string;
+  orgId: string;
+  impersonation?: { rootUserId: string };
+};
+
 async function resolveJwtCaller(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   req: Request,
   requiredScope?: string,
-): Promise<{ callerId: string; orgId: string } | Response> {
+): Promise<CallerContext | Response> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
     return jsonResponse({ error: "missing_token" }, 401);
@@ -186,6 +192,29 @@ async function resolveJwtCaller(
       return jsonResponse({ error: "forbidden", reason: "scope_missing" }, 403);
     }
     return { callerId: result.orgId, orgId: result.orgId };
+  }
+
+  // Check if this is an impersonation token before full JWT verification
+  let rawPayload: Record<string, unknown> | null = null;
+  try {
+    rawPayload = JSON.parse(
+      Buffer.from(token.split(".")[1]!, "base64url").toString("utf-8"),
+    ) as Record<string, unknown>;
+  } catch {
+    return jsonResponse({ error: "invalid_token" }, 401);
+  }
+  const actor = rawPayload["actor"] as Record<string, unknown> | undefined;
+  if (actor?.type === "root_impersonating") {
+    const result = await ctx.runAction(internal.impersonation.verifyImpersonationToken, { token });
+    if (!result.valid) {
+      return jsonResponse({ error: "invalid_token" }, 401);
+    }
+    const targetOrgId = (rawPayload["impersonatingOrgId"] as string | undefined) ?? "";
+    return {
+      callerId: result.targetUserId,
+      orgId: targetOrgId,
+      impersonation: { rootUserId: result.rootUserId },
+    };
   }
 
   const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
@@ -1498,6 +1527,81 @@ http.route({
   }),
 });
 
+// ── POST /v1/impersonation/start ─────────────────────────────────────────────
+
+http.route({
+  path: "/v1/impersonation/start",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { targetUserId?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.targetUserId) {
+      return jsonResponse({ error: "missing_targetUserId" }, 400);
+    }
+    try {
+      const callerUser = await ctx.runQuery(internal.users.getUserById, {
+        callerId: caller.callerId as never,
+        userId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      const isRoot = (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+      if (!isRoot) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      const token = await ctx.runAction(internal.impersonation.createImpersonationToken, {
+        rootUserId: caller.callerId,
+        targetUserId: body.targetUserId,
+        targetOrgId: caller.orgId,
+      });
+      const expiresAt = Date.now() + 3600 * 1000;
+      return jsonResponse({ impersonationToken: token, expiresAt });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/impersonation/end ───────────────────────────────────────────────
+
+http.route({
+  path: "/v1/impersonation/end",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { impersonationSessionId?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.impersonationSessionId) {
+      return jsonResponse({ error: "missing_impersonationSessionId" }, 400);
+    }
+    try {
+      const callerUser = await ctx.runQuery(internal.users.getUserById, {
+        callerId: caller.callerId as never,
+        userId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      const isRoot = (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+      if (!isRoot) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      await ctx.runMutation(internal.impersonationStore.endImpersonationSession, {
+        impersonationSessionId: body.impersonationSessionId as never,
+      });
+      return jsonResponse({ ended: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      if (msg.includes("not_found") || msg.includes("session_not_found"))
+        return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // Preflight OPTIONS — rotas com path fixo
 http.route({ path: "/v1/orgs", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/orgs/", method: "OPTIONS", handler: preflight });
@@ -1519,6 +1623,8 @@ http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight 
 http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/workspaces", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/workspaces/", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/impersonation/start", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/impersonation/end", method: "OPTIONS", handler: preflight });
 
 http.route({
   path: "/v1/auth/magic-link",
