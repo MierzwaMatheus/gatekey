@@ -64,7 +64,7 @@ async function setupBatchContext(t: ReturnType<typeof convexTest>) {
   return { userId, orgId, workspaceId, roleId };
 }
 
-// ── Ciclo 1: array vazio ──────────────────────────────────────────────────────
+// ── Ciclo 1: array vazio ─────────────────────────────────────────────────────
 
 test("checkBatch: array vazio retorna array vazio", async () => {
   const t = convexTest(schema, modules);
@@ -78,4 +78,27 @@ test("checkBatch: array vazio retorna array vazio", async () => {
   });
 
   expect(result).toEqual([]);
+});
+
+// ── Ciclo 2: usuário suspenso → user_inactive ─────────────────────────────────
+
+test("checkBatch: item com usuário suspenso retorna user_inactive naquele índice", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupBatchContext(t);
+
+  await t.run(async (ctx) => {
+    await ctx.db.patch(userId, { status: "suspended" });
+  });
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_abc" },
+    ],
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0]).toEqual({ allowed: false, reason: "user_inactive" });
 });
