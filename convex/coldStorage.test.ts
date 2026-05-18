@@ -3,6 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
+import argon2 from "argon2";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -329,6 +330,103 @@ test("generatePresignedUrl lança erro quando R2_ACCOUNT_ID não está configura
       storagePath: "org123/2024/01/31/logs.ndjson.gz",
     }),
   ).rejects.toThrow("R2_ACCOUNT_ID");
+});
+
+// ── Ciclo 5.2-3: GET /v1/audit-exports endpoint ──────────────────────────────
+
+async function setupAuditExportContext(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const PASSWORD = "admin-secret-123";
+  const passwordHash = await argon2.hash(PASSWORD);
+
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "ExportCorp",
+    adminEmail: "admin@exportcorp.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@exportcorp.io")).first(),
+  );
+  await t.run((ctx) => ctx.db.patch(adminUser!._id, { passwordHash }));
+
+  const login = await t.action(internal.auth.loginWithPassword, {
+    email: "admin@exportcorp.io",
+    password: PASSWORD,
+  });
+  if (!login.success) throw new Error("login failed");
+
+  return { orgId, token: (login as { accessToken: string }).accessToken };
+}
+
+test("GET /v1/audit-exports: retorna 401 sem token de autorização", async () => {
+  const t = convexTest(schema, modules);
+  const res = await t.fetch("/v1/audit-exports?start=2024-01-01&end=2024-01-31", { method: "GET" });
+  expect(res.status).toBe(401);
+});
+
+test("GET /v1/audit-exports: retorna 404 quando não há export no período solicitado", async () => {
+  const t = convexTest(schema, modules);
+  const { token } = await setupAuditExportContext(t);
+
+  const res = await t.fetch("/v1/audit-exports?start=2024-01-01&end=2024-01-31", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(404);
+});
+
+test("GET /v1/audit-exports: retorna downloadUrl quando export existe no período", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, token } = await setupAuditExportContext(t);
+
+  const start = new Date("2024-01-01").getTime();
+  const end = new Date("2024-01-31").getTime();
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_exports", {
+      orgId,
+      period: { start, end },
+      storagePath: `${orgId}/2024/01/31/logs.ndjson.gz`,
+      createdAt: end,
+    }),
+  );
+
+  process.env.R2_ACCOUNT_ID = "test-account";
+  process.env.R2_ACCESS_KEY_ID = "test-key";
+  process.env.R2_SECRET_ACCESS_KEY = "test-secret";
+  process.env.R2_BUCKET_NAME = "test-bucket";
+
+  try {
+    const res = await t.fetch("/v1/audit-exports?start=2024-01-01&end=2024-01-31", {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { downloadUrl: string; expiresAt: number; period: { start: number; end: number } };
+    expect(body.downloadUrl).toMatch(/^https:\/\//);
+    expect(body.expiresAt).toBeGreaterThan(Date.now());
+    expect(body.period.start).toBe(start);
+    expect(body.period.end).toBe(end);
+  } finally {
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_SECRET_ACCESS_KEY;
+    delete process.env.R2_BUCKET_NAME;
+  }
 });
 
 // ── Ciclo 5.2-1: getAuditExportByPeriod retorna export do período solicitado ───

@@ -309,6 +309,25 @@ export const getAuditExportByPeriod = query({
   },
 });
 
+export const getAuditExportByPeriodInternal = internalQuery({
+  args: {
+    orgId: v.id("orgs"),
+    startTs: v.number(),
+    endTs: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const exports = await ctx.db
+      .query("audit_exports")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    return (
+      exports.find(
+        (e) => e.period.start >= args.startTs && e.period.end <= args.endTs,
+      ) ?? null
+    );
+  },
+});
+
 export const recordAuditExport = internalMutation({
   args: {
     orgId: v.id("orgs"),
