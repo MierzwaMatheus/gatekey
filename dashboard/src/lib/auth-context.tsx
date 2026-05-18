@@ -23,6 +23,7 @@ interface AuthContextValue extends AuthState {
   clearAuth: () => void
   startImpersonation: (targetUserId: string) => Promise<void>
   endImpersonation: () => Promise<void>
+  getActiveToken: () => string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -109,6 +110,7 @@ export function AuthProvider({ children, initialRole = null, initialState }: Aut
       clearAuth,
       startImpersonation,
       endImpersonation,
+      getActiveToken: () => state.impersonationSession?.token ?? state.token,
     }}>
       {children}
     </AuthContext.Provider>

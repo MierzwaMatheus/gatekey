@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, act } from '@testing-library/react'
-import { AuthProvider } from '../lib/auth-context'
+import { render, act, renderHook } from '@testing-library/react'
+import React from 'react'
+import { AuthProvider, useAuth } from '../lib/auth-context'
 import { useImpersonationExpiry } from '../lib/use-impersonation-expiry'
 import type { ImpersonationSession } from '../lib/auth-context'
 
@@ -97,6 +98,38 @@ describe('useImpersonationExpiry', () => {
     })
 
     expect(endImpersonation).not.toHaveBeenCalled()
+  })
+})
+
+describe('getActiveToken — seleção do token ativo', () => {
+  it('retorna o impersonation token quando sessão está ativa', () => {
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(AuthProvider, {
+          initialState: {
+            token: ROOT_TOKEN,
+            role: 'root',
+            orgId: null,
+            impersonationSession: ACTIVE_SESSION,
+          },
+        }, children),
+    })
+    expect(result.current.getActiveToken()).toBe(ACTIVE_SESSION.token)
+  })
+
+  it('retorna o root token quando não há impersonation ativa', () => {
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(AuthProvider, {
+          initialState: {
+            token: ROOT_TOKEN,
+            role: 'root',
+            orgId: null,
+            impersonationSession: null,
+          },
+        }, children),
+    })
+    expect(result.current.getActiveToken()).toBe(ROOT_TOKEN)
   })
 })
 

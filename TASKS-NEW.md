@@ -123,7 +123,7 @@
 
 ### Integração: Impersonation backend ↔ dashboard — closes #21 (com 7.1 e 7.2)
 
-- [x] Confirmar que o token de impersonation é usado nos headers de todas as requisições do dashboard enquanto impersonation está ativo
+- [x] Confirmar que o token de impersonation é usado nos headers de todas as requisições do dashboard enquanto impersonation está ativo — `getActiveToken()` exposto no contexto de auth retorna `impersonationSession.token` quando ativo
 - [x] Confirmar que ao expirar o token de impersonation (1h), o dashboard exibe alerta e encerra a sessão automaticamente
 - [x] Confirmar que ações feitas via dashboard em modo impersonation aparecem no audit log com `actor.type: "root_impersonating"`
 
