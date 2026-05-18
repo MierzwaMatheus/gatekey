@@ -430,3 +430,30 @@ test("checkBatch integração: item com binding direto retorna allowed:true (bas
   expect(result).toHaveLength(1);
   expect(result[0].allowed).toBe(true);
 });
+
+// ── Ciclo 10: integração — 3 audit log entries para batch de 3 ────────────────
+
+test("checkBatch integração: 3 chamadas ao audit log são registradas para batch de 3 itens", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupBatchContext(t);
+
+  await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_a" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_b" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_c" },
+    ],
+  });
+
+  const allAuditEntries = await t.run((ctx) =>
+    ctx.db.query("audit_log").order("desc").take(20),
+  );
+  const checkEntries = allAuditEntries.filter(
+    (e) => e.action === "permission.check" && e.orgId === orgId,
+  );
+  expect(checkEntries).toHaveLength(3);
+  expect(checkEntries.every((e) => e.actorType === "user")).toBe(true);
+});
