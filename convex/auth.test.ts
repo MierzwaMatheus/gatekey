@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -22,7 +22,7 @@ async function createUser(
   password: string,
   extra?: { loginAttempts?: number; lockedUntil?: number },
 ) {
-  const passwordHash = await argon2.hash(password);
+  const passwordHash = await bcrypt.hash(password, 10);
   return t.run(async (ctx) =>
     ctx.db.insert("users", {
       email,
@@ -74,7 +74,7 @@ test("loginWithPassword: credenciais corretas retornam accessToken e refreshToke
 
 // ── Ciclo 2: hash de senha na criação de usuário ──────────────────────────────
 
-test("createUserWithPassword: senha é hasheada com argon2id antes de armazenar", async () => {
+test("createUserWithPassword: senha é hasheada com bcryptjs antes de armazenar", async () => {
   const t = convexTest(schema, modules);
 
   const userId = await t.action(internal.auth.createUserWithPassword, {
@@ -86,7 +86,7 @@ test("createUserWithPassword: senha é hasheada com argon2id antes de armazenar"
   expect(user).not.toBeNull();
   if (user) {
     expect(user.passwordHash).not.toBe("plaintext-password");
-    const valid = await argon2.verify(user.passwordHash, "plaintext-password");
+    const valid = await bcrypt.compare("plaintext-password", user.passwordHash);
     expect(valid).toBe(true);
   }
 });
@@ -712,8 +712,8 @@ test("magicLinkHtml: template EN contém link correto", async () => {
 test("loginWithPassword: usuário com mustChangePassword=true retorna flag no resultado", async () => {
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
-  const argon2 = await import("argon2");
-  const hash = await argon2.hash("temp-pass");
+  const bcrypt = await import("bcryptjs");
+  const hash = await bcrypt.hash("temp-pass", 10);
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "newadmin@acme.io",
@@ -743,8 +743,8 @@ test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
 
-  const argon2 = await import("argon2");
-  const passwordHash = await argon2.hash("password123");
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("password123", 10);
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "mfa-user@test.com",
@@ -786,8 +786,8 @@ test("loginWithPassword: mfa_setup_required retorna mfaSetupToken para permitir 
   const orgId = await t.run(async (ctx) =>
     ctx.db.insert("orgs", { name: "SetupOrg", status: "active", updatedAt: Date.now() }),
   );
-  const argon2 = await import("argon2");
-  const passwordHash = await argon2.hash("setup-password");
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("setup-password", 10);
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "needsmfa@test.com",
@@ -822,8 +822,8 @@ test("loginWithPassword: MFA ativo retorna mfa_required com mfaToken, sem access
   const orgId = await t.run(async (ctx) =>
     ctx.db.insert("orgs", { name: "MfaOrg", status: "active", updatedAt: Date.now() }),
   );
-  const argon2 = await import("argon2");
-  const passwordHash = await argon2.hash("mfa-password");
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("mfa-password", 10);
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "mfaactive@test.com",
@@ -861,8 +861,8 @@ test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_r
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
 
-  const argon2 = await import("argon2");
-  const passwordHash = await argon2.hash("root-password");
+  const bcrypt = await import("bcryptjs");
+  const passwordHash = await bcrypt.hash("root-password", 10);
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "root@test.com",

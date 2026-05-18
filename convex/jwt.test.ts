@@ -237,9 +237,9 @@ test("rotateRefreshToken: sessão expirada retorna erro", async () => {
   );
 
   // Criar sessão já expirada diretamente
-  const argon2 = await import("argon2");
+  const bcrypt = await import("bcryptjs");
   const rawToken = "expiredtoken123";
-  const hash = await argon2.hash(rawToken);
+  const hash = await bcrypt.hash(rawToken, 10);
   const sessionId = await t.run(async (ctx) =>
     ctx.db.insert("sessions", {
       userId,

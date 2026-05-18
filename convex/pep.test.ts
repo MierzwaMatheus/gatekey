@@ -94,7 +94,7 @@ test("extractApiKeyContext: lança erro quando token não tem separador de publi
 
 // ── extractApiKeyContext: lookup e verificação de hash ───────────────────────
 
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 import { internal } from "./_generated/api";
 
 test("extractApiKeyContext: lança api_key_invalid quando publicId não encontrado no DB", async () => {
@@ -113,7 +113,7 @@ test("extractApiKeyContext: lança api_key_invalid quando key está revogada", a
   const orgId = await t.run(async (ctx) => {
     return (await ctx.db.query("orgs").first())!._id;
   });
-  const secretHash = await argon2.hash("mysecret");
+  const secretHash = await bcrypt.hash("mysecret", 10);
   await t.run(async (ctx) => {
     await ctx.db.insert("api_keys", {
       orgId,
@@ -135,7 +135,7 @@ test("extractApiKeyContext: retorna contexto para key válida com secret correto
   const orgId = await t.run(async (ctx) => {
     return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
   });
-  const secretHash = await argon2.hash("validsecret");
+  const secretHash = await bcrypt.hash("validsecret", 10);
   await t.run(async (ctx) => {
     await ctx.db.insert("api_keys", {
       orgId,
@@ -181,7 +181,7 @@ test("resolveAuthContext: retorna type api_key para tokens Bearer gk_live_pk_...
   const orgId = await t.run(async (ctx) => {
     return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
   });
-  const secretHash = await argon2.hash("mysecret");
+  const secretHash = await bcrypt.hash("mysecret", 10);
   await t.run(async (ctx) => {
     await ctx.db.insert("api_keys", {
       orgId,
@@ -209,7 +209,7 @@ test("extractApiKeyContext: lança api_key_invalid quando hash do secret não co
   const orgId = await t.run(async (ctx) => {
     return await ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() });
   });
-  const secretHash = await argon2.hash("correctsecret");
+  const secretHash = await bcrypt.hash("correctsecret", 10);
   await t.run(async (ctx) => {
     await ctx.db.insert("api_keys", {
       orgId,

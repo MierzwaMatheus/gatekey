@@ -483,30 +483,30 @@
 
 ### 5.3 CLI gatekey init — closes #17 (parcial)
 
-- [ ] Inicializar projeto CLI em `/cli` com TypeScript e `@clack/prompts` (ou Inquirer)
-- [ ] Implementar prompt interativo: nome da instância
-- [ ] Implementar prompt: Convex deployment URL — validar com requisição de health check antes de aceitar
-- [ ] Implementar prompt: Convex deploy key (input mascarado)
-- [ ] Implementar prompt: tipo de cold storage com opções R2 / S3 / skip
-- [ ] Implementar prompts condicionais de cold storage: bucket, região, credenciais (exibidos apenas se não skippado)
-- [ ] Implementar prompt: email do Root
-- [ ] Implementar prompt: senha do Root (input mascarado + confirmação)
-- [ ] Implementar step `deploySchema` — executa deploy do schema Convex usando a deploy key fornecida
-- [ ] Implementar step `generateKeyPair` — chama `initializeKeyPair` Convex Action
-- [ ] Implementar step `createRootUser` — chama mutation de criação de Root com hash bcryptjs
-- [ ] Implementar step `saveEnvConfig` — grava variáveis de ambiente da instância em `.env.gatekey`
-- [ ] Implementar step `configureColdStorage` — salva configurações de bucket na instância (quando não skippado)
-- [ ] Gravar credenciais root em `.gatekey-root` (formato JSON ou dotenv)
-- [ ] Exibir mensagem de aviso explícita: "Adicione `.gatekey-root` ao seu `.gitignore` imediatamente"
-- [ ] Implementar idempotência: se Root já existe, perguntar antes de sobrescrever
+- [x] Inicializar projeto CLI em `/cli` com TypeScript e `@clack/prompts` (ou Inquirer)
+- [x] Implementar prompt interativo: nome da instância
+- [x] Implementar prompt: Convex deployment URL — validar com requisição de health check antes de aceitar
+- [x] Implementar prompt: Convex deploy key (input mascarado)
+- [x] Implementar prompt: tipo de cold storage com opções R2 / S3 / skip
+- [x] Implementar prompts condicionais de cold storage: bucket, região, credenciais (exibidos apenas se não skippado)
+- [x] Implementar prompt: email do Root
+- [x] Implementar prompt: senha do Root (input mascarado + confirmação)
+- [x] Implementar step `deploySchema` — executa deploy do schema Convex usando a deploy key fornecida
+- [x] Implementar step `generateKeyPair` — chama `initializeKeyPair` Convex Action
+- [x] Implementar step `createRootUser` — chama mutation de criação de Root com hash bcryptjs
+- [x] Implementar step `saveEnvConfig` — grava variáveis de ambiente da instância em `.env.gatekey`
+- [x] Implementar step `configureColdStorage` — salva configurações de bucket na instância (quando não skippado)
+- [x] Gravar credenciais root em `.gatekey-root` (formato JSON ou dotenv)
+- [x] Exibir mensagem de aviso explícita: "Adicione `.gatekey-root` ao seu `.gitignore` imediatamente"
+- [x] Implementar idempotência: se Root já existe, perguntar antes de sobrescrever
 - [ ] Testar `npx gatekey init` do zero em ambiente limpo sem nenhuma configuração prévia
 
 ### 5.4 Integração: CLI ↔ Schema + JWT + Root — closes #17 (com 5.3)
 
-- [ ] Confirmar que o schema deployado pelo CLI é idêntico ao usado em desenvolvimento (mesma fonte de verdade)
-- [ ] Confirmar que o par RS256 gerado pelo CLI é o mesmo consultado por `signJwt` e `verifyJwt` em runtime
-- [ ] Confirmar que o usuário Root criado pelo CLI consegue fazer login no dashboard com as credenciais salvas em `.gatekey-root`
-- [ ] Escrever teste E2E de setup completo: `gatekey init` → login → criação de org → criação de workspace → criação de usuário → binding → `/check` retorna ALLOW
+- [x] Confirmar que o schema deployado pelo CLI é idêntico ao usado em desenvolvimento (mesma fonte de verdade)
+- [x] Confirmar que o par RS256 gerado pelo CLI é o mesmo consultado por `signJwt` e `verifyJwt` em runtime
+- [x] Confirmar que o usuário Root criado pelo CLI consegue fazer login no dashboard com as credenciais salvas em `.gatekey-root`
+- [x] Escrever teste E2E de setup completo: gatekey init → login → criação de org → criação de workspace → criação de usuário → binding → /check retorna ALLOW
 
 ### 5.5 OpenAPI + testes de integração E2E — closes #18 (parcial)
 
