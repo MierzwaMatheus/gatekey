@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from 'convex/react'
 import { MonitorDot, X } from 'lucide-react'
 import { api } from '@convex/_generated/api'
@@ -43,10 +44,11 @@ function LoadingSkeleton() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation('audit')
   return (
     <div data-testid="sessions-empty" className="flex flex-col items-center justify-center py-16 gap-3">
       <MonitorDot size={32} className="text-text-secondary" />
-      <p className="text-sm text-text-secondary">Nenhuma sessão ativa.</p>
+      <p className="text-sm text-text-secondary">{t('sessions_empty')}</p>
     </div>
   )
 }
@@ -59,11 +61,12 @@ interface RevokeModalProps {
 }
 
 function RevokeModal({ session, onConfirm, onCancel, loading }: RevokeModalProps) {
+  const { t } = useTranslation('audit')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div data-testid="modal-revoke-session" className="bg-surface-card border border-border-default rounded-card shadow-float w-full max-w-sm p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-text-primary">Revogar sessão</h3>
+          <h3 className="text-sm font-medium text-text-primary">{t('sessions_revoke')}</h3>
           <button onClick={onCancel} className="text-text-secondary hover:text-text-primary cursor-pointer">
             <X size={16} />
           </button>
@@ -79,7 +82,7 @@ function RevokeModal({ session, onConfirm, onCancel, loading }: RevokeModalProps
             onClick={onCancel}
             className="px-3 py-1.5 text-sm text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
           >
-            Cancelar
+            {t('common:cancel', { ns: 'common' })}
           </button>
           <button
             data-testid="btn-confirm-revoke"
@@ -87,7 +90,7 @@ function RevokeModal({ session, onConfirm, onCancel, loading }: RevokeModalProps
             disabled={loading}
             className="px-3 py-1.5 text-sm text-black bg-status-deny rounded-button hover:opacity-90 transition-opacity disabled:opacity-60 cursor-pointer"
           >
-            {loading ? 'Revogando…' : 'Revogar'}
+            {loading ? t('sessions_revoke_loading') : t('sessions_revoke_confirm')}
           </button>
         </div>
       </div>
@@ -100,6 +103,7 @@ interface SessionsListProps {
 }
 
 export function SessionsList({ token }: SessionsListProps) {
+  const { t } = useTranslation('audit')
   const [userIdFilter, setUserIdFilter] = useState('')
   const [orgIdFilter, setOrgIdFilter] = useState('')
   const [revoking, setRevoking] = useState<SessionSummary | null>(null)
@@ -134,12 +138,11 @@ export function SessionsList({ token }: SessionsListProps) {
 
   return (
     <div className="space-y-3">
-      {/* Filtros */}
       <div className="flex items-center gap-3 pb-3 border-b border-border-default">
         <input
           data-testid="filter-user-id"
           type="text"
-          placeholder="Filtrar por userId…"
+          placeholder={t('filter_user')}
           value={userIdFilter}
           onChange={(e) => setUserIdFilter(e.target.value)}
           className="flex-1 px-3 py-1.5 text-[12px] font-mono bg-surface-elevated border border-border-default rounded-input text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-accent transition-colors"
@@ -147,14 +150,13 @@ export function SessionsList({ token }: SessionsListProps) {
         <input
           data-testid="filter-org-id"
           type="text"
-          placeholder="Filtrar por orgId…"
+          placeholder={t('filter_org')}
           value={orgIdFilter}
           onChange={(e) => setOrgIdFilter(e.target.value)}
           className="flex-1 px-3 py-1.5 text-[12px] font-mono bg-surface-elevated border border-border-default rounded-input text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-accent transition-colors"
         />
       </div>
 
-      {/* Lista */}
       {filtered === undefined ? (
         <LoadingSkeleton />
       ) : filtered.length === 0 ? (
@@ -163,16 +165,16 @@ export function SessionsList({ token }: SessionsListProps) {
         <DenseGridContainer>
           <DenseGridHeader
             label="Sessions / Live"
-            stats={[{ label: 'ativas', value: filtered.length }]}
+            stats={[{ label: t('sessions_label_active'), value: filtered.length }]}
           />
           <DenseGridTable>
             <DenseGridThead>
               <DenseGridThNum />
-              <DenseGridTh>UserId</DenseGridTh>
-              <DenseGridTh>IP</DenseGridTh>
-              <DenseGridTh>Dispositivo</DenseGridTh>
-              <DenseGridTh>Expiração</DenseGridTh>
-              <DenseGridTh align="right">Ações</DenseGridTh>
+              <DenseGridTh>{t('sessions_col_user')}</DenseGridTh>
+              <DenseGridTh>{t('sessions_col_ip')}</DenseGridTh>
+              <DenseGridTh>{t('sessions_col_device')}</DenseGridTh>
+              <DenseGridTh>{t('sessions_col_expires')}</DenseGridTh>
+              <DenseGridTh align="right">{t('sessions_col_actions')}</DenseGridTh>
             </DenseGridThead>
             <tbody>
               {filtered.map((session, i) => (
@@ -208,7 +210,7 @@ export function SessionsList({ token }: SessionsListProps) {
                       testId={`btn-revoke-${session._id}`}
                       onClick={() => setRevoking(session)}
                     >
-                      Revogar
+                      {t('sessions_revoke_confirm')}
                     </DenseGridActionBtn>
                   </DenseGridActionsCell>
                 </DenseGridRow>

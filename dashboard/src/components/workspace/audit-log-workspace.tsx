@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { usePaginatedQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -33,6 +34,7 @@ function relativeTime(ts: number): string {
 }
 
 export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps) {
+  const { t } = useTranslation('audit')
   const [actionFilter, setActionFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<'allow' | 'deny' | ''>('')
 
@@ -66,14 +68,13 @@ export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
       <div className="flex gap-3">
         <input
           data-testid="filter-action"
           type="text"
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value)}
-          placeholder="Filtrar por action…"
+          placeholder={t('filter_action')}
           className="px-3 py-1.5 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none w-48"
         />
         <select
@@ -82,29 +83,29 @@ export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps
           onChange={(e) => setResultFilter(e.target.value as 'allow' | 'deny' | '')}
           className="px-3 py-1.5 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
         >
-          <option value="">Todos os resultados</option>
-          <option value="allow">allow</option>
-          <option value="deny">deny</option>
+          <option value="">{t('filter_result_all')}</option>
+          <option value="allow">{t('filter_result_allow')}</option>
+          <option value="deny">{t('filter_result_deny')}</option>
         </select>
       </div>
 
       {logs.length === 0 ? (
         <div data-testid="audit-log-empty" className="text-center py-12">
-          <p className="text-text-muted text-sm">Nenhum evento de auditoria encontrado.</p>
+          <p className="text-text-muted text-sm">{t('empty')}</p>
         </div>
       ) : (
         <DenseGridContainer>
           <DenseGridHeader
-            label="Audit Log"
-            stats={[{ label: 'eventos', value: logs.length }]}
+            label={t('header')}
+            stats={[{ label: t('label_events'), value: logs.length }]}
           />
           <DenseGridTable>
             <DenseGridThead>
               <DenseGridThNum />
-              <DenseGridTh>Quando</DenseGridTh>
-              <DenseGridTh>Ator</DenseGridTh>
-              <DenseGridTh>Action</DenseGridTh>
-              <DenseGridTh>Resultado</DenseGridTh>
+              <DenseGridTh>{t('col_when')}</DenseGridTh>
+              <DenseGridTh>{t('col_actor')}</DenseGridTh>
+              <DenseGridTh>{t('col_action')}</DenseGridTh>
+              <DenseGridTh>{t('col_result')}</DenseGridTh>
             </DenseGridThead>
             <tbody>
               {logs.map((log, i) => (

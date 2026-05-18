@@ -11,6 +11,8 @@ import ptBRRoles from '../locales/pt-BR/roles.json'
 import enRoles from '../locales/en/roles.json'
 import ptBRBindings from '../locales/pt-BR/bindings.json'
 import enBindings from '../locales/en/bindings.json'
+import ptBRAudit from '../locales/pt-BR/audit.json'
+import enAudit from '../locales/en/audit.json'
 
 i18n
   .use(LanguageDetector)
@@ -18,10 +20,10 @@ i18n
   .init({
     fallbackLng: 'pt-BR',
     defaultNS: 'common',
-    ns: ['common', 'auth', 'users', 'roles', 'bindings'],
+    ns: ['common', 'auth', 'users', 'roles', 'bindings', 'audit'],
     resources: {
-      'pt-BR': { common: ptBRCommon, auth: ptBRAuth, users: ptBRUsers, roles: ptBRRoles, bindings: ptBRBindings },
-      en: { common: enCommon, auth: enAuth, users: enUsers, roles: enRoles, bindings: enBindings },
+      'pt-BR': { common: ptBRCommon, auth: ptBRAuth, users: ptBRUsers, roles: ptBRRoles, bindings: ptBRBindings, audit: ptBRAudit },
+      en: { common: enCommon, auth: enAuth, users: enUsers, roles: enRoles, bindings: enBindings, audit: enAudit },
     },
     interpolation: { escapeValue: false },
     detection: {
