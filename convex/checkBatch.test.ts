@@ -102,3 +102,22 @@ test("checkBatch: item com usuário suspenso retorna user_inactive naquele índi
   expect(result).toHaveLength(1);
   expect(result[0]).toEqual({ allowed: false, reason: "user_inactive" });
 });
+
+// ── Ciclo 3: sem binding → no_binding_found ───────────────────────────────────
+
+test("checkBatch: item sem binding retorna no_binding_found naquele índice", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupBatchContext(t);
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_xyz" },
+    ],
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0]).toEqual({ allowed: false, reason: "no_binding_found" });
+});
