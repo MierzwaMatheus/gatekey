@@ -1063,6 +1063,23 @@ http.route({
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const userAgent = req.headers.get("user-agent") ?? undefined;
 
+    const rl = await ctx.runMutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: caller.orgId as never,
+      endpoint: "check",
+      defaultLimit: 100,
+      windowMs: 60 * 1000,
+    });
+    if (!rl.allowed) {
+      const retryAfterSecs = Math.ceil(rl.retryAfterMs / 1000);
+      return new Response(
+        JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": String(retryAfterSecs), ...CORS_HEADERS },
+        },
+      );
+    }
+
     try {
       const result = await ctx.runAction(internal.check.performCheck, {
         callerId: caller.callerId as never,

@@ -134,6 +134,7 @@ test("11 chamadas ao login com mesmo IP — a 11ª retorna rate_limit_exceeded",
 
   expect(lastResult?.success).toBe(false);
   expect((lastResult as { error?: string })?.error).toBe("rate_limit_exceeded");
+  // (test: 11ª chamada)
 });
 
 test("retryAfterMs é positivo quando rate limit excedido no login", async () => {
@@ -204,4 +205,101 @@ test("21 chamadas ao refresh com mesmo IP — a 21ª retorna rate_limit_exceeded
 
   expect(lastResult?.success).toBe(false);
   expect((lastResult as { error?: string })?.error).toBe("rate_limit_exceeded");
+  // (test: 21ª chamada ao refresh)
+});
+
+// ── Integração: check rate limit por orgId ────────────────────────────────────
+
+async function setupCheckRateLimitEnv(t: ReturnType<typeof convexTest>, checkPerMin?: number) {
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "CheckOrg", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+      rateLimits: checkPerMin !== undefined ? { checkPerMin } : undefined,
+    }),
+  );
+  return { orgId };
+}
+
+test("org com checkPerMin: 5 — 6ª chamada ao checkOrgRateLimit retorna allowed: false", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupCheckRateLimitEnv(t, 5);
+
+  for (let i = 0; i < 5; i++) {
+    await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: orgId as never,
+      endpoint: "check",
+      defaultLimit: 100,
+      windowMs: 60000,
+    });
+  }
+
+  const result = await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgId as never,
+    endpoint: "check",
+    defaultLimit: 100,
+    windowMs: 60000,
+  });
+
+  expect(result.allowed).toBe(false);
+});
+
+test("org diferente não é afetada pelo rate limit de outra org", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId: orgA } = await setupCheckRateLimitEnv(t, 2);
+  const { orgId: orgB } = await setupCheckRateLimitEnv(t, 2);
+
+  for (let i = 0; i < 2; i++) {
+    await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: orgA as never,
+      endpoint: "check",
+      defaultLimit: 100,
+      windowMs: 60000,
+    });
+  }
+  const blockedA = await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgA as never,
+    endpoint: "check",
+    defaultLimit: 100,
+    windowMs: 60000,
+  });
+  expect(blockedA.allowed).toBe(false);
+
+  const allowedB = await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgB as never,
+    endpoint: "check",
+    defaultLimit: 100,
+    windowMs: 60000,
+  });
+  expect(allowedB.allowed).toBe(true);
+});
+
+test("audit log registra ratelimit.exceeded quando checkOrgRateLimit bloqueia", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupCheckRateLimitEnv(t, 1);
+
+  await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgId as never,
+    endpoint: "check",
+    defaultLimit: 100,
+    windowMs: 60000,
+  });
+  await t.mutation(internal.rateLimit.checkOrgRateLimit, {
+    orgId: orgId as never,
+    endpoint: "check",
+    defaultLimit: 100,
+    windowMs: 60000,
+  });
+
+  const auditEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+  const rateLimitEvent = auditEvents.find((e) => e.action === "ratelimit.exceeded");
+  expect(rateLimitEvent).toBeDefined();
+  expect(rateLimitEvent?.target.type).toBe("check");
 });

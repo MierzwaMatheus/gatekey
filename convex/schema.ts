@@ -37,6 +37,10 @@ export default defineSchema({
     jwtExpiryRefresh: v.number(),
     quotas: v.record(v.string(), v.number()),
     defaultLanguage: v.optional(v.string()),
+    rateLimits: v.optional(v.object({
+      checkPerMin: v.optional(v.number()),
+      checkBatchPerMin: v.optional(v.number()),
+    })),
   }),
 
   workspaces: defineTable({
