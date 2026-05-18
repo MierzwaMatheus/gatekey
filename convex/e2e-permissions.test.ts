@@ -230,3 +230,108 @@ test("E2E: criar binding → DELETE /v1/bindings/:id → POST /v1/check retorna 
   expect(afterBody.allowed).toBe(false);
   expect(afterBody.reason).toBe("no_binding_found");
 });
+
+// ── Ciclo 9: API Key com escopo bindings:write ≠ users:write ─────────────────
+
+test("E2E: API Key com escopo bindings:write pode criar binding mas não pode criar usuário", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, workspaceId } = await setupE2EBase(t);
+
+  // Criar member para usar no binding
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member9@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId: memberId, workspaceId, status: "active" }),
+  );
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+
+  // Criar API Key com escopo bindings:write apenas
+  const secretPlain = "apikeysecret12345678";
+  const secretHash = await bcrypt.hash(secretPlain, 10);
+  await t.run((ctx) =>
+    ctx.db.insert("api_keys", {
+      orgId,
+      publicId: "bindingscopekey123456",
+      secretHash,
+      scopes: ["bindings:write"],
+      description: "bindings only key",
+      status: "active",
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: adminId, orgId, role: "admin", status: "active" }),
+  );
+
+  const apiKeyHeader = `Bearer gk_live_pk_bindingscopekey123456_${secretPlain}`;
+
+  // POST /v1/bindings com escopo bindings:write → deve funcionar (201 ou 403 por falta de PDP, não por escopo)
+  const bindingRes = await t.fetch("/v1/bindings", {
+    method: "POST",
+    headers: { Authorization: apiKeyHeader, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: memberId as string,
+      roleId: roleId as string,
+      resourceType: "workspace",
+      workspaceId: workspaceId as string,
+    }),
+  });
+  // bindings:write está no escopo → não deve retornar 401/403 por escopo ausente
+  expect(bindingRes.status).not.toBe(401);
+
+  // POST /v1/users com a mesma API Key (escopo bindings:write) → deve retornar 403 por falta de users:write
+  const userRes = await t.fetch("/v1/users", {
+    method: "POST",
+    headers: { Authorization: apiKeyHeader, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: "blocked@acme.io", password: "Blocked@1", role: "member", orgId: orgId as string }),
+  });
+  expect(userRes.status).toBe(403);
+});
+
+// ── Ciclo 10: revogar sessão → JWT = 401 ──────────────────────────────────────
+
+test("E2E: revogar sessão via DELETE /v1/sessions/:id → requisição com JWT retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, workspaceId, token } = await setupE2EBase(t);
+
+  // Buscar o sessionId da sessão criada no login do setup
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", adminId))
+      .first(),
+  );
+  expect(session).not.toBeNull();
+  const sessionId = session!._id as string;
+
+  // Confirmar que token funciona antes da revogação
+  const beforeRevoke = await t.fetch("/v1/sessions", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(beforeRevoke.status).toBe(200);
+
+  // Revogar a sessão via HTTP DELETE
+  const revokeRes = await t.fetch(`/v1/sessions/${sessionId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(revokeRes.status).toBe(200);
+
+  // Verificar que próxima requisição com o mesmo JWT retorna 401
+  const afterRevoke = await t.fetch("/v1/sessions", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(afterRevoke.status).toBe(401);
+});

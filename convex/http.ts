@@ -165,6 +165,7 @@ const API_KEY_PREFIX = "gk_live_pk_";
 async function resolveJwtCaller(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   req: Request,
+  requiredScope?: string,
 ): Promise<{ callerId: string; orgId: string } | Response> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -176,6 +177,9 @@ async function resolveJwtCaller(
     const result = await ctx.runAction(internal.pep.verifyApiKey, { authHeader });
     if (!result.success) {
       return jsonResponse({ error: "invalid_api_key" }, 401);
+    }
+    if (requiredScope && !result.scopes.includes(requiredScope)) {
+      return jsonResponse({ error: "forbidden", reason: "scope_missing" }, 403);
     }
     return { callerId: result.orgId, orgId: result.orgId };
   }
@@ -387,7 +391,7 @@ http.route({
   path: "/v1/users",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const caller = await resolveJwtCaller(ctx, req);
+    const caller = await resolveJwtCaller(ctx, req, "users:write");
     if (isResponse(caller)) return caller;
 
     let body: { email?: string; password?: string; role?: string; orgId?: string };
@@ -736,7 +740,7 @@ http.route({
   path: "/v1/bindings",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const caller = await resolveJwtCaller(ctx, req);
+    const caller = await resolveJwtCaller(ctx, req, "bindings:write");
     if (isResponse(caller)) return caller;
 
     let body: {
@@ -977,7 +981,7 @@ http.route({
 });
 
 http.route({
-  path: "/v1/sessions/",
+  pathPrefix: "/v1/sessions/",
   method: "DELETE",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
