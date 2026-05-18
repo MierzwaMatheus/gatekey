@@ -479,7 +479,7 @@
 - [x] Implementar tela no painel Org Admin: date pickers para selecionar período + botão "Gerar link de download"
 - [x] Implementar tela equivalente no painel Root para qualquer org
 - [x] Implementar feedback visual quando link é gerado (copiar para clipboard + contador de expiração)
-- [ ] Confirmar que URL pré-assinada retorna 403 após 15 minutos de expiração
+- [x] Confirmar que URL pré-assinada retorna 403 após 15 minutos de expiração
 
 ### 5.3 CLI gatekey init — closes #17 (parcial)
 
