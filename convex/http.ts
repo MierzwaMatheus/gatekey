@@ -76,6 +76,20 @@ http.route({
         if (result.error === "mfa_setup_required") {
           return withCors({ mfa_setup_required: true, mfa_setup_token: result.mfaSetupToken });
         }
+        if (result.error === "rate_limit_exceeded") {
+          const retryAfterSecs = Math.ceil((result.retryAfterMs ?? 60000) / 1000);
+          return new Response(
+            JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+            {
+              status: 429,
+              headers: {
+                "Content-Type": "application/json",
+                "Retry-After": String(retryAfterSecs),
+                ...CORS_HEADERS,
+              },
+            },
+          );
+        }
         const status = result.error === "account_locked" ? 429
           : result.error === "method_disabled" ? 403
           : 401;

@@ -32,22 +32,25 @@ export const loginWithPassword = internalAction({
       lockedUntil: v.optional(v.number()),
       mfaToken: v.optional(v.string()),
       mfaSetupToken: v.optional(v.string()),
+      retryAfterMs: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, args): Promise<
     | { success: true; accessToken: string; refreshToken: string; sessionId: string; mustChangePassword: boolean }
-    | { success: false; error: string; lockedUntil?: number; mfaToken?: string; mfaSetupToken?: string }
+    | { success: false; error: string; lockedUntil?: number; mfaToken?: string; mfaSetupToken?: string; retryAfterMs?: number }
   > => {
     const bcrypt = await import("bcryptjs");
+    const { getRateLimitKey } = await import("./rateLimit");
 
     // Verificar rate limiting por IP
     if (args.ip) {
-      const allowed = (await ctx.runMutation(internal.authStore.checkAndIncrementRateLimit, {
-        ip: args.ip,
-        endpoint: "/v1/auth/login",
-      })) as boolean;
-      if (!allowed) {
-        return { success: false as const, error: "rate_limit_exceeded" };
+      const rlResult = await ctx.runMutation(internal.rateLimit.checkRateLimit, {
+        key: getRateLimitKey("login", args.ip),
+        limit: 10,
+        windowMs: 60 * 1000,
+      });
+      if (!rlResult.allowed) {
+        return { success: false as const, error: "rate_limit_exceeded", retryAfterMs: rlResult.retryAfterMs };
       }
     }
 

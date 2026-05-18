@@ -7,6 +7,7 @@ import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
 import { getRateLimitKey } from "./rateLimit";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -76,4 +77,86 @@ test("após windowMs expirar, contador é zerado e checkRateLimit volta a retorn
   // Após expirar, deve permitir novamente
   const result = await t.mutation(internal.rateLimit.checkRateLimit, { key, limit, windowMs });
   expect(result.allowed).toBe(true);
+});
+
+// ── Integração: login rate limit ──────────────────────────────────────────────
+
+async function setupLoginEnv(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "TestOrg", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+  const passwordHash = await bcrypt.hash("password123", 10);
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "rl@test.io",
+      passwordHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: userId as never,
+      orgId: orgId as never,
+      role: "member",
+      status: "active",
+    }),
+  );
+  return { orgId, userId };
+}
+
+test("11 chamadas ao login com mesmo IP — a 11ª retorna rate_limit_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  await setupLoginEnv(t);
+
+  const ip = "203.0.113.1";
+  let lastResult: { success: boolean; error?: string; retryAfterMs?: number } | null = null;
+
+  for (let i = 0; i < 11; i++) {
+    lastResult = await t.action(internal.auth.loginWithPassword, {
+      email: "rl@test.io",
+      password: "password123",
+      ip,
+    }) as { success: boolean; error?: string; retryAfterMs?: number };
+  }
+
+  expect(lastResult?.success).toBe(false);
+  expect((lastResult as { error?: string })?.error).toBe("rate_limit_exceeded");
+});
+
+test("retryAfterMs é positivo quando rate limit excedido no login", async () => {
+  const t = convexTest(schema, modules);
+  await setupLoginEnv(t);
+
+  const ip = "203.0.113.2";
+
+  for (let i = 0; i < 10; i++) {
+    await t.action(internal.auth.loginWithPassword, {
+      email: "rl@test.io",
+      password: "password123",
+      ip,
+    });
+  }
+
+  const result = await t.action(internal.auth.loginWithPassword, {
+    email: "rl@test.io",
+    password: "password123",
+    ip,
+  }) as { success: boolean; error?: string; retryAfterMs?: number };
+
+  expect(result.success).toBe(false);
+  expect(result.error).toBe("rate_limit_exceeded");
+  expect(result.retryAfterMs).toBeGreaterThan(0);
 });
