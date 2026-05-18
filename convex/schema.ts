@@ -182,6 +182,11 @@ export default defineSchema({
     windowStart: v.number(),
   }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
 
+  global_settings: defineTable({
+    checkRateLimitPerMin: v.optional(v.number()),
+    checkBatchRateLimitPerMin: v.optional(v.number()),
+  }),
+
   rate_limit_counters: defineTable({
     key: v.string(),
     count: v.number(),

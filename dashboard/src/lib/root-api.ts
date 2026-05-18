@@ -194,3 +194,22 @@ export interface UserBasic {
 export function getUser(token: string, userId: string): Promise<UserBasic> {
   return apiFetch<UserBasic>(`/v1/users/${userId}`, token)
 }
+
+export interface GlobalRateLimitSettings {
+  checkPerMin: number
+  checkBatchPerMin: number
+}
+
+export function getGlobalRateLimits(token: string): Promise<GlobalRateLimitSettings> {
+  return apiFetch<GlobalRateLimitSettings>('/v1/global-settings/rate-limits', token)
+}
+
+export function updateGlobalRateLimits(
+  token: string,
+  data: Partial<GlobalRateLimitSettings>,
+): Promise<void> {
+  return apiFetch<void>('/v1/global-settings/rate-limits', token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}

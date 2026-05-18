@@ -716,6 +716,10 @@ export const updateOrgSettings = internalMutation({
     jwtExpiryAccess: v.optional(v.number()),
     jwtExpiryRefresh: v.optional(v.number()),
     quotas: v.optional(v.record(v.string(), v.number())),
+    rateLimits: v.optional(v.object({
+      checkPerMin: v.optional(v.number()),
+      checkBatchPerMin: v.optional(v.number()),
+    })),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -750,6 +754,7 @@ export const updateOrgSettings = internalMutation({
     if (args.quotas !== undefined) {
       patch.quotas = { ...(settings.quotas as Record<string, number>), ...args.quotas };
     }
+    if (args.rateLimits !== undefined) patch.rateLimits = args.rateLimits;
 
     await ctx.db.patch(settings._id, patch as never);
 

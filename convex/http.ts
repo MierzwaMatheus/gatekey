@@ -417,6 +417,7 @@ http.route({
       mfaRequired?: boolean;
       jwtExpiryAccess?: number;
       jwtExpiryRefresh?: number;
+      rateLimits?: { checkPerMin?: number; checkBatchPerMin?: number };
     } = {};
     try { body = await req.json(); } catch { /* empty */ }
     try {
@@ -429,6 +430,7 @@ http.route({
           mfaRequired: body.mfaRequired,
           jwtExpiryAccess: body.jwtExpiryAccess,
           jwtExpiryRefresh: body.jwtExpiryRefresh,
+          rateLimits: body.rateLimits,
         });
         return jsonResponse({ success: true });
       }
@@ -1963,5 +1965,50 @@ http.route({
 });
 
 http.route({ path: "/v1/docs", method: "OPTIONS", handler: preflight });
+
+// ── GET /v1/global-settings/rate-limits ───────────────────────────────────────
+
+http.route({ path: "/v1/global-settings/rate-limits", method: "OPTIONS", handler: preflight });
+
+async function requireRoot(
+  ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
+  caller: CallerContext,
+): Promise<boolean> {
+  const callerUser = await ctx.runQuery(internal.users.getUserById, {
+    callerId: caller.callerId as never,
+    userId: caller.callerId as never,
+    orgId: caller.orgId as never,
+  });
+  return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+}
+
+http.route({
+  path: "/v1/global-settings/rate-limits",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) return jsonResponse({ error: "forbidden" }, 403);
+    const limits = await ctx.runQuery(internal.globalSettings.getGlobalRateLimits, {});
+    return jsonResponse(limits);
+  }),
+});
+
+http.route({
+  path: "/v1/global-settings/rate-limits",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) return jsonResponse({ error: "forbidden" }, 403);
+    let body: { checkPerMin?: number; checkBatchPerMin?: number } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    await ctx.runMutation(internal.globalSettings.updateGlobalRateLimits, {
+      checkPerMin: body.checkPerMin,
+      checkBatchPerMin: body.checkBatchPerMin,
+    });
+    return jsonResponse({ success: true });
+  }),
+});
 
 export default http;
