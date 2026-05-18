@@ -515,12 +515,12 @@
 - [ ] Vincular URL de documentação ao Playground interativo do dashboard
 - [x] Escrever teste E2E: login com email+senha → criar binding → `POST /v1/check` retorna `{allowed: true}`
 - [x] Escrever teste E2E: criar binding → deletar binding → `POST /v1/check` retorna `{allowed: false}`
-- [ ] Escrever teste E2E: atingir cota de usuários → próxima criação retorna `QuotaExceeded` com campos corretos
-- [ ] Escrever teste E2E: atingir cota de workspaces → idem
-- [ ] Escrever teste E2E: atingir cota de roles → idem
-- [ ] Escrever teste E2E: atingir cota de capabilities → idem
-- [ ] Escrever teste E2E: atingir cota de sessões → idem
-- [ ] Escrever teste E2E: atingir cota de API Keys → idem
+- [x] Escrever teste E2E: atingir cota de usuários → próxima criação retorna `QuotaExceeded` com campos corretos
+- [x] Escrever teste E2E: atingir cota de workspaces → idem
+- [x] Escrever teste E2E: atingir cota de roles → idem
+- [x] Escrever teste E2E: atingir cota de capabilities → idem
+- [x] Escrever teste E2E: atingir cota de sessões → idem
+- [x] Escrever teste E2E: atingir cota de API Keys → idem
 - [ ] Escrever teste E2E: API Key com escopo `bindings:write` pode criar binding mas não pode chamar `users:write`
 - [ ] Escrever teste E2E: revogar sessão → requisição seguinte com o JWT daquela sessão retorna 401
 - [ ] Configurar CI (GitHub Actions) para executar todos os testes em cada push para main
