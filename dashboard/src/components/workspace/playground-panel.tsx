@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listApiKeys, type ApiKeySummary } from '../../lib/org-api'
 
 const BASE_URL = (import.meta.env.VITE_CONVEX_SITE_URL ?? import.meta.env.VITE_CONVEX_URL ?? '') as string
@@ -138,6 +139,7 @@ interface PlaygroundPanelProps {
 }
 
 export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
+  const { t } = useTranslation('playground')
   const [method, setMethod] = useState<HttpMethod>('GET')
   const [endpoint, setEndpoint] = useState('')
   const [body, setBody] = useState('')
@@ -264,7 +266,7 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
           type="text"
           value={endpoint}
           onChange={(e) => setEndpoint(e.target.value)}
-          placeholder="/v1/check"
+          placeholder={t('endpoint_placeholder')}
           className="flex-1 border border-border-default rounded px-3 py-1.5 text-sm bg-surface-card text-text-primary font-mono"
         />
 
@@ -281,7 +283,7 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
           data-testid="btn-copy-curl"
           onClick={handleCopyCurl}
           className="px-3 py-1.5 text-sm text-text-secondary border border-border-default rounded hover:bg-surface-hover cursor-pointer transition-colors"
-          title="copy as cURL"
+          title={t('btn_copy_curl')}
         >
           cURL
         </button>
@@ -290,7 +292,7 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
           data-testid="btn-copy-sdk"
           onClick={handleCopySdk}
           className="px-3 py-1.5 text-sm text-text-secondary border border-border-default rounded hover:bg-surface-hover cursor-pointer transition-colors"
-          title="copy as SDK call"
+          title={t('btn_copy_sdk')}
         >
           SDK
         </button>
@@ -307,7 +309,7 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
         </div>
       ) : (
         <div className="flex items-center gap-2">
-          <label className="text-xs text-text-secondary">API Key:</label>
+          <label className="text-xs text-text-secondary">{t('label_api_key')}</label>
           <select
             data-testid="apikey-select"
             value={selectedKeyId}
@@ -326,14 +328,14 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
       {/* Editor de body JSON */}
       {method !== 'GET' && (
         <div className="space-y-1">
-          <label className="text-xs text-text-secondary">Body (JSON)</label>
+          <label className="text-xs text-text-secondary">{t('label_body')}</label>
           <textarea
             data-testid="body-editor"
             value={body}
             onChange={(e) => { setBody(e.target.value); validateBody(e.target.value) }}
             rows={6}
             className="w-full border border-border-default rounded px-3 py-2 text-sm bg-surface-card text-text-primary font-mono resize-y"
-            placeholder='{ "key": "value" }'
+            placeholder={t('body_placeholder')}
           />
           {bodyError && (
             <p data-testid="body-json-error" className="text-xs text-status-error">
@@ -353,11 +355,11 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
           <p className="text-xs text-text-secondary">{doc.description}</p>
           <dl className="text-xs space-y-1 mt-1">
             <div>
-              <dt className="text-text-secondary inline">Parâmetros: </dt>
+              <dt className="text-text-secondary inline">{t('label_params')} </dt>
               <dd className="inline font-mono text-text-primary">{doc.params}</dd>
             </div>
             <div>
-              <dt className="text-text-secondary inline">Exemplo: </dt>
+              <dt className="text-text-secondary inline">{t('label_example')} </dt>
               <dd className="inline font-mono text-text-primary">{doc.example}</dd>
             </div>
           </dl>
@@ -387,7 +389,7 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
       {/* Histórico */}
       {history.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs text-text-secondary uppercase tracking-wide">Histórico</p>
+          <p className="text-xs text-text-secondary uppercase tracking-wide">{t('label_history')}</p>
           <ul data-testid="history-list" className="space-y-0.5">
             {history.map((entry, i) => (
               <li key={i}>
