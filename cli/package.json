@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.9.1",
-    "argon2": "^0.44.0",
     "bcryptjs": "^3.0.3",
     "execa": "^9.5.2"
   },

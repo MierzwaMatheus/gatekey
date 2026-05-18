@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -15,9 +15,9 @@ test("E2E: setup completo retorna ALLOW no pdpDecide após gatekey init", async 
   const { kid } = await t.action(internal.jwt.initializeKeyPair, {});
   expect(kid).toBeTypeOf("string");
 
-  // 2. CLI step: createRootUser → root criado com hash argon2
+  // 2. CLI step: createRootUser → root criado com hash bcryptjs
   const rootPassword = "RootSenha@456";
-  const rootPasswordHash = await argon2.hash(rootPassword);
+  const rootPasswordHash = await bcrypt.hash(rootPassword, 10);
   const bootstrapResult = await t.action(internal.setup.bootstrapRootUser, {
     email: "root@gatekey.dev",
     passwordHash: rootPasswordHash,
@@ -51,7 +51,7 @@ test("E2E: setup completo retorna ALLOW no pdpDecide após gatekey init", async 
 
   // 5. Cria um usuário na org (inserção direta para simplicidade)
   const memberPassword = "Membro@123";
-  const memberHash = await argon2.hash(memberPassword);
+  const memberHash = await bcrypt.hash(memberPassword, 10);
   const memberId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "member@acme.io",

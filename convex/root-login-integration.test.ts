@@ -3,16 +3,16 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
-test("root criado via bootstrapRootUser autentica com a senha em texto claro (hash argon2 compatível)", async () => {
+test("root criado via bootstrapRootUser autentica com a senha em texto claro (hash bcryptjs compatível)", async () => {
   const t = convexTest(schema, modules);
   await t.action(internal.jwt.initializeKeyPair, {});
 
   const plainPassword = "SenhaSegura@123";
-  const passwordHash = await argon2.hash(plainPassword);
+  const passwordHash = await bcrypt.hash(plainPassword, 10);
 
   const result = await t.action(internal.setup.bootstrapRootUser, {
     email: "root@gatekey.dev",
@@ -27,7 +27,7 @@ test("root criado via bootstrapRootUser autentica com a senha em texto claro (ha
   });
 
   // Root sem MFA recebe mfa_setup_required — isso é comportamento correto (task 4.5).
-  // O importante é que NÃO retorna invalid_credentials: o hash argon2 bate.
+  // O importante é que NÃO retorna invalid_credentials: o hash bcryptjs bate.
   expect(loginResult.success).toBe(false);
   if (!loginResult.success) {
     expect(loginResult.error).not.toBe("invalid_credentials");
@@ -39,7 +39,7 @@ test("root com senha errada retorna invalid_credentials", async () => {
   const t = convexTest(schema, modules);
   await t.action(internal.jwt.initializeKeyPair, {});
 
-  const passwordHash = await argon2.hash("SenhaCorreta@123");
+  const passwordHash = await bcrypt.hash("SenhaCorreta@123", 10);
   await t.action(internal.setup.bootstrapRootUser, {
     email: "root@gatekey.dev",
     passwordHash,
@@ -60,7 +60,7 @@ test("bootstrapRootUser retorna erro quando root já existe", async () => {
   const t = convexTest(schema, modules);
   await t.action(internal.jwt.initializeKeyPair, {});
 
-  const passwordHash = await argon2.hash("Senha1");
+  const passwordHash = await bcrypt.hash("Senha1", 10);
 
   await t.action(internal.setup.bootstrapRootUser, {
     email: "root@gatekey.dev",
@@ -82,7 +82,7 @@ test("root tem flag isRoot=true no banco após criação via bootstrapRootUser",
   const t = convexTest(schema, modules);
   await t.action(internal.jwt.initializeKeyPair, {});
 
-  const passwordHash = await argon2.hash("Senha2");
+  const passwordHash = await bcrypt.hash("Senha2", 10);
   const result = await t.action(internal.setup.bootstrapRootUser, {
     email: "rootcheck@gatekey.dev",
     passwordHash,

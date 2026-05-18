@@ -3,8 +3,8 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Criar o primeiro usuário root via Convex Dashboard ou CLI:
-// npx convex run setup:bootstrapRootUser '{"email":"admin@example.com","passwordHash":"<argon2_hash>"}'
-// O passwordHash deve ser gerado com argon2 antes de chamar este action.
+// npx convex run setup:bootstrapRootUser '{"email":"admin@example.com","passwordHash":"<bcryptjs_hash>"}'
+// O passwordHash deve ser gerado com bcryptjs antes de chamar este action.
 export const bootstrapRootUser = internalAction({
   args: {
     email: v.string(),

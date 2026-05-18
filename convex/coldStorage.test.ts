@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -375,7 +375,7 @@ async function setupAuditExportContext(t: ReturnType<typeof convexTest>) {
   await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
 
   const PASSWORD = "admin-secret-123";
-  const passwordHash = await argon2.hash(PASSWORD);
+  const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,

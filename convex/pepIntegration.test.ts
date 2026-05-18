@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import argon2 from "argon2";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -28,7 +28,7 @@ async function setupOrgWithToken(t: ReturnType<typeof convexTest>) {
   );
 
   const PASSWORD = "admin-secret-123";
-  const passwordHash = await argon2.hash(PASSWORD);
+  const passwordHash = await bcrypt.hash(PASSWORD, 10);
 
   const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
     callerId: rootId,
@@ -94,8 +94,8 @@ test("PEP integração: API Key ativa funciona e API Key revogada retorna 401", 
   );
 
   const secretPlain = "mysecret123456";
-  const argon2 = await import("argon2");
-  const secretHash = await argon2.hash(secretPlain, { type: argon2.argon2id });
+  const bcrypt = await import("bcryptjs");
+  const secretHash = await bcrypt.hash(secretPlain, 10);
 
   const keyId = await t.run((ctx) =>
     ctx.db.insert("api_keys", {
