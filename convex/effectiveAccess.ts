@@ -66,6 +66,7 @@ export const computeEffectiveAccess = internalQuery({
     userId: v.id("users"),
     workspaceId: v.id("workspaces"),
     orgId: v.id("orgs"),
+    extraBindings: v.optional(v.array(v.any())),
   },
   handler: async (ctx, args) => {
     if (args.callerId) {
@@ -74,12 +75,14 @@ export const computeEffectiveAccess = internalQuery({
     const now = Date.now();
 
     // Coletar todos os bindings do usuário no workspace
-    const allBindings = await ctx.db
+    const dbBindings = await ctx.db
       .query("bindings")
       .withIndex("by_workspaceId_and_userId", (q) =>
         q.eq("workspaceId", args.workspaceId).eq("userId", args.userId),
       )
       .collect();
+
+    const allBindings = [...dbBindings, ...(args.extraBindings ?? [])] as typeof dbBindings;
 
     // Separar allow e deny, filtrando expirados
     const allowBindings = allBindings.filter(
