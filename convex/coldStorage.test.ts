@@ -80,3 +80,26 @@ test("getAuditEventsForExport retorna eventos mais antigos que 30 dias, não os 
   expect(result.page).toHaveLength(1);
   expect(result.page[0].action).toBe("old.event");
 });
+
+// ── Ciclo 3: serialização NDJSON + gzip ───────────────────────────────────────
+
+test("serializeEventsToNdjsonGz produz buffer gzip descomprimível com JSON válido por linha", async () => {
+  const t = convexTest(schema, modules);
+
+  const events = [
+    { _id: "id1", timestamp: 1000, action: "login", result: "allow" },
+    { _id: "id2", timestamp: 2000, action: "logout", result: "allow" },
+  ];
+
+  const result = await t.action(internal.coldStorage.serializeEventsToNdjsonGz, { events });
+
+  expect(result).toBeInstanceOf(ArrayBuffer);
+
+  const { gunzipSync } = await import("node:zlib");
+  const decompressed = gunzipSync(Buffer.from(result));
+  const lines = decompressed.toString("utf-8").trim().split("\n");
+
+  expect(lines).toHaveLength(2);
+  expect(JSON.parse(lines[0]).action).toBe("login");
+  expect(JSON.parse(lines[1]).action).toBe("logout");
+});
