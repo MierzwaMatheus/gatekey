@@ -19,9 +19,14 @@ export type SetupResult =
   | { success: true }
   | { success: false; failedStep: string; error?: string; rootAlreadyExists?: boolean };
 
+export interface SetupOptions {
+  onRootExists?: () => Promise<boolean>;
+}
+
 export async function runSetupSteps(
   config: SetupConfig,
-  runner: StepRunner
+  runner: StepRunner,
+  options: SetupOptions = {}
 ): Promise<SetupResult> {
   try {
     await runner.deploySchema(config);
@@ -40,6 +45,19 @@ export async function runSetupSteps(
     rootResult = await runner.createRootUser(config);
   } catch (err) {
     return { success: false, failedStep: "createRootUser", error: String(err) };
+  }
+
+  if (!rootResult.success && rootResult.error === "root_user_already_exists") {
+    const shouldOverwrite = options.onRootExists ? await options.onRootExists() : false;
+    if (!shouldOverwrite) {
+      return { success: false, failedStep: "createRootUser", error: rootResult.error, rootAlreadyExists: true };
+    }
+    // Retry after user confirmed overwrite
+    try {
+      rootResult = await runner.createRootUser(config);
+    } catch (err) {
+      return { success: false, failedStep: "createRootUser", error: String(err) };
+    }
   }
 
   if (!rootResult.success) {

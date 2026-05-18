@@ -77,4 +77,38 @@ describe("runSetupSteps", () => {
     expect(result.success).toBe(false);
     if (!result.success) expect(result.rootAlreadyExists).toBe(true);
   });
+
+  it("chama onRootExists quando root já existe e sobrescreve quando callback retorna true", async () => {
+    let callCount = 0;
+    const runner = makeRunner({
+      createRootUser: vi
+        .fn()
+        .mockResolvedValueOnce({ success: false, error: "root_user_already_exists" })
+        .mockResolvedValueOnce({ success: true, userId: "user-new" }),
+    });
+
+    const onRootExists = vi.fn().mockResolvedValue(true);
+    const result = await runSetupSteps(baseConfig, runner, { onRootExists });
+
+    expect(onRootExists).toHaveBeenCalledOnce();
+    expect(runner.createRootUser).toHaveBeenCalledTimes(2);
+    expect(result.success).toBe(true);
+    void callCount;
+  });
+
+  it("para sem sobrescrever quando onRootExists retorna false", async () => {
+    const runner = makeRunner({
+      createRootUser: vi
+        .fn()
+        .mockResolvedValue({ success: false, error: "root_user_already_exists" }),
+    });
+
+    const onRootExists = vi.fn().mockResolvedValue(false);
+    const result = await runSetupSteps(baseConfig, runner, { onRootExists });
+
+    expect(onRootExists).toHaveBeenCalledOnce();
+    expect(runner.createRootUser).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.rootAlreadyExists).toBe(true);
+  });
 });
