@@ -242,6 +242,7 @@ export const getAuditEventsForExport = internalQuery({
 });
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
 
 export const listOrgsWithStaleEvents = internalQuery({
   args: {},
@@ -267,6 +268,25 @@ export const listOrgsWithStaleEvents = internalQuery({
     }
 
     return orgsWithStale;
+  },
+});
+
+export const checkColdStorageAlert = query({
+  args: {},
+  handler: async (ctx) => {
+    const threshold = Date.now() - TWENTY_FIVE_DAYS_MS;
+    const coldStorageConfigured = !!process.env.R2_ACCOUNT_ID;
+
+    const staleEvent = await ctx.db
+      .query("audit_log")
+      .filter((q) => q.lt(q.field("timestamp"), threshold))
+      .first();
+
+    return {
+      hasStaleEvents: !!staleEvent,
+      coldStorageConfigured,
+      shouldAlert: !!staleEvent && !coldStorageConfigured,
+    };
   },
 });
 

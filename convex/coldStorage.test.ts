@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { internal } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
@@ -211,4 +211,55 @@ test("exportAuditLogs cria registros em audit_exports para cada org com eventos 
   expect(exportedOrgIds).toContain(orgA);
   expect(exportedOrgIds).toContain(orgB);
   expect(exportedOrgIds).not.toContain(orgC);
+});
+
+// ── Ciclo 7: alerta quando cold storage não configurado e há logs > 25 dias ───
+
+const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
+
+test("checkColdStorageAlert retorna hasStale=true quando há eventos com mais de 25 dias", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "AlertOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const staleTimestamp = Date.now() - TWENTY_FIVE_DAYS_MS - 1000;
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: staleTimestamp,
+      actorType: "system",
+      actorId: "system",
+      action: "stale.event",
+      target: { type: "org" },
+      orgId,
+      result: "allow",
+    }),
+  );
+
+  const result = await t.query(api.auditLog.checkColdStorageAlert, {});
+  expect(result.hasStaleEvents).toBe(true);
+});
+
+test("checkColdStorageAlert retorna hasStale=false quando não há eventos antigos", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "FreshOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: Date.now() - 1000,
+      actorType: "system",
+      actorId: "system",
+      action: "recent.event",
+      target: { type: "org" },
+      orgId,
+      result: "allow",
+    }),
+  );
+
+  const result = await t.query(api.auditLog.checkColdStorageAlert, {});
+  expect(result.hasStaleEvents).toBe(false);
 });
