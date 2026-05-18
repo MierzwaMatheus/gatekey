@@ -25,7 +25,7 @@
 - [x] Escrever teste de integração: batch com 3 itens — primeiro ALLOW, segundo DENY por falta de binding, terceiro DENY por usuário suspenso — verificar cada resultado individualmente
 - [x] Escrever teste de integração: API Key com escopo `["users:read"]` (sem `check`) recebe 403 ao chamar `POST /v1/check/batch`
 - [x] Escrever teste de integração: batch de 1 item com binding de herança de container — retorna `{allowed: true, source: "container-binding"}`
-- [ ] Escrever teste de integração: 3 chamadas ao audit log são registradas para um batch de 3 itens
+- [x] Escrever teste de integração: 3 chamadas ao audit log são registradas para um batch de 3 itens
 
 ### 6.2 GET /v1/users/:id/effective-access — closes #20
 
