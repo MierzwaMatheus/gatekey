@@ -150,3 +150,37 @@ test("checkBatch: item com binding válido retorna allowed:true naquele índice"
   expect(result).toHaveLength(1);
   expect(result[0].allowed).toBe(true);
 });
+
+// ── Ciclo 5: isolamento e ordem garantida ─────────────────────────────────────
+
+test("checkBatch: falha em um item não interrompe os demais e ordem é preservada", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId, roleId } = await setupBatchContext(t);
+
+  // item index 1 tem binding válido; item index 0 e 2 não têm
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_middle",
+      workspaceId,
+    }),
+  );
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_no_binding" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_middle" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_also_no_binding" },
+    ],
+  });
+
+  expect(result).toHaveLength(3);
+  expect(result[0].allowed).toBe(false);
+  expect(result[1].allowed).toBe(true);
+  expect(result[2].allowed).toBe(false);
+});
