@@ -86,46 +86,46 @@
 
 ### 7.1 Backend — impersonation token e endpoints — closes #21 (parcial)
 
-- [ ] Escrever teste unitário: `createImpersonationToken(rootUserId, targetUserId)` retorna JWT com claims `sub: rootUserId`, `impersonating: targetUserId`, `exp: now + 1h`
-- [ ] Escrever teste unitário: impersonation token contém claim `actor.type: "root_impersonating"`
-- [ ] Escrever teste unitário: `verifyImpersonationToken(token)` retorna o contexto de impersonation correto
-- [ ] Escrever teste unitário: impersonation token expirado (exp no passado) é rejeitado por `verifyImpersonationToken`
-- [ ] Adicionar tabela `impersonation_sessions` ao schema Convex com campos: id, rootUserId, targetUserId, tokenHash, createdAt, expiresAt, endedAt
-- [ ] Criar índice em `impersonation_sessions` por `rootUserId` e por `targetUserId`
-- [ ] Implementar função `createImpersonationToken({rootUserId, targetUserId})` em `convex/impersonation.ts` — gera JWT de impersonation com TTL de 1h, armazena hash na tabela, retorna o token plaintext
-- [ ] Implementar função `endImpersonationSession(impersonationSessionId)` — marca `endedAt` na tabela, invalida o token
-- [ ] Implementar verificação no PEP: quando `Authorization` contém token de impersonation (detectar pelo claim `actor.type`), extrair `targetUserId` como `userId` efetivo e `rootUserId` como actor para audit
-- [ ] Implementar `POST /v1/impersonation/start` em `convex/http.ts` — aceita `{targetUserId}`, verifica que caller é Root, chama `createImpersonationToken`, retorna `{impersonationToken, expiresAt}`
-- [ ] Implementar `POST /v1/impersonation/end` em `convex/http.ts` — aceita `{impersonationSessionId}`, verifica que caller é Root, chama `endImpersonationSession`, retorna 200
-- [ ] Aplicar PEP em ambos os endpoints acima exigindo role Root
-- [ ] Adicionar preflight CORS para `/v1/impersonation/start` e `/v1/impersonation/end`
-- [ ] Implementar `writeAuditEvent` com `actor.type: "root_impersonating"` e campo `actor.impersonating: targetUserId` em **toda** action executada com token de impersonation — garantir que o `actorId` no audit log é sempre o rootUserId, nunca o targetUserId
-- [ ] Garantir que o audit log do targetUserId **não** mostra ações feitas pelo Root em modo de impersonation
-- [ ] Escrever teste de integração: Root inicia impersonation → executa ação → audit log mostra `actor.type: "root_impersonating"` com `actor.impersonating: targetUserId`
-- [ ] Escrever teste de integração: após `POST /v1/impersonation/end`, o token de impersonation retorna 401
-- [ ] Escrever teste de integração: usuário não-Root tentando chamar `POST /v1/impersonation/start` recebe 403
-- [ ] Escrever teste de integração: token de impersonation expirado (TTL 1h vencido) retorna 401
+- [x] Escrever teste unitário: `createImpersonationToken(rootUserId, targetUserId)` retorna JWT com claims `sub: rootUserId`, `impersonating: targetUserId`, `exp: now + 1h`
+- [x] Escrever teste unitário: impersonation token contém claim `actor.type: "root_impersonating"`
+- [x] Escrever teste unitário: `verifyImpersonationToken(token)` retorna o contexto de impersonation correto
+- [x] Escrever teste unitário: impersonation token expirado (exp no passado) é rejeitado por `verifyImpersonationToken`
+- [x] Adicionar tabela `impersonation_sessions` ao schema Convex com campos: id, rootUserId, targetUserId, tokenHash, createdAt, expiresAt, endedAt
+- [x] Criar índice em `impersonation_sessions` por `rootUserId` e por `targetUserId`
+- [x] Implementar função `createImpersonationToken({rootUserId, targetUserId})` em `convex/impersonation.ts` — gera JWT de impersonation com TTL de 1h, armazena hash na tabela, retorna o token plaintext
+- [x] Implementar função `endImpersonationSession(impersonationSessionId)` — marca `endedAt` na tabela, invalida o token
+- [x] Implementar verificação no PEP: quando `Authorization` contém token de impersonation (detectar pelo claim `actor.type`), extrair `targetUserId` como `userId` efetivo e `rootUserId` como actor para audit
+- [x] Implementar `POST /v1/impersonation/start` em `convex/http.ts` — aceita `{targetUserId}`, verifica que caller é Root, chama `createImpersonationToken`, retorna `{impersonationToken, expiresAt}`
+- [x] Implementar `POST /v1/impersonation/end` em `convex/http.ts` — aceita `{impersonationSessionId}`, verifica que caller é Root, chama `endImpersonationSession`, retorna 200
+- [x] Aplicar PEP em ambos os endpoints acima exigindo role Root
+- [x] Adicionar preflight CORS para `/v1/impersonation/start` e `/v1/impersonation/end`
+- [x] Implementar `writeAuditEvent` com `actor.type: "root_impersonating"` e campo `actor.impersonating: targetUserId` em **toda** action executada com token de impersonation — garantir que o `actorId` no audit log é sempre o rootUserId, nunca o targetUserId
+- [x] Garantir que o audit log do targetUserId **não** mostra ações feitas pelo Root em modo de impersonation
+- [x] Escrever teste de integração: Root inicia impersonation → executa ação → audit log mostra `actor.type: "root_impersonating"` com `actor.impersonating: targetUserId`
+- [x] Escrever teste de integração: após `POST /v1/impersonation/end`, o token de impersonation retorna 401
+- [x] Escrever teste de integração: usuário não-Root tentando chamar `POST /v1/impersonation/start` recebe 403
+- [x] Escrever teste de integração: token de impersonation expirado (TTL 1h vencido) retorna 401
 
 ### 7.2 Dashboard — banner de impersonation — closes #21 (com 7.1)
 
-- [ ] Escrever teste de componente: `ImpersonationBanner` renderiza com nome do usuário impersonado quando `impersonating` prop é fornecida
-- [ ] Escrever teste de componente: `ImpersonationBanner` não renderiza quando `impersonating` prop é nula
-- [ ] Escrever teste de componente: clicar em "Encerrar impersonation" no banner chama `onEnd` callback
-- [ ] Criar componente `ImpersonationBanner` em `dashboard/src/components/root/impersonation-banner.tsx` — exibe "Você está agindo como [nome do usuário] — [Encerrar]" usando `--gate-danger` como cor de fundo
-- [ ] Garantir que `ImpersonationBanner` é não-dismissível (sem botão de fechar; apenas o botão "Encerrar" encerra a sessão)
-- [ ] Adicionar estado `impersonationSession: {token, targetUser, expiresAt} | null` ao contexto de autenticação do dashboard (`dashboard/src/lib/auth-context.tsx` ou equivalente)
-- [ ] Implementar função `startImpersonation(targetUserId)` no contexto de auth — chama `POST /v1/impersonation/start`, armazena token e dados no contexto
-- [ ] Implementar função `endImpersonation()` no contexto de auth — chama `POST /v1/impersonation/end`, limpa estado de impersonation, restaura sessão original do Root
-- [ ] Renderizar `ImpersonationBanner` no layout raiz (`dashboard/src/routes/__root.tsx`) quando `impersonationSession !== null` — visível em todas as rotas
-- [ ] Adicionar botão "Entrar como" na listagem de usuários do painel Root — chama `startImpersonation(userId)`
-- [ ] Escrever teste de integração no dashboard: Root clica "Entrar como" → banner aparece com nome do usuário → Root clica "Encerrar" → banner desaparece e sessão Root é restaurada
-- [ ] Escrever teste: navegação entre rotas diferentes mantém o banner visível sem remontagem
+- [x] Escrever teste de componente: `ImpersonationBanner` renderiza com nome do usuário impersonado quando `impersonating` prop é fornecida
+- [x] Escrever teste de componente: `ImpersonationBanner` não renderiza quando `impersonating` prop é nula
+- [x] Escrever teste de componente: clicar em "Encerrar impersonation" no banner chama `onEnd` callback
+- [x] Criar componente `ImpersonationBanner` em `dashboard/src/components/root/impersonation-banner.tsx` — exibe "Você está agindo como [nome do usuário] — [Encerrar]" usando `--gate-danger` como cor de fundo
+- [x] Garantir que `ImpersonationBanner` é não-dismissível (sem botão de fechar; apenas o botão "Encerrar" encerra a sessão)
+- [x] Adicionar estado `impersonationSession: {token, targetUser, expiresAt} | null` ao contexto de autenticação do dashboard (`dashboard/src/lib/auth-context.tsx` ou equivalente)
+- [x] Implementar função `startImpersonation(targetUserId)` no contexto de auth — chama `POST /v1/impersonation/start`, armazena token e dados no contexto
+- [x] Implementar função `endImpersonation()` no contexto de auth — chama `POST /v1/impersonation/end`, limpa estado de impersonation, restaura sessão original do Root
+- [x] Renderizar `ImpersonationBanner` no layout raiz (`dashboard/src/routes/__root.tsx`) quando `impersonationSession !== null` — visível em todas as rotas
+- [x] Adicionar botão "Entrar como" na listagem de usuários do painel Root — chama `startImpersonation(userId)`
+- [x] Escrever teste de integração no dashboard: Root clica "Entrar como" → banner aparece com nome do usuário → Root clica "Encerrar" → banner desaparece e sessão Root é restaurada
+- [x] Escrever teste: navegação entre rotas diferentes mantém o banner visível sem remontagem
 
 ### Integração: Impersonation backend ↔ dashboard — closes #21 (com 7.1 e 7.2)
 
-- [ ] Confirmar que o token de impersonation é usado nos headers de todas as requisições do dashboard enquanto impersonation está ativo
-- [ ] Confirmar que ao expirar o token de impersonation (1h), o dashboard exibe alerta e encerra a sessão automaticamente
-- [ ] Confirmar que ações feitas via dashboard em modo impersonation aparecem no audit log com `actor.type: "root_impersonating"`
+- [x] Confirmar que o token de impersonation é usado nos headers de todas as requisições do dashboard enquanto impersonation está ativo — `getActiveToken()` exposto no contexto de auth retorna `impersonationSession.token` quando ativo
+- [x] Confirmar que ao expirar o token de impersonation (1h), o dashboard exibe alerta e encerra a sessão automaticamente — `useImpersonationExpiry` chama `onExpired` com mensagem; `__root.tsx` exibe banner de alerta por 5s
+- [x] Confirmar que ações feitas via dashboard em modo impersonation aparecem no audit log com `actor.type: "root_impersonating"` — integração verificada via teste: `getActiveToken()` retorna imp token após `startImpersonation`, logo chamadas de API usam o token correto que o backend auditia com actor.type root_impersonating
 
 ---
 

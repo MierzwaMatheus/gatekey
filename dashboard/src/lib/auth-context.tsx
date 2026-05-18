@@ -1,17 +1,29 @@
 import { createContext, useContext, useState, type ReactNode } from 'react'
 import { getStoredTokens, parseJwtPayload } from './auth-service'
+import { startImpersonation as apiStartImpersonation, endImpersonation as apiEndImpersonation, getUser } from './root-api'
 
 export type UserRole = 'root' | 'org_admin' | 'workspace_admin' | 'member'
+
+export interface ImpersonationSession {
+  token: string
+  targetUser: { id: string; name: string }
+  expiresAt: number
+  sessionId: string
+}
 
 interface AuthState {
   token: string | null
   role: UserRole | null
   orgId: string | null
+  impersonationSession: ImpersonationSession | null
 }
 
 interface AuthContextValue extends AuthState {
   setAuth: (state: AuthState) => void
   clearAuth: () => void
+  startImpersonation: (targetUserId: string) => Promise<void>
+  endImpersonation: () => Promise<void>
+  getActiveToken: () => string | null
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -27,12 +39,12 @@ function loadInitialState(initialRole?: UserRole | null, initialState?: AuthStat
     return initialState
   }
   if (initialRole) {
-    return { token: 'mock-token', role: initialRole, orgId: null }
+    return { token: 'mock-token', role: initialRole, orgId: null, impersonationSession: null }
   }
 
   const stored = getStoredTokens()
   if (!stored) {
-    return { token: null, role: null, orgId: null }
+    return { token: null, role: null, orgId: null, impersonationSession: null }
   }
 
   let role: UserRole | null = null
@@ -47,6 +59,7 @@ function loadInitialState(initialRole?: UserRole | null, initialState?: AuthStat
     token: stored.accessToken,
     role,
     orgId: stored.orgId,
+    impersonationSession: null,
   }
 }
 
@@ -60,7 +73,34 @@ export function AuthProvider({ children, initialRole = null, initialState }: Aut
 
   function clearAuth() {
     clearStoredTokens()
-    setState({ token: null, role: null, orgId: null })
+    setState({ token: null, role: null, orgId: null, impersonationSession: null })
+  }
+
+  async function startImpersonation(targetUserId: string) {
+    if (!state.token) throw new Error('Not authenticated')
+    const result = await apiStartImpersonation(state.token, targetUserId)
+    let targetName = targetUserId
+    try {
+      const user = await getUser(state.token, targetUserId)
+      targetName = user.name ?? user.email
+    } catch {
+      // use targetUserId as fallback name
+    }
+    setState((prev) => ({
+      ...prev,
+      impersonationSession: {
+        token: result.impersonationToken,
+        targetUser: { id: targetUserId, name: targetName },
+        expiresAt: result.expiresAt,
+        sessionId: result.sessionId,
+      },
+    }))
+  }
+
+  async function endImpersonation() {
+    if (!state.token || !state.impersonationSession) return
+    await apiEndImpersonation(state.token, state.impersonationSession.sessionId)
+    setState((prev) => ({ ...prev, impersonationSession: null }))
   }
 
   return (
@@ -68,6 +108,9 @@ export function AuthProvider({ children, initialRole = null, initialState }: Aut
       ...state,
       setAuth: setState,
       clearAuth,
+      startImpersonation,
+      endImpersonation,
+      getActiveToken: () => state.impersonationSession?.token ?? state.token,
     }}>
       {children}
     </AuthContext.Provider>

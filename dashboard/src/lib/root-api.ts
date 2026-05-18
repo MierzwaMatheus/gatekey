@@ -161,3 +161,36 @@ export function suspendOrg(token: string, orgId: string): Promise<void> {
 export function deleteOrg(token: string, orgId: string): Promise<void> {
   return apiFetch<void>(`/v1/orgs/${orgId}`, token, { method: 'DELETE' })
 }
+
+export interface StartImpersonationResult {
+  impersonationToken: string
+  expiresAt: number
+  sessionId: string
+}
+
+export function startImpersonation(
+  token: string,
+  targetUserId: string,
+): Promise<StartImpersonationResult> {
+  return apiFetch<StartImpersonationResult>('/v1/impersonation/start', token, {
+    method: 'POST',
+    body: JSON.stringify({ targetUserId }),
+  })
+}
+
+export function endImpersonation(token: string, sessionId: string): Promise<void> {
+  return apiFetch<void>('/v1/impersonation/end', token, {
+    method: 'POST',
+    body: JSON.stringify({ impersonationSessionId: sessionId }),
+  })
+}
+
+export interface UserBasic {
+  _id: string
+  name?: string
+  email: string
+}
+
+export function getUser(token: string, userId: string): Promise<UserBasic> {
+  return apiFetch<UserBasic>(`/v1/users/${userId}`, token)
+}
