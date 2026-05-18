@@ -178,6 +178,13 @@ export default defineSchema({
     windowStart: v.number(),
   }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
 
+  rate_limit_counters: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStart: v.number(),
+    windowMs: v.number(),
+  }).index("by_key", ["key"]),
+
   impersonation_sessions: defineTable({
     rootUserId: v.string(),
     targetUserId: v.string(),
