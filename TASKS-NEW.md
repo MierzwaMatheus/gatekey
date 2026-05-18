@@ -60,25 +60,25 @@
 
 > **Depende de:** #20 (seção 6.2 deve estar completa)
 
-- [ ] Escrever teste unitário: `simulateBinding(binding, {userId, workspaceId})` retorna `{before, after, delta}` onde `before` e `after` são snapshots de effective-access
-- [ ] Escrever teste unitário: simular allow binding para usuário sem acesso — delta mostra novo recurso em `gained`
-- [ ] Escrever teste unitário: simular deny binding para usuário com allow — delta mostra recurso em `lost`
-- [ ] Escrever teste unitário: simular binding com role que o admin não possui retorna erro 403 (`no_privilege_escalation`)
-- [ ] Escrever teste unitário: nenhum binding é persistido após chamada — verificar que `bindings` table permanece inalterada
-- [ ] Criar função `simulateBinding(proposedBinding, context)` em `convex/bindingsSimulate.ts` — passo 1: aplica regra de no-privilege-escalation (mesmo check do `POST /v1/bindings`); retorna 403 se admin não possui todas as capabilities do role proposto
-- [ ] Implementar passo 2 em `simulateBinding`: chama `computeEffectiveAccess` para obter estado `before`
-- [ ] Implementar passo 3 em `simulateBinding`: cria binding **em memória** (sem persistir) e recalcula effective-access com o binding hipotético incluído
-- [ ] Implementar passo 4 em `simulateBinding`: calcula `delta.gained` — recursos/capabilities presentes em `after` mas não em `before`
-- [ ] Implementar passo 5 em `simulateBinding`: calcula `delta.lost` — recursos/capabilities presentes em `before` mas não em `after` (relevante para deny simulation)
-- [ ] Garantir que `simulateBinding` **não chama** `writeAuditEvent` — simulações não geram eventos de audit
-- [ ] Retornar `{simulated: true, before: EffectiveAccess, after: EffectiveAccess, delta: {gained: [], lost: []}}` no response
-- [ ] Registrar rota `POST /v1/bindings/simulate` em `convex/http.ts`
-- [ ] Aplicar PEP na rota: mesmos requisitos de autorização do `POST /v1/bindings` (bindings:write scope)
-- [ ] Adicionar preflight CORS para `/v1/bindings/simulate`
-- [ ] Atualizar spec OpenAPI com documentação de `POST /v1/bindings/simulate`: nota de "dry-run — nenhum dado é persistido", body schema idêntico ao `POST /v1/bindings`, response schema com `simulated`, `before`, `after`, `delta`
-- [ ] Escrever teste de integração: simular allow binding → verificar `delta.gained` contém o recurso → verificar que nenhum binding existe na tabela após a chamada
-- [ ] Escrever teste de integração: simular deny binding sobre recurso que usuário tinha allow → verificar `delta.lost` contém o recurso
-- [ ] Escrever teste de integração: admin tenta simular binding com capability que não possui → recebe 403 com reason `cannot_grant_capability`
+- [x] Escrever teste unitário: `simulateBinding(binding, {userId, workspaceId})` retorna `{before, after, delta}` onde `before` e `after` são snapshots de effective-access
+- [x] Escrever teste unitário: simular allow binding para usuário sem acesso — delta mostra novo recurso em `gained`
+- [x] Escrever teste unitário: simular deny binding para usuário com allow — delta mostra recurso em `lost`
+- [x] Escrever teste unitário: simular binding com role que o admin não possui retorna erro 403 (`no_privilege_escalation`)
+- [x] Escrever teste unitário: nenhum binding é persistido após chamada — verificar que `bindings` table permanece inalterada
+- [x] Criar função `simulateBinding(proposedBinding, context)` em `convex/bindingsSimulate.ts` — passo 1: aplica regra de no-privilege-escalation (mesmo check do `POST /v1/bindings`); retorna 403 se admin não possui todas as capabilities do role proposto
+- [x] Implementar passo 2 em `simulateBinding`: chama `computeEffectiveAccess` para obter estado `before`
+- [x] Implementar passo 3 em `simulateBinding`: cria binding **em memória** (sem persistir) e recalcula effective-access com o binding hipotético incluído
+- [x] Implementar passo 4 em `simulateBinding`: calcula `delta.gained` — recursos/capabilities presentes em `after` mas não em `before`
+- [x] Implementar passo 5 em `simulateBinding`: calcula `delta.lost` — recursos/capabilities presentes em `before` mas não em `after` (relevante para deny simulation)
+- [x] Garantir que `simulateBinding` **não chama** `writeAuditEvent` — simulações não geram eventos de audit
+- [x] Retornar `{simulated: true, before: EffectiveAccess, after: EffectiveAccess, delta: {gained: [], lost: []}}` no response
+- [x] Registrar rota `POST /v1/bindings/simulate` em `convex/http.ts`
+- [x] Aplicar PEP na rota: mesmos requisitos de autorização do `POST /v1/bindings` (bindings:write scope)
+- [x] Adicionar preflight CORS para `/v1/bindings/simulate`
+- [x] Atualizar spec OpenAPI com documentação de `POST /v1/bindings/simulate`: nota de "dry-run — nenhum dado é persistido", body schema idêntico ao `POST /v1/bindings`, response schema com `simulated`, `before`, `after`, `delta`
+- [x] Escrever teste de integração: simular allow binding → verificar `delta.gained` contém o recurso → verificar que nenhum binding existe na tabela após a chamada
+- [x] Escrever teste de integração: simular deny binding sobre recurso que usuário tinha allow → verificar `delta.lost` contém o recurso
+- [x] Escrever teste de integração: admin tenta simular binding com capability que não possui → recebe 403 com reason `cannot_grant_capability`
 
 ---
 

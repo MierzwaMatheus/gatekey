@@ -14,6 +14,7 @@ import type * as auditLog from "../auditLog.js";
 import type * as auth from "../auth.js";
 import type * as authStore from "../authStore.js";
 import type * as bindings from "../bindings.js";
+import type * as bindingsSimulate from "../bindingsSimulate.js";
 import type * as check from "../check.js";
 import type * as checkBatch from "../checkBatch.js";
 import type * as coldStorage from "../coldStorage.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authStore: typeof authStore;
   bindings: typeof bindings;
+  bindingsSimulate: typeof bindingsSimulate;
   check: typeof check;
   checkBatch: typeof checkBatch;
   coldStorage: typeof coldStorage;

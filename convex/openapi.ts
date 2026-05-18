@@ -508,6 +508,59 @@ export const OPENAPI_SPEC = {
         },
       },
     },
+    "/v1/bindings/simulate": {
+      post: {
+        summary: "Simulate binding (dry-run — nenhum dado é persistido)",
+        description: "Computes the before/after effective access and delta for a proposed binding without persisting anything.",
+        tags: ["Bindings"],
+        security: [{ BearerJWT: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userId", "roleId", "resourceType", "workspaceId"],
+                properties: {
+                  userId: { type: "string" },
+                  roleId: { type: "string" },
+                  resourceType: { type: "string" },
+                  resourceId: { type: "string" },
+                  parentResourceId: { type: "string" },
+                  workspaceId: { type: "string" },
+                  type: { type: "string", enum: ["allow", "deny"], default: "allow" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Simulation result",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    simulated: { type: "boolean", example: true },
+                    before: { type: "object", description: "Effective access before the proposed binding" },
+                    after: { type: "object", description: "Effective access after the proposed binding" },
+                    delta: {
+                      type: "object",
+                      properties: {
+                        gained: { type: "array", description: "Resources gained in after vs before" },
+                        lost: { type: "array", description: "Resources lost in after vs before" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "403": { description: "Forbidden — missing capability (cannot_grant_capability)" },
+        },
+      },
+    },
     "/v1/bindings/{id}": {
       delete: {
         summary: "Delete binding",
