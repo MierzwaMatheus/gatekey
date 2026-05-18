@@ -173,6 +173,7 @@ export interface OrgSettings {
   mfaRequired: boolean
   jwtExpiryAccess: number
   jwtExpiryRefresh: number
+  rateLimits?: { checkPerMin?: number; checkBatchPerMin?: number }
 }
 
 export function getOrgSettings(token: string, orgId: string): Promise<OrgSettings> {
@@ -188,6 +189,7 @@ export function updateOrgSettings(
     mfaRequired: boolean
     jwtExpiryAccess: number
     jwtExpiryRefresh: number
+    rateLimits: { checkPerMin?: number; checkBatchPerMin?: number }
   }>,
 ): Promise<void> {
   return apiFetch<void>(`/v1/orgs/${orgId}/settings`, token, {
