@@ -21,7 +21,7 @@
 - [x] Adicionar preflight CORS para `POST /v1/check/batch` em `convex/http.ts`
 - [x] Adicionar schema Zod de validação do body: array de objetos `{userId, capability, resourceType, resourceId?}` com no mínimo 1 item e no máximo 100
 - [x] Retornar 422 com mensagem clara quando body não passa na validação Zod (array vazio, excede 100 itens, campo obrigatório ausente)
-- [ ] Atualizar spec OpenAPI em `convex/openapi.ts` com documentação do endpoint `/check/batch`: descrição, body schema, response schema, exemplos
+- [x] Atualizar spec OpenAPI em `convex/openapi.ts` com documentação do endpoint `/check/batch`: descrição, body schema, response schema, exemplos
 - [x] Escrever teste de integração: batch com 3 itens — primeiro ALLOW, segundo DENY por falta de binding, terceiro DENY por usuário suspenso — verificar cada resultado individualmente
 - [x] Escrever teste de integração: API Key com escopo `["users:read"]` (sem `check`) recebe 403 ao chamar `POST /v1/check/batch`
 - [x] Escrever teste de integração: batch de 1 item com binding de herança de container — retorna `{allowed: true, source: "container-binding"}`
