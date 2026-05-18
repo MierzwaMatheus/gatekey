@@ -1,5 +1,5 @@
-import bcrypt from "bcryptjs";
+import argon2 from "argon2";
 
 export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 12);
+  return argon2.hash(plain);
 }

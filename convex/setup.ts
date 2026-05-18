@@ -3,11 +3,12 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // Criar o primeiro usuário root via Convex Dashboard ou CLI:
-// npx convex run setup:bootstrapRootUser '{"email":"admin@example.com","password":"SuaSenhaForte"}'
+// npx convex run setup:bootstrapRootUser '{"email":"admin@example.com","passwordHash":"<argon2_hash>"}'
+// O passwordHash deve ser gerado com argon2 antes de chamar este action.
 export const bootstrapRootUser = internalAction({
   args: {
     email: v.string(),
-    password: v.string(),
+    passwordHash: v.string(),
   },
   returns: v.union(
     v.object({ success: v.literal(true), userId: v.string() }),
@@ -16,18 +17,15 @@ export const bootstrapRootUser = internalAction({
   handler: async (ctx, args): Promise<
     { success: true; userId: string } | { success: false; error: string }
   > => {
-    const existing = await ctx.runQuery(internal.setupStore.getRootUser, {});
-    if (existing) {
-      return { success: false as const, error: "root_user_already_exists" };
+    const result = (await ctx.runMutation(internal.setupStore.createRootUser, {
+      email: args.email,
+      passwordHash: args.passwordHash,
+    })) as { success: true; userId: string } | { success: false; error: string };
+
+    if (!result.success) {
+      return result;
     }
 
-    const userId = (await ctx.runAction(internal.auth.createUserWithPassword, {
-      email: args.email,
-      password: args.password,
-    })) as string;
-
-    await ctx.runMutation(internal.setupStore.setUserIsRoot, { userId: userId as never });
-
-    return { success: true as const, userId };
+    return { success: true as const, userId: result.userId as unknown as string };
   },
 });

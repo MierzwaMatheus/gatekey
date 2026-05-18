@@ -25,7 +25,7 @@ export class ConvexRunner implements StepRunner {
   ): Promise<{ success: true; userId: string } | { success: false; error: string }> {
     const args = JSON.stringify({
       email: config.rootEmail,
-      password: config.rootPasswordHash,
+      passwordHash: config.rootPasswordHash,
     });
 
     const { stdout } = await execa(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import bcrypt from "bcryptjs";
+import argon2 from "argon2";
 import { hashPassword } from "./crypto.js";
 
 describe("hashPassword", () => {
@@ -8,10 +8,10 @@ describe("hashPassword", () => {
     expect(hash).not.toBe("minha-senha-secreta");
   });
 
-  it("hash gerado é verificável com bcrypt.compare", async () => {
+  it("hash gerado é verificável com argon2.verify", async () => {
     const plain = "senha-do-root-123";
     const hash = await hashPassword(plain);
-    const valid = await bcrypt.compare(plain, hash);
+    const valid = await argon2.verify(hash, plain);
     expect(valid).toBe(true);
   });
 
@@ -21,9 +21,9 @@ describe("hashPassword", () => {
     expect(hash1).not.toBe(hash2);
   });
 
-  it("bcrypt.compare retorna false para senha errada", async () => {
+  it("argon2.verify retorna false para senha errada", async () => {
     const hash = await hashPassword("correta");
-    const valid = await bcrypt.compare("errada", hash);
+    const valid = await argon2.verify(hash, "errada");
     expect(valid).toBe(false);
   });
 });
