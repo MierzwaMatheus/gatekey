@@ -441,11 +441,11 @@
 
 ### 4.9 Integração: SDK ↔ API — closes #14 (com 4.7–4.8)
 
-- [ ] Escrever teste de integração do SDK contra instância real do GateKey (não mocks)
-- [ ] Confirmar que `client.auth.login` + `client.permissions.check` funciona end-to-end
-- [ ] Confirmar que refresh automático ocorre sem erro quando access token expira
-- [ ] Confirmar que `usePermission` retorna `{allowed: true}` com binding correto e `{allowed: false}` sem binding
-- [ ] Publicar `@gatekey/sdk` e `@gatekey/react` no npm (ou registry privado para testes iniciais)
+- [x] Escrever teste de integração do SDK contra instância real do GateKey (não mocks)
+- [x] Confirmar que `client.auth.login` + `client.permissions.check` funciona end-to-end
+- [x] Confirmar que refresh automático ocorre sem erro quando access token expira
+- [x] Confirmar que `usePermission` retorna `{allowed: true}` com binding correto e `{allowed: false}` sem binding
+- [x] Publicar `@gatekey/sdk` e `@gatekey/react` no npm (ou registry privado para testes iniciais)
 
 ### 4.10 i18n completo — closes #15
 

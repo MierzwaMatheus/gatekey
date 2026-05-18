@@ -25,10 +25,12 @@ export class GatekeyClient {
   readonly apiKeys: ApiKeysModule;
   private readonly baseUrl: string;
   private readonly apiKey: string | undefined;
+  private readonly _fetch: (url: string, init?: RequestInit) => Promise<Response>;
 
   constructor(options: GatekeyClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.apiKey = options.apiKey;
+    this._fetch = options.fetchFn ?? ((url, init) => fetch(url, init));
     this.auth = new AuthModule(this._rawFetch.bind(this));
     this.permissions = new PermissionsModule(this._request.bind(this));
     this.users = new UsersModule(this._request.bind(this));
@@ -39,7 +41,7 @@ export class GatekeyClient {
 
   /** Direct fetch without auto-refresh interceptor. Used by auth endpoints internally. */
   private async _rawFetch(path: string, options: RequestInit = {}): Promise<Response> {
-    return fetch(`${this.baseUrl}${path}`, options);
+    return this._fetch(`${this.baseUrl}${path}`, options);
   }
 
   /** Fetch with auto-refresh interceptor. Use for all non-auth API calls. */
@@ -64,6 +66,6 @@ export class GatekeyClient {
       headers.set("Authorization", `Bearer ${this.apiKey}`);
     }
 
-    return fetch(`${this.baseUrl}${path}`, { ...options, headers });
+    return this._fetch(`${this.baseUrl}${path}`, { ...options, headers });
   }
 }

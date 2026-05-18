@@ -1,11 +1,15 @@
 export interface GatekeyClientOptions {
   baseUrl: string;
   apiKey?: string;
+  /** Custom fetch implementation (useful for testing). Defaults to globalThis.fetch. */
+  fetchFn?: (url: string, init?: RequestInit) => Promise<Response>;
 }
 
 export interface TokenStore {
   accessToken: string;
   refreshToken: string;
+  sessionId?: string;
+  orgId?: string;
 }
 
 export type LoginResult =

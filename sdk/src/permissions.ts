@@ -9,11 +9,14 @@ export class PermissionsModule {
   async check<TCap extends string = string, TRes extends string = string>(
     capability: TCap,
     resourceType?: TRes,
-    resourceId?: string
+    resourceId?: string,
+    options?: { userId?: string; workspaceId?: string }
   ): Promise<CheckResult> {
     const body: Record<string, string> = { capability };
     if (resourceType !== undefined) body.resourceType = resourceType;
     if (resourceId !== undefined) body.resourceId = resourceId;
+    if (options?.userId !== undefined) body.userId = options.userId;
+    if (options?.workspaceId !== undefined) body.workspaceId = options.workspaceId;
 
     const res = await this.request("/v1/check", {
       method: "POST",
@@ -27,6 +30,8 @@ export class PermissionsModule {
       throw new GatekeyApiError(res.status, String(data.error ?? "unknown"));
     }
 
-    return { allow: Boolean(data.allow), reason: data.reason as string | undefined };
+    // Backend returns `allowed`, SDK type exposes `allow`
+    const allowed = data.allowed !== undefined ? data.allowed : data.allow;
+    return { allow: Boolean(allowed), reason: data.reason as string | undefined };
   }
 }

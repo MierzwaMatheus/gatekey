@@ -25,7 +25,8 @@ export class MfaModule {
 
     const accessToken = String(data.accessToken);
     const refreshToken = String(data.refreshToken);
-    this.storeTokens({ accessToken, refreshToken });
+    const sessionId = data.sessionId ? String(data.sessionId) : undefined;
+    this.storeTokens({ accessToken, refreshToken, sessionId });
     return { accessToken, refreshToken };
   }
 
@@ -44,7 +45,8 @@ export class MfaModule {
       throw new GatekeyApiError(res.status, String(data.error ?? "unknown"));
     }
 
-    return { secret: String(data.secret), qrCode: String(data.qrCode) };
+    // Backend returns qrCodeUrl, SDK type exposes qrCode
+    return { secret: String(data.secret), qrCode: String(data.qrCodeUrl ?? data.qrCode) };
   }
 
   async verifySetup(totpCode: string, mfaSetupToken?: string): Promise<MfaVerifySetupResult> {
