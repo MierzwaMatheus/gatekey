@@ -311,3 +311,19 @@ describe('PlaygroundPanel — documentação inline', () => {
     expect(screen.queryByTestId('docs-panel')).toBeNull()
   })
 })
+
+// ── Ciclo 12: link para documentação ─────────────────────────────────────────
+
+describe('PlaygroundPanel — link para documentação OpenAPI', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(orgApi.listApiKeys).mockResolvedValue([])
+  })
+
+  it('renderiza link "Ver documentação" apontando para /v1/docs', () => {
+    render(<PlaygroundPanel {...DEFAULT_PROPS} />)
+    const link = screen.getByTestId('link-docs') as HTMLAnchorElement
+    expect(link).toBeDefined()
+    expect(link.href).toContain('/v1/docs')
+  })
+})
