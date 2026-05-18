@@ -235,6 +235,185 @@ test("endImpersonationSession: sessão encerrada faz verifyImpersonationToken re
   }
 });
 
+// ── Ciclos 7 e 8: endpoints HTTP /v1/impersonation/start e /v1/impersonation/end ──
+
+async function getJwtForRoot(
+  t: ReturnType<typeof convexTest>,
+  rootUserId: string,
+  orgId: string,
+) {
+  return await t.action(internal.jwt.signJwt, {
+    sub: rootUserId,
+    orgId,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+}
+
+test("POST /v1/impersonation/start: Root recebe impersonationToken e expiresAt", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-start@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "StartOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-start@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const rootToken = await getJwtForRoot(t, rootUserId as unknown as string, orgId as unknown as string);
+
+  const res = await t.fetch("/v1/impersonation/start", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${rootToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ targetUserId: targetUserId as unknown as string }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json() as Record<string, unknown>;
+  expect(body.impersonationToken).toBeTypeOf("string");
+  expect(body.expiresAt).toBeTypeOf("number");
+});
+
+test("POST /v1/impersonation/start: usuário não-Root recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "nonroot-start@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "OtherOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-nonroot@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: userId as unknown as string,
+    orgId: orgId as unknown as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  const res = await t.fetch("/v1/impersonation/start", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ targetUserId: targetUserId as unknown as string }),
+  });
+
+  expect(res.status).toBe(403);
+});
+
+test("POST /v1/impersonation/end: Root encerra sessão e token fica inválido", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-end@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "EndOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-end@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const rootToken = await getJwtForRoot(t, rootUserId as unknown as string, orgId as unknown as string);
+
+  const startRes = await t.fetch("/v1/impersonation/start", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${rootToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ targetUserId: targetUserId as unknown as string }),
+  });
+  const startBody = await startRes.json() as { impersonationToken: string };
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+
+  const endRes = await t.fetch("/v1/impersonation/end", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${rootToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ impersonationSessionId: session!._id }),
+  });
+
+  expect(endRes.status).toBe(200);
+
+  const verifyResult = await t.action(internal.impersonation.verifyImpersonationToken, {
+    token: startBody.impersonationToken,
+  });
+  expect(verifyResult.valid).toBe(false);
+});
+
 // ── Ciclo 6: PEP aceita impersonation token e usa targetUserId como callerId ──
 
 test("PEP: impersonation token válido não retorna 401 — usa targetUserId como callerId", async () => {

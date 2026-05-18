@@ -1527,6 +1527,81 @@ http.route({
   }),
 });
 
+// ── POST /v1/impersonation/start ─────────────────────────────────────────────
+
+http.route({
+  path: "/v1/impersonation/start",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { targetUserId?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.targetUserId) {
+      return jsonResponse({ error: "missing_targetUserId" }, 400);
+    }
+    try {
+      const callerUser = await ctx.runQuery(internal.users.getUserById, {
+        callerId: caller.callerId as never,
+        userId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      const isRoot = (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+      if (!isRoot) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      const token = await ctx.runAction(internal.impersonation.createImpersonationToken, {
+        rootUserId: caller.callerId,
+        targetUserId: body.targetUserId,
+        targetOrgId: caller.orgId,
+      });
+      const expiresAt = Date.now() + 3600 * 1000;
+      return jsonResponse({ impersonationToken: token, expiresAt });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── POST /v1/impersonation/end ───────────────────────────────────────────────
+
+http.route({
+  path: "/v1/impersonation/end",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    let body: { impersonationSessionId?: string } = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    if (!body.impersonationSessionId) {
+      return jsonResponse({ error: "missing_impersonationSessionId" }, 400);
+    }
+    try {
+      const callerUser = await ctx.runQuery(internal.users.getUserById, {
+        callerId: caller.callerId as never,
+        userId: caller.callerId as never,
+        orgId: caller.orgId as never,
+      });
+      const isRoot = (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+      if (!isRoot) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      await ctx.runMutation(internal.impersonationStore.endImpersonationSession, {
+        impersonationSessionId: body.impersonationSessionId as never,
+      });
+      return jsonResponse({ ended: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      if (msg.includes("not_found") || msg.includes("session_not_found"))
+        return jsonResponse({ error: "not_found" }, 404);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // Preflight OPTIONS — rotas com path fixo
 http.route({ path: "/v1/orgs", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/orgs/", method: "OPTIONS", handler: preflight });
@@ -1548,6 +1623,8 @@ http.route({ pathPrefix: "/v1/sessions/", method: "OPTIONS", handler: preflight 
 http.route({ pathPrefix: "/v1/api-keys/", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/workspaces", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/workspaces/", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/impersonation/start", method: "OPTIONS", handler: preflight });
+http.route({ path: "/v1/impersonation/end", method: "OPTIONS", handler: preflight });
 
 http.route({
   path: "/v1/auth/magic-link",
