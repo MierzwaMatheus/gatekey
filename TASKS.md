@@ -462,7 +462,7 @@
 
 ### 5.1 Audit log cold tier — closes #16 (parcial)
 
-- [ ] Criar Convex Scheduled Function `exportAuditLogs` configurada para rodar diariamente
+- [x] Criar Convex Scheduled Function `exportAuditLogs` configurada para rodar diariamente
 - [x] Implementar query que retorna todos os eventos de `audit_log` com `timestamp < now - 30 days`
 - [x] Implementar serialização dos eventos em formato NDJSON (uma linha JSON por evento)
 - [x] Implementar compressão gzip do NDJSON resultante
@@ -470,8 +470,8 @@
 - [ ] Implementar upload alternativo para AWS S3 usando `@aws-sdk/client-s3` — mesmo particionamento
 - [ ] Implementar lógica de escolha R2 vs S3 baseada na configuração `cold_storage_provider` da instância
 - [x] Registrar cada exportação na tabela `audit_exports` com orgId, período e storagePath
-- [ ] Implementar alerta no dashboard quando `cold_storage_provider` não está configurado e existem logs com mais de 25 dias
-- [ ] Escrever teste: Scheduler exporta eventos com mais de 30 dias, eventos recentes permanecem no hot tier
+- [x] Implementar alerta no dashboard quando `cold_storage_provider` não está configurado e existem logs com mais de 25 dias
+- [x] Escrever teste: Scheduler exporta eventos com mais de 30 dias, eventos recentes permanecem no hot tier
 
 ### 5.2 Integração: Cold tier ↔ Dashboard — closes #16 (com 5.1)
 
