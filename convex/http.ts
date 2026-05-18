@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { OPENAPI_SPEC } from "./openapi";
 
 const http = httpRouter();
 
@@ -165,6 +166,7 @@ const API_KEY_PREFIX = "gk_live_pk_";
 async function resolveJwtCaller(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   req: Request,
+  requiredScope?: string,
 ): Promise<{ callerId: string; orgId: string } | Response> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
@@ -176,6 +178,9 @@ async function resolveJwtCaller(
     const result = await ctx.runAction(internal.pep.verifyApiKey, { authHeader });
     if (!result.success) {
       return jsonResponse({ error: "invalid_api_key" }, 401);
+    }
+    if (requiredScope && !result.scopes.includes(requiredScope)) {
+      return jsonResponse({ error: "forbidden", reason: "scope_missing" }, 403);
     }
     return { callerId: result.orgId, orgId: result.orgId };
   }
@@ -387,7 +392,7 @@ http.route({
   path: "/v1/users",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const caller = await resolveJwtCaller(ctx, req);
+    const caller = await resolveJwtCaller(ctx, req, "users:write");
     if (isResponse(caller)) return caller;
 
     let body: { email?: string; password?: string; role?: string; orgId?: string };
@@ -736,7 +741,7 @@ http.route({
   path: "/v1/bindings",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    const caller = await resolveJwtCaller(ctx, req);
+    const caller = await resolveJwtCaller(ctx, req, "bindings:write");
     if (isResponse(caller)) return caller;
 
     let body: {
@@ -977,7 +982,7 @@ http.route({
 });
 
 http.route({
-  path: "/v1/sessions/",
+  pathPrefix: "/v1/sessions/",
   method: "DELETE",
   handler: httpAction(async (ctx, req) => {
     const caller = await resolveJwtCaller(ctx, req);
@@ -1599,5 +1604,56 @@ http.route({
     }
   }),
 });
+
+// ── GET /v1/openapi.json ─────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/openapi.json",
+  method: "GET",
+  handler: httpAction(async () => {
+    return new Response(JSON.stringify(OPENAPI_SPEC), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    });
+  }),
+});
+
+http.route({ path: "/v1/openapi.json", method: "OPTIONS", handler: preflight });
+
+// ── GET /v1/docs ──────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/docs",
+  method: "GET",
+  handler: httpAction(async () => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GateKey API Docs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/v1/openapi.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'BaseLayout',
+    });
+  </script>
+</body>
+</html>`;
+    return new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", ...CORS_HEADERS },
+    });
+  }),
+});
+
+http.route({ path: "/v1/docs", method: "OPTIONS", handler: preflight });
 
 export default http;

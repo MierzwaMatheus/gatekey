@@ -248,6 +248,19 @@ export function PlaygroundPanel({ token }: PlaygroundPanelProps) {
 
   return (
     <div data-testid="playground-panel" className="space-y-4">
+      {/* Link para documentação */}
+      <div className="flex justify-end">
+        <a
+          data-testid="link-docs"
+          href="/v1/docs"
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-accent-primary hover:underline"
+        >
+          Ver documentação
+        </a>
+      </div>
+
       {/* Barra de requisição */}
       <div className="flex gap-2 items-center">
         <select
