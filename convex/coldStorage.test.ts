@@ -332,6 +332,31 @@ test("generatePresignedUrl lança erro quando R2_ACCOUNT_ID não está configura
   ).rejects.toThrow("R2_ACCOUNT_ID");
 });
 
+// ── Ciclo 5.2-6: URL pré-assinada contém expiração de 900s (15 min) ──────────
+
+test("generatePresignedUrl contém X-Amz-Expires=900 confirmando TTL de 15 minutos", async () => {
+  const t = convexTest(schema, modules);
+
+  process.env.R2_ACCOUNT_ID = "test-account";
+  process.env.R2_ACCESS_KEY_ID = "test-key";
+  process.env.R2_SECRET_ACCESS_KEY = "test-secret";
+  process.env.R2_BUCKET_NAME = "test-bucket";
+
+  try {
+    const url = await t.action(internal.coldStorage.generatePresignedUrl, {
+      storagePath: "org123/2024/01/31/logs.ndjson.gz",
+    });
+
+    const parsed = new URL(url);
+    expect(parsed.searchParams.get("X-Amz-Expires")).toBe("900");
+  } finally {
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_SECRET_ACCESS_KEY;
+    delete process.env.R2_BUCKET_NAME;
+  }
+});
+
 // ── Ciclo 5.2-3: GET /v1/audit-exports endpoint ──────────────────────────────
 
 async function setupAuditExportContext(t: ReturnType<typeof convexTest>) {
