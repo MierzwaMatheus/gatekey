@@ -98,6 +98,61 @@ test("verifyImpersonationToken: retorna contexto correto para token válido", as
   }
 });
 
+// ── Ciclo 3: schema impersonation_sessions ───────────────────────────────────
+
+test("impersonation_sessions: permite inserção e busca por rootUserId", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("impersonation_sessions", {
+      rootUserId: rootUserId as unknown as string,
+      targetUserId: targetUserId as unknown as string,
+      tokenHash: "hash123",
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 3600000,
+    }),
+  );
+
+  const found = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+
+  expect(found).not.toBeNull();
+  expect(found!._id).toBe(sessionId);
+  expect(found!.targetUserId).toBe(targetUserId as unknown as string);
+});
+
+test("impersonation_sessions: permite busca por targetUserId", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("impersonation_sessions", {
+      rootUserId: rootUserId as unknown as string,
+      targetUserId: targetUserId as unknown as string,
+      tokenHash: "hash456",
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 3600000,
+    }),
+  );
+
+  const found = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_targetUserId", (q) => q.eq("targetUserId", targetUserId as unknown as string))
+      .first(),
+  );
+
+  expect(found).not.toBeNull();
+  expect(found!.rootUserId).toBe(rootUserId as unknown as string);
+});
+
+// ── Ciclo 2 (continuação): verifyImpersonationToken ──────────────────────────
+
 test("verifyImpersonationToken: token expirado (exp no passado) é rejeitado", async () => {
   const t = convexTest(schema, modules);
   const { rootUserId, targetUserId } = await setupUsers(t);

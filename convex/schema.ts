@@ -177,6 +177,17 @@ export default defineSchema({
     windowStart: v.number(),
   }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
 
+  impersonation_sessions: defineTable({
+    rootUserId: v.string(),
+    targetUserId: v.string(),
+    tokenHash: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    endedAt: v.optional(v.number()),
+  })
+    .index("by_rootUserId", ["rootUserId"])
+    .index("by_targetUserId", ["targetUserId"]),
+
   key_pairs: defineTable({
     kid: v.string(),
     privateKeyJwk: v.string(),
