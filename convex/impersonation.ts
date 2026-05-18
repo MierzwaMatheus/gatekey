@@ -14,6 +14,7 @@ export const createImpersonationToken = internalAction({
   args: {
     rootUserId: v.string(),
     targetUserId: v.string(),
+    targetOrgId: v.optional(v.string()),
     expiresInSeconds: v.optional(v.number()),
   },
   returns: v.string(),
@@ -29,6 +30,7 @@ export const createImpersonationToken = internalAction({
     const ttl = args.expiresInSeconds ?? 3600;
     const token = await new SignJWT({
       impersonating: args.targetUserId,
+      impersonatingOrgId: args.targetOrgId ?? "",
       actor: { type: "root_impersonating" },
     })
       .setProtectedHeader({ alg: "RS256", kid: keyPairRecord.kid })

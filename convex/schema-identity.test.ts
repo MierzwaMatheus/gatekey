@@ -26,6 +26,7 @@ const EXPECTED_TABLES = [
   "mfa_configs",
   "ip_rate_limits",
   "key_pairs",
+  "impersonation_sessions",
 ];
 
 test("schema: todas as tabelas esperadas estão definidas na mesma fonte de verdade", () => {

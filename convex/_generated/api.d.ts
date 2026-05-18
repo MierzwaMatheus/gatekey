@@ -23,6 +23,8 @@ import type * as effectiveAccess from "../effectiveAccess.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as http from "../http.js";
+import type * as impersonation from "../impersonation.js";
+import type * as impersonationStore from "../impersonationStore.js";
 import type * as jwt from "../jwt.js";
 import type * as jwtStore from "../jwtStore.js";
 import type * as jwtVerify from "../jwtVerify.js";
@@ -64,6 +66,8 @@ declare const fullApi: ApiFromModules<{
   emailTemplates: typeof emailTemplates;
   hierarchy: typeof hierarchy;
   http: typeof http;
+  impersonation: typeof impersonation;
+  impersonationStore: typeof impersonationStore;
   jwt: typeof jwt;
   jwtStore: typeof jwtStore;
   jwtVerify: typeof jwtVerify;

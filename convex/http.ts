@@ -166,11 +166,17 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 const API_KEY_PREFIX = "gk_live_pk_";
 
+type CallerContext = {
+  callerId: string;
+  orgId: string;
+  impersonation?: { rootUserId: string };
+};
+
 async function resolveJwtCaller(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   req: Request,
   requiredScope?: string,
-): Promise<{ callerId: string; orgId: string } | Response> {
+): Promise<CallerContext | Response> {
   const authHeader = req.headers.get("Authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) {
     return jsonResponse({ error: "missing_token" }, 401);
@@ -186,6 +192,29 @@ async function resolveJwtCaller(
       return jsonResponse({ error: "forbidden", reason: "scope_missing" }, 403);
     }
     return { callerId: result.orgId, orgId: result.orgId };
+  }
+
+  // Check if this is an impersonation token before full JWT verification
+  let rawPayload: Record<string, unknown> | null = null;
+  try {
+    rawPayload = JSON.parse(
+      Buffer.from(token.split(".")[1]!, "base64url").toString("utf-8"),
+    ) as Record<string, unknown>;
+  } catch {
+    return jsonResponse({ error: "invalid_token" }, 401);
+  }
+  const actor = rawPayload["actor"] as Record<string, unknown> | undefined;
+  if (actor?.type === "root_impersonating") {
+    const result = await ctx.runAction(internal.impersonation.verifyImpersonationToken, { token });
+    if (!result.valid) {
+      return jsonResponse({ error: "invalid_token" }, 401);
+    }
+    const targetOrgId = (rawPayload["impersonatingOrgId"] as string | undefined) ?? "";
+    return {
+      callerId: result.targetUserId,
+      orgId: targetOrgId,
+      impersonation: { rootUserId: result.rootUserId },
+    };
   }
 
   const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });

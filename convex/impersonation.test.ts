@@ -235,6 +235,128 @@ test("endImpersonationSession: sessão encerrada faz verifyImpersonationToken re
   }
 });
 
+// ── Ciclo 6: PEP aceita impersonation token e usa targetUserId como callerId ──
+
+test("PEP: impersonation token válido não retorna 401 — usa targetUserId como callerId", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root2@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "AcmeOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target2@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId: targetUserId,
+      orgId,
+      role: "admin",
+      status: "active",
+    }),
+  );
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+    targetOrgId: orgId as unknown as string,
+  });
+
+  const res = await t.fetch(`/v1/users/${targetUserId as unknown as string}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  expect(res.status).not.toBe(401);
+});
+
+test("PEP: token de impersonation com sessão encerrada retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root3@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "BetaOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target3@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+    targetOrgId: orgId as unknown as string,
+  });
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+  await t.mutation(internal.impersonationStore.endImpersonationSession, {
+    impersonationSessionId: session!._id,
+  });
+
+  const res = await t.fetch(`/v1/users/${targetUserId as unknown as string}`, {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+    },
+  });
+
+  expect(res.status).toBe(401);
+});
+
 // ── Ciclo 2 (continuação): verifyImpersonationToken ──────────────────────────
 
 test("verifyImpersonationToken: token expirado (exp no passado) é rejeitado", async () => {
