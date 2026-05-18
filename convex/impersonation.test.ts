@@ -1,0 +1,115 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
+/// <reference types="vite/client" />
+import { convexTest } from "convex-test";
+import { expect, test } from "vitest";
+import { internal } from "./_generated/api";
+import schema from "./schema";
+
+const modules = import.meta.glob("./**/*.ts");
+
+async function setupUsers(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  return { rootUserId, targetUserId };
+}
+
+// ── Ciclo 1: createImpersonationToken — claims e estrutura ───────────────────
+
+test("createImpersonationToken: retorna JWT com sub=rootUserId e impersonating=targetUserId", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+
+  expect(token).toBeTypeOf("string");
+  const payload = JSON.parse(atob(token.split(".")[1]!));
+  expect(payload.sub).toBe(rootUserId as unknown as string);
+  expect(payload.impersonating).toBe(targetUserId as unknown as string);
+});
+
+test("createImpersonationToken: token contém claim actor.type = root_impersonating", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+
+  const payload = JSON.parse(atob(token.split(".")[1]!));
+  expect(payload.actor?.type).toBe("root_impersonating");
+});
+
+test("createImpersonationToken: exp é aproximadamente now + 3600 segundos", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const before = Math.floor(Date.now() / 1000);
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+  const after = Math.floor(Date.now() / 1000);
+
+  const payload = JSON.parse(atob(token.split(".")[1]!));
+  expect(payload.exp).toBeGreaterThanOrEqual(before + 3600);
+  expect(payload.exp).toBeLessThanOrEqual(after + 3600);
+});
+
+// ── Ciclo 2: verifyImpersonationToken — validação e expiração ─────────────────
+
+test("verifyImpersonationToken: retorna contexto correto para token válido", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+
+  const result = await t.action(internal.impersonation.verifyImpersonationToken, { token });
+  expect(result.valid).toBe(true);
+  if (result.valid) {
+    expect(result.rootUserId).toBe(rootUserId as unknown as string);
+    expect(result.targetUserId).toBe(targetUserId as unknown as string);
+  }
+});
+
+test("verifyImpersonationToken: token expirado (exp no passado) é rejeitado", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const expiredToken = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+    expiresInSeconds: -10,
+  });
+
+  const result = await t.action(internal.impersonation.verifyImpersonationToken, {
+    token: expiredToken,
+  });
+  expect(result.valid).toBe(false);
+});
