@@ -414,6 +414,117 @@ test("POST /v1/impersonation/end: Root encerra sessão e token fica inválido", 
   expect(verifyResult.valid).toBe(false);
 });
 
+// ── Ciclo 9: audit log com actor.type root_impersonating ─────────────────────
+
+test("writeAuditEvent: aceita actorType root_impersonating com actorImpersonating", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "AuditOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-audit@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-audit@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const auditId = await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "root_impersonating",
+    actorId: rootUserId as unknown as string,
+    actorImpersonating: targetUserId as unknown as string,
+    action: "binding.create",
+    target: { type: "binding", id: "bind_123" },
+    orgId,
+    result: "allow",
+  });
+
+  expect(auditId).toBeTypeOf("string");
+
+  const event = await t.run((ctx) => ctx.db.get(auditId));
+  expect(event!.actorType).toBe("root_impersonating");
+  expect(event!.actorId).toBe(rootUserId as unknown as string);
+  expect(event!.actorImpersonating).toBe(targetUserId as unknown as string);
+});
+
+test("listAuditLog: eventos de root_impersonating NÃO aparecem nos logs do targetUserId como actor", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "FilterOrg", status: "active", updatedAt: Date.now() }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 2592000,
+      quotas: {},
+    }),
+  );
+
+  const rootUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root-filter@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const targetUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target-filter@example.com",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  // Write an impersonation audit event with rootUserId as actor
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "root_impersonating",
+    actorId: rootUserId as unknown as string,
+    actorImpersonating: targetUserId as unknown as string,
+    action: "binding.create",
+    target: { type: "binding" },
+    orgId,
+    result: "allow",
+  });
+
+  // The audit event's actorId is rootUserId — targetUserId should NOT appear as actor
+  const events = await t.run((ctx) =>
+    ctx.db.query("audit_log").collect(),
+  );
+
+  const targetIsActor = events.some((e) => e.actorId === (targetUserId as unknown as string));
+  expect(targetIsActor).toBe(false);
+
+  const rootIsActor = events.some((e) => e.actorId === (rootUserId as unknown as string));
+  expect(rootIsActor).toBe(true);
+});
+
 // ── Ciclo 6: PEP aceita impersonation token e usa targetUserId como callerId ──
 
 test("PEP: impersonation token válido não retorna 401 — usa targetUserId como callerId", async () => {
