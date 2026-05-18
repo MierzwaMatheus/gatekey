@@ -449,12 +449,12 @@
 
 ### 4.10 i18n completo — closes #15
 
-- [ ] Criar arquivos `/dashboard/locales/pt-BR/common.json`, `auth.json`, `users.json`, `roles.json`, `bindings.json`, `audit.json`, `playground.json`
-- [ ] Criar arquivos espelho em `/dashboard/locales/en/` com as mesmas chaves
-- [ ] Substituir todas as strings hardcoded no dashboard por chamadas a `t('chave')`
-- [ ] Implementar seletor de idioma na UI (dropdown ou toggle PT-BR / EN) sem reload de página
-- [ ] Adicionar regra de lint (ex: `eslint-plugin-i18next`) para bloquear strings hardcoded em JSX
-- [ ] Confirmar que emails de magic link são enviados no idioma de `org_settings.defaultLanguage`
+- [x] Criar arquivos `/dashboard/locales/pt-BR/common.json`, `auth.json`, `users.json`, `roles.json`, `bindings.json`, `audit.json`, `playground.json`
+- [x] Criar arquivos espelho em `/dashboard/locales/en/` com as mesmas chaves
+- [x] Substituir todas as strings hardcoded no dashboard por chamadas a `t('chave')`
+- [x] Implementar seletor de idioma na UI (dropdown ou toggle PT-BR / EN) sem reload de página
+- [x] Adicionar regra de lint (ex: `eslint-plugin-i18next`) para bloquear strings hardcoded em JSX
+- [x] Confirmar que emails de magic link são enviados no idioma de `org_settings.defaultLanguage`
 
 ---
 
