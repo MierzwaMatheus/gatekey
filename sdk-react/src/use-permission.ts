@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { PermissionState } from "./types.js";
 import { useGatekey } from "./provider.js";

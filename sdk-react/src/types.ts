@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import type { UserResponse } from "@gatekey/sdk";
 
 export type AuthState =
