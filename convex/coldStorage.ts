@@ -1,6 +1,7 @@
 "use node";
 
 import { internalAction } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { gzipSync } from "node:zlib";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
@@ -54,5 +55,59 @@ export const uploadToR2 = internalAction({
     );
 
     return args.storagePath;
+  },
+});
+
+export const exportAuditLogsForOrg = internalAction({
+  args: {
+    orgId: v.id("orgs"),
+    exportEnd: v.number(),
+    mockStoragePath: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const allEvents: unknown[] = [];
+    let cursor: string | null = null;
+
+    // Paginar todos os eventos antigos
+    while (true) {
+      const page = await ctx.runQuery(internal.auditLog.getAuditEventsForExport, {
+        orgId: args.orgId,
+        beforeTimestamp: args.exportEnd,
+        paginationOpts: { numItems: 200, cursor },
+      });
+      allEvents.push(...page.page);
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+
+    if (allEvents.length === 0) return;
+
+    const exportStart = Math.min(...(allEvents as { timestamp: number }[]).map((e) => e.timestamp));
+
+    let storagePath: string;
+    if (args.mockStoragePath) {
+      storagePath = args.mockStoragePath;
+    } else {
+      const buffer = await ctx.runAction(internal.coldStorage.serializeEventsToNdjsonGz, {
+        events: allEvents,
+      });
+
+      const date = new Date(args.exportEnd);
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
+      const path = `${args.orgId}/${yyyy}/${mm}/${dd}/logs.ndjson.gz`;
+
+      storagePath = await ctx.runAction(internal.coldStorage.uploadToR2, {
+        buffer,
+        storagePath: path,
+      });
+    }
+
+    await ctx.runMutation(internal.auditLog.recordAuditExport, {
+      orgId: args.orgId,
+      period: { start: exportStart, end: args.exportEnd },
+      storagePath,
+    });
   },
 });

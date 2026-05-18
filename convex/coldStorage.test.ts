@@ -117,3 +117,43 @@ test("uploadToR2 lança erro descritivo quando R2_ACCOUNT_ID não está configur
     }),
   ).rejects.toThrow("R2_ACCOUNT_ID");
 });
+
+// ── Ciclo 5: exportAuditLogsForOrg cria registro em audit_exports ─────────────
+
+test("exportAuditLogsForOrg cria registro em audit_exports com orgId, period e storagePath corretos", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "ExportOrg2", status: "active", updatedAt: Date.now() }),
+  );
+
+  const now = Date.now();
+  const oldTimestamp = now - THIRTY_DAYS_MS - 5000;
+
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: oldTimestamp,
+      actorType: "system",
+      actorId: "system",
+      action: "old.event",
+      target: { type: "org" },
+      orgId,
+      result: "allow",
+    }),
+  );
+
+  // Chama o orquestrador com storagePath mockado (sem R2 real)
+  const exportEnd = now - THIRTY_DAYS_MS;
+  await t.action(internal.coldStorage.exportAuditLogsForOrg, {
+    orgId,
+    exportEnd,
+    mockStoragePath: "mock/path/logs.ndjson.gz",
+  });
+
+  const exports = await t.run((ctx) => ctx.db.query("audit_exports").collect());
+  expect(exports).toHaveLength(1);
+  expect(exports[0].orgId).toBe(orgId);
+  expect(exports[0].storagePath).toBe("mock/path/logs.ndjson.gz");
+  expect(exports[0].period.end).toBe(exportEnd);
+  expect(exports[0].createdAt).toBeGreaterThan(0);
+});
