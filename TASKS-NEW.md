@@ -48,9 +48,9 @@
 - [x] Aplicar PEP na rota: acessível por Workspace Admin (do workspace no query param), Org Admin da org, e Root; bloquear Members
 - [x] Validar query param `workspaceId` obrigatório — retornar 400 se ausente
 - [x] Adicionar preflight CORS para o novo path
-- [ ] Atualizar spec OpenAPI com documentação de `GET /v1/users/:id/effective-access`: descrição, query params, response schema com todos os campos incluindo `source` e `deniedBy`
+- [x] Atualizar spec OpenAPI com documentação de `GET /v1/users/:id/effective-access`: descrição, query params, response schema com todos os campos incluindo `source` e `deniedBy`
 - [x] Escrever teste de integração: usuário com binding de workspace `editor` + deny explícito em `doc_xyz` — retorna `workspaceAccess.role = "editor"` e `resourceAccess` contendo entry para `doc_xyz` com `effectiveRole: null`
-- [ ] Escrever teste de integração: usuário com binding de folder + inheritanceMode ativo — retorna entradas de documentos filhos com `source: "inherited-from-folder:<folderId>"`
+- [x] Escrever teste de integração: usuário com binding de folder + inheritanceMode ativo — retorna entradas de documentos filhos com `source: "inherited-from-folder:<folderId>"`
 - [x] Escrever teste de integração: binding expirado há 1 segundo não aparece no resultado
 - [x] Escrever teste de integração: usuário sem workspace binding mas com allow em `doc_abc` — `workspaceAccess: null` e `resourceAccess` contém apenas `doc_abc`
 - [x] Escrever teste de integração: Org Admin de org_A não consegue chamar endpoint para usuário de org_B
