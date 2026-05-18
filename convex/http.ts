@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { OPENAPI_SPEC } from "./openapi";
 
 const http = httpRouter();
 
@@ -1603,5 +1604,56 @@ http.route({
     }
   }),
 });
+
+// ── GET /v1/openapi.json ─────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/openapi.json",
+  method: "GET",
+  handler: httpAction(async () => {
+    return new Response(JSON.stringify(OPENAPI_SPEC), {
+      status: 200,
+      headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    });
+  }),
+});
+
+http.route({ path: "/v1/openapi.json", method: "OPTIONS", handler: preflight });
+
+// ── GET /v1/docs ──────────────────────────────────────────────────────────────
+
+http.route({
+  path: "/v1/docs",
+  method: "GET",
+  handler: httpAction(async () => {
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GateKey API Docs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/v1/openapi.json',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'BaseLayout',
+    });
+  </script>
+</body>
+</html>`;
+    return new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8", ...CORS_HEADERS },
+    });
+  }),
+});
+
+http.route({ path: "/v1/docs", method: "OPTIONS", handler: preflight });
 
 export default http;
