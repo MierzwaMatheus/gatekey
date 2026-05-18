@@ -1,11 +1,13 @@
 import { createRoute, useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Route as rootRoute } from './__root'
 import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
 import { useAuth } from '../lib/auth-context'
 import { useNavigate } from '@tanstack/react-router'
 
 export function MagicLinkVerifyPage() {
+  const { t } = useTranslation('auth')
   const { setAuth } = useAuth()
   const navigate = useNavigate()
   const search = useSearch({ from: Route.id }) as { token?: string }
@@ -33,7 +35,7 @@ export function MagicLinkVerifyPage() {
 
     const token = search.token
     if (!token) {
-      setErrorMsg('LINK INVÁLIDO. TOKEN AUSENTE.')
+      setErrorMsg(t('magic_link.error_invalid_token'))
       setStatus('error')
       return
     }
@@ -51,9 +53,9 @@ export function MagicLinkVerifyPage() {
       navigateAfterLogin(result.accessToken, result.orgId)
     }).catch((err) => {
       if (err instanceof AuthError && err.reason === 'invalid_or_expired') {
-        setErrorMsg('LINK EXPIRADO OU JÁ UTILIZADO.')
+        setErrorMsg(t('magic_link.error_expired_token'))
       } else {
-        setErrorMsg('FALHA NA VERIFICAÇÃO. TENTE NOVAMENTE.')
+        setErrorMsg(t('magic_link.error_verify_failure'))
       }
       setStatus('error')
     })
@@ -66,7 +68,7 @@ export function MagicLinkVerifyPage() {
       const result = await authService.challengeMfa(mfaToken, mfaCode)
       navigateAfterLogin(result.accessToken, result.orgId)
     } catch {
-      setErrorMsg('CÓDIGO INVÁLIDO OU EXPIRADO.')
+      setErrorMsg(t('mfa.error_invalid_code'))
       setStatus('error')
     } finally {
       setIsLoading(false)
@@ -77,13 +79,13 @@ export function MagicLinkVerifyPage() {
     <div className="min-h-screen bg-surface-page flex items-center justify-center p-4">
       <div className="w-full max-w-[480px] bg-surface-card border border-border-default p-8 text-center space-y-4">
         <p className="font-mono text-[10px] tracking-widest text-text-muted uppercase">
-          <span className="text-accent-primary">//</span> MAGIC LINK / VERIFICAÇÃO
+          <span className="text-accent-primary">//</span> {t('magic_link.verify_section_label').replace('// ', '')}
         </p>
 
         {status === 'verifying' && (
           <>
             <div className="w-6 h-6 border-2 border-accent-primary border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="font-mono text-[13px] text-text-secondary">VALIDANDO CREDENCIAL…</p>
+            <p className="font-mono text-[13px] text-text-secondary">{t('magic_link.verifying')}</p>
           </>
         )}
 
@@ -94,7 +96,7 @@ export function MagicLinkVerifyPage() {
               onClick={() => navigate({ to: '/login' })}
               className="font-mono text-[11px] tracking-widest text-accent-primary hover:brightness-90 uppercase transition-colors"
             >
-              ← SOLICITAR NOVO LINK
+              {t('magic_link.request_new_link')}
             </button>
           </>
         )}
@@ -102,7 +104,7 @@ export function MagicLinkVerifyPage() {
         {status === 'mfa_challenge' && (
           <form onSubmit={onMfaChallenge} noValidate className="space-y-4 text-left">
             <p className="font-mono text-[11px] text-text-muted">
-              Informe o código TOTP ou código de backup para concluir o acesso.
+              {t('magic_link.mfa_prompt')}
             </p>
             <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
               <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -110,7 +112,7 @@ export function MagicLinkVerifyPage() {
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                placeholder="000000"
+                placeholder={t('mfa.field_code_placeholder')}
                 maxLength={32}
                 value={mfaCode}
                 onChange={e => setMfaCode(e.target.value)}
@@ -124,7 +126,7 @@ export function MagicLinkVerifyPage() {
               className="w-full py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 hover:brightness-90"
               style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
             >
-              {isLoading ? 'VERIFICANDO…' : 'CONFIRMAR CÓDIGO →'}
+              {isLoading ? t('magic_link.mfa_submit_loading') : t('magic_link.mfa_submit')}
             </button>
           </form>
         )}

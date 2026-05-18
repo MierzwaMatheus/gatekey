@@ -1,5 +1,6 @@
 import { createRoute } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Route as rootRoute } from './__root'
 import { useAuth } from '../lib/auth-context'
 import { useNavigate } from '@tanstack/react-router'
@@ -22,6 +23,7 @@ function UtcClock() {
 }
 
 export function ChangePasswordPage() {
+  const { t } = useTranslation('auth')
   const { token, orgId } = useAuth()
   const navigate = useNavigate()
   const [newPassword, setNewPassword] = useState('')
@@ -53,7 +55,7 @@ export function ChangePasswordPage() {
         navigate({ to: '/root' })
       }
     } catch (err) {
-      setErrorApi((err as Error).message ?? 'FALHA AO RENOVAR CHAVE')
+      setErrorApi((err as Error).message ?? t('change_password.error_api_fallback'))
     } finally {
       setIsLoading(false)
     }
@@ -66,26 +68,24 @@ export function ChangePasswordPage() {
 
         <div className="bg-surface-card border border-border-default border-l-0">
 
-          {/* header */}
           <div className="px-6 py-3 flex items-center justify-between border-b border-border-subtle">
             <span className="font-mono text-[11px] font-semibold tracking-widest text-accent-primary uppercase">
-              CREDENCIAL · RENOVAÇÃO
+              {t('change_password.header')}
             </span>
             <span className="font-mono text-[10px] tracking-widest text-text-muted uppercase">
-              FORM · A-015 · REV 01
+              {t('change_password.form_ref')}
             </span>
           </div>
 
-          {/* body */}
           <div className="px-6 pt-5 pb-5">
             <p className="font-mono text-[10px] tracking-widest text-text-muted uppercase mb-3">
-              <span className="text-accent-primary">//</span> SECURE / KEY ROTATION
+              <span className="text-accent-primary">//</span> {t('change_password.section_label').replace('// ', '')}
             </p>
             <h1 className="text-[26px] font-semibold text-text-primary leading-tight mb-1">
-              Renovar acesso.
+              {t('change_password.title')}
             </h1>
             <p className="font-mono text-[11px] text-text-muted mb-5">
-              credencial temporária detectada. defina nova chave.
+              {t('change_password.subtitle')}
             </p>
 
             {errorApi && (
@@ -95,10 +95,9 @@ export function ChangePasswordPage() {
             )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              {/* nova chave */}
               <div>
                 <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                  <span className="text-accent-primary">A</span> NOVA CHAVE CRIPTOGRÁFICA
+                  <span className="text-accent-primary">A</span> {t('change_password.field_new_label')}
                 </p>
                 <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                   <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -107,7 +106,7 @@ export function ChangePasswordPage() {
                     data-testid="input-new-password"
                     type={showNew ? 'text' : 'password'}
                     autoComplete="new-password"
-                    placeholder="mínimo 8 caracteres"
+                    placeholder={t('change_password.field_new_placeholder')}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="flex-1 bg-transparent py-2.5 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
@@ -117,20 +116,19 @@ export function ChangePasswordPage() {
                     onClick={() => setShowNew(v => !v)}
                     className="px-3 font-mono text-[10px] tracking-widest text-text-muted hover:text-text-secondary transition-colors uppercase border-l border-border-default self-stretch flex items-center"
                   >
-                    {showNew ? 'HIDE' : 'SHOW'}
+                    {showNew ? t('change_password.hide') : t('change_password.show')}
                   </button>
                 </div>
                 {errorLength && (
                   <p data-testid="error-password-length" className="mt-1 font-mono text-[10px] text-status-deny uppercase">
-                    CHAVE DEVE TER PELO MENOS 8 CARACTERES.
+                    {t('change_password.error_length')}
                   </p>
                 )}
               </div>
 
-              {/* confirmar chave */}
               <div>
                 <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                  <span className="text-accent-primary">B</span> CONFIRMAR CHAVE
+                  <span className="text-accent-primary">B</span> {t('change_password.field_confirm_label')}
                 </p>
                 <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                   <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -139,7 +137,7 @@ export function ChangePasswordPage() {
                     data-testid="input-confirm-password"
                     type={showConfirm ? 'text' : 'password'}
                     autoComplete="new-password"
-                    placeholder="repita a nova chave"
+                    placeholder={t('change_password.field_confirm_placeholder')}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="flex-1 bg-transparent py-2.5 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
@@ -149,17 +147,16 @@ export function ChangePasswordPage() {
                     onClick={() => setShowConfirm(v => !v)}
                     className="px-3 font-mono text-[10px] tracking-widest text-text-muted hover:text-text-secondary transition-colors uppercase border-l border-border-default self-stretch flex items-center"
                   >
-                    {showConfirm ? 'HIDE' : 'SHOW'}
+                    {showConfirm ? t('change_password.hide') : t('change_password.show')}
                   </button>
                 </div>
                 {errorMismatch && (
                   <p data-testid="error-password-mismatch" className="mt-1 font-mono text-[10px] text-status-deny uppercase">
-                    CHAVES NÃO COINCIDEM.
+                    {t('change_password.error_mismatch')}
                   </p>
                 )}
               </div>
 
-              {/* action button */}
               <div className="pt-1">
                 <button
                   data-testid="btn-change-password"
@@ -168,19 +165,18 @@ export function ChangePasswordPage() {
                   className="w-full py-3 font-mono text-[11px] font-bold tracking-widest uppercase text-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: '#F0A500' }}
                 >
-                  {isLoading ? 'PROCESSANDO…' : 'DEFINIR CHAVE →'}
+                  {isLoading ? t('change_password.submit_loading') : t('change_password.submit')}
                 </button>
               </div>
             </form>
           </div>
 
-          {/* status bar */}
           <div className="px-6 py-2.5 border-t border-border-subtle flex items-center justify-between bg-surface-elevated">
             <span className="font-mono text-[10px] tracking-wide" style={{ color: '#3FB950' }}>
-              HANDSHAKE ESTÁVEL · TLS 1.3
+              {t('change_password.status_handshake')}
             </span>
             <span className="font-mono text-[10px] tracking-wide text-text-muted">
-              CHAIN · 4A:9C:2E:01:B7
+              {t('change_password.status_chain')}
             </span>
             <span className="font-mono text-[10px] tracking-wide text-text-muted">
               <UtcClock />
