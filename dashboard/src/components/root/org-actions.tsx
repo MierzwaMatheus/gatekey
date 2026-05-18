@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Pause, Trash2, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { suspendOrg, deleteOrg } from '../../lib/root-api'
 
 interface OrgActionsProps {
@@ -19,6 +20,7 @@ function Modal({ children }: { children: React.ReactNode }) {
 }
 
 export function OrgActions({ token, org, onDone }: OrgActionsProps) {
+  const { t } = useTranslation('common')
   const [showSuspend, setShowSuspend] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [confirmName, setConfirmName] = useState('')
@@ -56,7 +58,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
         >
           <Pause size={13} />
-          Suspender
+          {t('org_actions.suspend')}
         </button>
         <button
           data-testid="btn-delete-org"
@@ -64,7 +66,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
           className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-status-deny border border-status-deny/30 rounded-button hover:bg-status-deny/10 transition-colors cursor-pointer"
         >
           <Trash2 size={13} />
-          Deletar
+          {t('org_actions.delete_btn')}
         </button>
       </div>
 
@@ -73,7 +75,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
         <Modal>
           <div data-testid="modal-suspend" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-text-primary">Suspender organização</h3>
+              <h3 className="text-sm font-medium text-text-primary">{t('org_actions.suspend_title')}</h3>
               <button
                 onClick={() => setShowSuspend(false)}
                 className="text-text-secondary hover:text-text-primary cursor-pointer"
@@ -82,8 +84,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
               </button>
             </div>
             <p className="text-[13px] text-text-secondary">
-              A organização <span className="text-text-primary font-medium">{org.name}</span> será
-              suspensa. Todos os usuários perderão acesso imediatamente.
+              {t('org_actions.suspend_desc')}
             </p>
             <div className="flex justify-end gap-2">
               <button
@@ -91,7 +92,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
                 onClick={() => setShowSuspend(false)}
                 className="px-3 py-1.5 text-sm text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
               >
-                Cancelar
+                {t('cancel')}
               </button>
               <button
                 data-testid="btn-confirm-suspend"
@@ -99,7 +100,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
                 disabled={loading}
                 className="px-3 py-1.5 text-sm text-status-deny border border-status-deny/40 rounded-button hover:bg-status-deny hover:text-black transition-colors disabled:opacity-60 cursor-pointer"
               >
-                {loading ? 'Suspendendo…' : 'Confirmar suspensão'}
+                {loading ? t('org_actions.suspending') : t('org_actions.suspend_confirm')}
               </button>
             </div>
           </div>
@@ -111,7 +112,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
         <Modal>
           <div data-testid="modal-delete" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-text-primary">Deletar organização</h3>
+              <h3 className="text-sm font-medium text-text-primary">{t('org_actions.delete_title')}</h3>
               <button
                 onClick={() => { setShowDelete(false); setConfirmName('') }}
                 className="text-text-secondary hover:text-text-primary cursor-pointer"
@@ -120,8 +121,8 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
               </button>
             </div>
             <p className="text-[13px] text-text-secondary">
-              Esta ação é irreversível. Digite{' '}
-              <span className="font-mono text-text-primary">{org.name}</span> para confirmar.
+              {t('org_actions.delete_desc')}{' '}
+              <span className="font-mono text-text-primary">{org.name}</span>
             </p>
             <input
               data-testid="input-confirm-name"
@@ -136,7 +137,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
                 onClick={() => { setShowDelete(false); setConfirmName('') }}
                 className="px-3 py-1.5 text-sm text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
               >
-                Cancelar
+                {t('cancel')}
               </button>
               <button
                 data-testid="btn-confirm-delete"
@@ -144,7 +145,7 @@ export function OrgActions({ token, org, onDone }: OrgActionsProps) {
                 disabled={confirmName !== org.name || loading}
                 className="px-3 py-1.5 text-sm text-black bg-status-deny rounded-button hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                {loading ? 'Deletando…' : 'Deletar permanentemente'}
+                {loading ? t('org_actions.deleting') : t('org_actions.delete_confirm')}
               </button>
             </div>
           </div>

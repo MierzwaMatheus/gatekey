@@ -1,18 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { getOrgSettings, updateOrgQuotas, type OrgQuotas } from '../../lib/root-api'
 
-const QUOTA_LABELS: Record<keyof OrgQuotas, string> = {
-  users_per_org: 'Usuários por org',
-  workspaces_per_org: 'Workspaces por org',
-  users_per_workspace: 'Usuários por workspace',
-  capabilities_per_org: 'Capabilities por org',
-  roles_per_workspace: 'Roles por workspace',
-  sessions_per_user: 'Sessões por usuário',
-  api_keys_per_org: 'API Keys por org',
-}
-
-const QUOTA_KEYS = Object.keys(QUOTA_LABELS) as Array<keyof OrgQuotas>
+const QUOTA_KEYS: Array<keyof OrgQuotas> = [
+  'users_per_org',
+  'workspaces_per_org',
+  'users_per_workspace',
+  'capabilities_per_org',
+  'roles_per_workspace',
+  'sessions_per_user',
+  'api_keys_per_org',
+]
 
 /* Grade de quadrinhos segmentados — cada quadrinho = 1 unidade do limite */
 function QuotaBar({ limit, quotaKey }: { limit: number; quotaKey: string }) {
@@ -40,6 +39,7 @@ interface OrgQuotaSettingsProps {
 }
 
 export function OrgQuotaSettings({ token, orgId }: OrgQuotaSettingsProps) {
+  const { t } = useTranslation('common')
   const [quotas, setQuotas] = useState<OrgQuotas | null>(null)
   const [values, setValues] = useState<Partial<OrgQuotas>>({})
   const [saving, setSaving] = useState(false)
@@ -88,7 +88,7 @@ export function OrgQuotaSettings({ token, orgId }: OrgQuotaSettingsProps) {
         return (
           <div key={key} className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[12px] text-text-secondary">{QUOTA_LABELS[key]}</label>
+              <label className="text-[12px] text-text-secondary">{t(`quotas.${key}`)}</label>
               <input
                 data-testid={`quota-${key}`}
                 type="number"
@@ -112,12 +112,12 @@ export function OrgQuotaSettings({ token, orgId }: OrgQuotaSettingsProps) {
           disabled={saving}
           className="px-4 py-2 text-sm font-medium bg-accent-primary text-black rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
         >
-          {saving ? 'Salvando…' : 'Salvar cotas'}
+          {saving ? t('quotas.saving') : t('quotas.save')}
         </button>
         {saved && (
           <span data-testid="quotas-saved" className="flex items-center gap-1 text-[12px] text-status-allow">
             <Check size={13} />
-            Salvo
+            {t('quotas.saved')}
           </span>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { KeyRound } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { listApiKeys, type ApiKeySummary } from '../../lib/root-api'
 
 /* Chave SVG com dentes = escopos ativos */
@@ -79,10 +80,11 @@ function LoadingSkeleton() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation('common')
   return (
     <div data-testid="apikeys-empty" className="flex flex-col items-center justify-center py-16 gap-3">
       <KeyRound size={32} className="text-text-secondary" />
-      <p className="text-sm text-text-secondary">Nenhuma API Key criada.</p>
+      <p className="text-sm text-text-secondary">{t('apikeys.none_browser')}</p>
     </div>
   )
 }
@@ -92,6 +94,7 @@ interface ApiKeysBrowserProps {
 }
 
 export function ApiKeysBrowser({ token }: ApiKeysBrowserProps) {
+  const { t } = useTranslation('common')
   const [keys, setKeys] = useState<ApiKeySummary[] | null>(null)
 
   useEffect(() => {
@@ -155,7 +158,7 @@ export function ApiKeysBrowser({ token }: ApiKeysBrowserProps) {
 
           {key.lastUsedAt && (
             <p className="text-[11px] font-mono text-text-muted">
-              Último uso: {new Date(key.lastUsedAt).toLocaleDateString('pt-BR')}
+              {t('apikeys.last_used')} {new Date(key.lastUsedAt).toLocaleDateString()}
             </p>
           )}
         </div>

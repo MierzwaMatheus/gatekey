@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react'
 import { Navigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../lib/auth-context'
 import { Icon, LogoMark } from '../ui/icons'
 import { TopBar } from '../ui/topbar'
@@ -16,30 +17,20 @@ export type RootSection =
 
 interface NavDef {
   id: string
-  label: string
+  labelKey: string
   icon: string
   section: RootSection
 }
 
-const NAV_ITEMS: NavDef[] = [
-  { id: 'nav-orgs',         label: 'Organizações',  icon: 'orgs',       section: 'orgs' },
-  { id: 'nav-sessions',     label: 'Sessões Ativas', icon: 'sessions',   section: 'sessions' },
-  { id: 'nav-audit-log',    label: 'Audit Log',      icon: 'audit',      section: 'audit-log' },
-  { id: 'nav-capabilities', label: 'Capabilities',   icon: 'zap',        section: 'capabilities' },
-  { id: 'nav-api-keys',     label: 'API Keys',       icon: 'key',        section: 'api-keys' },
-  { id: 'nav-quotas',       label: 'Cotas',          icon: 'sliders',    section: 'quotas' },
-  { id: 'nav-cold-storage', label: 'Cold Storage',   icon: 'hard-drive', section: 'cold-storage' },
+const NAV_DEFS = [
+  { id: 'nav-orgs',         labelKey: 'nav.orgs',         icon: 'orgs',       section: 'orgs' as RootSection },
+  { id: 'nav-sessions',     labelKey: 'nav.sessions',     icon: 'sessions',   section: 'sessions' as RootSection },
+  { id: 'nav-audit-log',    labelKey: 'nav.audit_log',    icon: 'audit',      section: 'audit-log' as RootSection },
+  { id: 'nav-capabilities', labelKey: 'nav.capabilities', icon: 'zap',        section: 'capabilities' as RootSection },
+  { id: 'nav-api-keys',     labelKey: 'nav.api_keys',     icon: 'key',        section: 'api-keys' as RootSection },
+  { id: 'nav-quotas',       labelKey: 'nav.quotas',       icon: 'sliders',    section: 'quotas' as RootSection },
+  { id: 'nav-cold-storage', labelKey: 'nav.cold_storage', icon: 'hard-drive', section: 'cold-storage' as RootSection },
 ]
-
-const SECTION_LABELS: Record<RootSection, string> = {
-  'orgs':         'organizações',
-  'sessions':     'sessions.active',
-  'audit-log':    'audit.log',
-  'capabilities': 'capabilities',
-  'api-keys':     'api.keys',
-  'quotas':       'cotas',
-  'cold-storage': 'cold.storage',
-}
 
 interface RootLayoutProps {
   children: ReactNode
@@ -48,6 +39,7 @@ interface RootLayoutProps {
 }
 
 export function RootLayout({ children, activeSection = 'orgs', onSectionChange }: RootLayoutProps) {
+  const { t } = useTranslation('common')
   const { role } = useAuth()
 
   if (!role || role !== 'root') {
@@ -80,8 +72,8 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
         </div>
 
         <div className="nav-section">
-          <div className="nav-section-label">/ administração</div>
-          {NAV_ITEMS.map((it, idx) => {
+          <div className="nav-section-label">{t('nav.admin')}</div>
+          {NAV_DEFS.map((it, idx) => {
             const isActive = activeSection === it.section
             return (
               <button
@@ -93,7 +85,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
               >
                 <span className="nav-num">{String(idx + 1).padStart(2, '0')}</span>
                 <Icon name={it.icon} size={14} />
-                <span className="nav-label">{it.label}</span>
+                <span className="nav-label">{t(it.labelKey)}</span>
               </button>
             )
           })}
@@ -107,7 +99,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
           >
             <span className="nav-num">{String(NAV_ITEMS.length + 1).padStart(2, '0')}</span>
             <Icon name="settings" size={14} />
-            <span className="nav-label">Configurações</span>
+            <span className="nav-label">{t('nav.settings')}</span>
           </button>
           <div className="user-chip">
             <div className="avatar">RD</div>
@@ -120,7 +112,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
       </aside>
 
       <main className="main">
-        <TopBar scope="root" context="global" section={SECTION_LABELS[activeSection]} />
+        <TopBar scope="root" context="global" section={t(`nav.${activeSection.replace('-', '_')}`)} />
         <div className="content">
           {children}
         </div>

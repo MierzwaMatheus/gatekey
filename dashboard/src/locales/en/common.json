@@ -1,6 +1,6 @@
 {
   "app_name": "GateKey",
-  "loading": "Loading...",
+  "loading": "Loading…",
   "error": "Error",
   "save": "Save",
   "cancel": "Cancel",
@@ -8,8 +8,136 @@
   "delete": "Delete",
   "back": "Back",
   "logout": "Logout",
-  "save": "Save",
   "actions": "Actions",
-  "loading": "Loading…",
-  "cancel": "Cancel"
+
+  "nav": {
+    "admin": "/ administration",
+    "orgs": "Organizations",
+    "sessions": "Active Sessions",
+    "audit_log": "Audit Log",
+    "capabilities": "Capabilities",
+    "api_keys": "API Keys",
+    "quotas": "Quotas",
+    "cold_storage": "Cold Storage",
+    "settings": "Settings"
+  },
+
+  "orgs": {
+    "label": "Organizations",
+    "empty_title": "No organizations created",
+    "empty_subtitle": "Create the first organization to get started.",
+    "error": "Error loading organizations.",
+    "col_name": "Name",
+    "col_status": "Status",
+    "col_users": "Users",
+    "col_workspaces": "Workspaces",
+    "col_activity": "Activity",
+    "now": "now"
+  },
+
+  "caps": {
+    "empty_title": "No capabilities in catalog",
+    "empty_subtitle": "Add the first base capability below.",
+    "catalog_base": "Base catalog",
+    "add_to_catalog": "Add to base catalog",
+    "adding": "Adding…",
+    "add_btn": "+ Add"
+  },
+
+  "apikeys": {
+    "none": "No API Keys created yet.",
+    "last_used": "Last used:",
+    "create_btn": "+ New API Key",
+    "new_key": "New API Key",
+    "scopes_label": "Scopes",
+    "creating": "Creating…",
+    "create": "Create API Key",
+    "secret_copy_warning": "Copy now — this secret will not be shown again.",
+    "copied": "Copied",
+    "copy": "Copy",
+    "scopes": "Scopes:",
+    "no_scopes": "No scopes",
+    "created_title": "API Key created",
+    "revoke": "Revoke",
+    "revoking": "Revoking…",
+    "revoke_title": "Revoke API Key",
+    "revoke_confirm": "Revoke",
+    "revoke_cancel": "Cancel",
+    "error_load": "Error loading API Keys.",
+    "quota_exceeded": "API Key quota reached.",
+    "close_modal": "Got it, close modal",
+    "description_placeholder": "Description (e.g. CI/CD pipeline)",
+    "none_browser": "No API Keys created."
+  },
+
+  "cold": {
+    "provider_label": "Cold storage provider",
+    "save": "Save configuration",
+    "saved": "Saved",
+    "disabled_msg": "Cold storage disabled. Logs older than 30 days will remain only in the hot tier.",
+    "skip_label": "Skip"
+  },
+
+  "org_form": {
+    "name_label": "Organization Name",
+    "admin_email_label": "Org Admin Email",
+    "creating": "Creating…",
+    "create_btn": "Create Organization",
+    "error": "Error creating organization"
+  },
+
+  "org_actions": {
+    "suspend": "Suspend",
+    "delete_btn": "Delete",
+    "suspend_title": "Suspend organization",
+    "suspend_desc": "The organization will be suspended. All users will lose access immediately.",
+    "suspend_confirm": "Confirm suspension",
+    "suspending": "Suspending…",
+    "delete_title": "Delete organization",
+    "delete_desc": "This action is irreversible. Type the name below to confirm.",
+    "delete_confirm": "Delete permanently",
+    "deleting": "Deleting…"
+  },
+
+  "quotas": {
+    "users_per_org": "Users per org",
+    "workspaces_per_org": "Workspaces per org",
+    "users_per_workspace": "Users per workspace",
+    "capabilities_per_org": "Capabilities per org",
+    "roles_per_workspace": "Roles per workspace",
+    "sessions_per_user": "Sessions per user",
+    "api_keys_per_org": "API Keys per org",
+    "save": "Save quotas",
+    "saving": "Saving…",
+    "saved": "Saved"
+  },
+
+  "caps_org": {
+    "base_catalog": "Base Catalog",
+    "custom_catalog": "Org Custom",
+    "none_custom": "No custom capabilities yet.",
+    "new_cap": "New Capability",
+    "creating": "Creating…",
+    "create": "Create capability",
+    "error": "Error loading capabilities.",
+    "quota_exceeded": "Capability quota reached.",
+    "error_create": "Error creating capability."
+  },
+
+  "org_settings": {
+    "login_methods_title": "Login Methods",
+    "login_methods_desc": "Controls which authentication methods are available for users of this org.",
+    "mfa_title": "MFA (Two-Factor Authentication)",
+    "mfa_desc": "When required, users without MFA configured will be redirected to setup on first login.",
+    "mfa_required_label": "MFA required",
+    "mfa_required_desc": "Requires TOTP or backup code on all logins",
+    "jwt_title": "JWT Token Expiry",
+    "jwt_desc": "Defines how long access and refresh tokens are valid.",
+    "access_token_label": "Access token (minutes)",
+    "refresh_token_label": "Refresh token (days)",
+    "save": "Save settings",
+    "saving": "Saving…",
+    "saved": "Saved successfully",
+    "error": "Error loading settings."
+  }
 }

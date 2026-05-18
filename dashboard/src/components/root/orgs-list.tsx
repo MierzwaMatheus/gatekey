@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Building2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { listOrgs, type OrgSummary } from '../../lib/root-api'
 import {
   DenseGridContainer,
@@ -29,6 +30,7 @@ function statusType(status: OrgSummary['status']): 'allow' | 'deny' | 'neutral' 
 }
 
 function EmptyState() {
+  const { t } = useTranslation('common')
   return (
     <div data-testid="orgs-empty" className="flex flex-col items-center justify-center py-20 gap-4">
       <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true">
@@ -55,8 +57,8 @@ function EmptyState() {
           fill="none"
         />
       </svg>
-      <p className="text-[15px] text-text-primary">Nenhuma organização criada</p>
-      <p className="text-[13px] text-text-secondary">Crie a primeira organização para começar.</p>
+      <p className="text-[15px] text-text-primary">{t('orgs.empty_title')}</p>
+      <p className="text-[13px] text-text-secondary">{t('orgs.empty_subtitle')}</p>
     </div>
   )
 }
@@ -87,6 +89,7 @@ function formatRelative(ts: number): string {
 }
 
 export function OrgsList({ token, onSelectOrg, refreshKey = 0 }: OrgsListProps) {
+  const { t } = useTranslation('common')
   const [orgs, setOrgs] = useState<OrgSummary[] | null>(null)
   const [error, setError] = useState(false)
 
@@ -103,7 +106,7 @@ export function OrgsList({ token, onSelectOrg, refreshKey = 0 }: OrgsListProps) 
   if (error) {
     return (
       <div data-testid="orgs-error" className="flex items-center justify-center py-12">
-        <p className="text-sm text-status-deny">Erro ao carregar organizações.</p>
+        <p className="text-sm text-status-deny">{t('orgs.error')}</p>
       </div>
     )
   }
@@ -113,15 +116,15 @@ export function OrgsList({ token, onSelectOrg, refreshKey = 0 }: OrgsListProps) 
 
   return (
     <DenseGridContainer>
-      <DenseGridHeader label="Organizações" stats={[{ label: 'total', value: orgs.length }]} />
+      <DenseGridHeader label={t('orgs.label')} stats={[{ label: 'total', value: orgs.length }]} />
       <DenseGridTable>
         <DenseGridThead>
           <DenseGridThNum />
-          <DenseGridTh>Nome</DenseGridTh>
-          <DenseGridTh>Status</DenseGridTh>
-          <DenseGridTh>Usuários</DenseGridTh>
-          <DenseGridTh>Workspaces</DenseGridTh>
-          <DenseGridTh>Atividade</DenseGridTh>
+          <DenseGridTh>{t('orgs.col_name')}</DenseGridTh>
+          <DenseGridTh>{t('orgs.col_status')}</DenseGridTh>
+          <DenseGridTh>{t('orgs.col_users')}</DenseGridTh>
+          <DenseGridTh>{t('orgs.col_workspaces')}</DenseGridTh>
+          <DenseGridTh>{t('orgs.col_activity')}</DenseGridTh>
         </DenseGridThead>
         <tbody>
           {orgs.map((org, i) => (

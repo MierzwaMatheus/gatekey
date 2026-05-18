@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getOrgSettings, updateOrgSettings, type OrgSettings as OrgSettingsType } from '../../lib/org-api'
 
 interface OrgSettingsProps {
@@ -14,6 +15,7 @@ const LOGIN_METHODS = [
 ]
 
 export function OrgSettings({ token, orgId }: OrgSettingsProps) {
+  const { t } = useTranslation('common')
   const [settings, setSettings] = useState<OrgSettingsType | null>(null)
   const [error, setError] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -63,7 +65,7 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
     }
   }
 
-  if (error) return <div className="py-8 text-center text-sm text-status-deny">Erro ao carregar configurações.</div>
+  if (error) return <div className="py-8 text-center text-sm text-status-deny">{t('org_settings.error')}</div>
 
   if (settings === null) {
     return (
@@ -77,9 +79,9 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
     <div className="max-w-lg space-y-8">
       {/* Métodos de login */}
       <section>
-        <h2 className="text-[14px] font-medium text-text-primary mb-1">Métodos de Login</h2>
+        <h2 className="text-[14px] font-medium text-text-primary mb-1">{t('org_settings.login_methods_title')}</h2>
         <p className="text-[12px] text-text-secondary mb-4">
-          Controla quais métodos de autenticação estão disponíveis para usuários desta org.
+          {t('org_settings.login_methods_desc')}
         </p>
         <div className="space-y-2">
           {LOGIN_METHODS.map(({ key, label }) => (
@@ -111,14 +113,14 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
 
       {/* MFA */}
       <section>
-        <h2 className="text-[14px] font-medium text-text-primary mb-1">MFA (Autenticação de Dois Fatores)</h2>
+        <h2 className="text-[14px] font-medium text-text-primary mb-1">{t('org_settings.mfa_title')}</h2>
         <p className="text-[12px] text-text-secondary mb-4">
-          Quando obrigatório, usuários sem MFA configurado serão redirecionados para o setup no primeiro login.
+          {t('org_settings.mfa_desc')}
         </p>
         <label className="flex items-center justify-between px-4 py-3 bg-surface-card border border-border-default rounded-card cursor-pointer hover:bg-surface-hover transition-colors">
           <div>
-            <p className="text-[13px] text-text-primary">MFA obrigatório</p>
-            <p className="text-[12px] text-text-secondary">Exige TOTP ou backup code em todos os logins</p>
+            <p className="text-[13px] text-text-primary">{t('org_settings.mfa_required_label')}</p>
+            <p className="text-[12px] text-text-secondary">{t('org_settings.mfa_required_desc')}</p>
           </div>
           <button
             role="switch"
@@ -141,13 +143,13 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
 
       {/* JWT Expiry */}
       <section>
-        <h2 className="text-[14px] font-medium text-text-primary mb-1">Expiração de Tokens JWT</h2>
+        <h2 className="text-[14px] font-medium text-text-primary mb-1">{t('org_settings.jwt_title')}</h2>
         <p className="text-[12px] text-text-secondary mb-4">
-          Define por quanto tempo os tokens de acesso e refresh são válidos.
+          {t('org_settings.jwt_desc')}
         </p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-[12px] text-text-secondary mb-1 block">Access token (minutos)</label>
+            <label className="text-[12px] text-text-secondary mb-1 block">{t('org_settings.access_token_label')}</label>
             <input
               type="number"
               min={1}
@@ -157,7 +159,7 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
             />
           </div>
           <div>
-            <label className="text-[12px] text-text-secondary mb-1 block">Refresh token (dias)</label>
+            <label className="text-[12px] text-text-secondary mb-1 block">{t('org_settings.refresh_token_label')}</label>
             <input
               type="number"
               min={1}
@@ -176,10 +178,10 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
           disabled={saving}
           className="px-5 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"
         >
-          {saving ? 'Salvando…' : 'Salvar configurações'}
+          {saving ? t('org_settings.saving') : t('org_settings.save')}
         </button>
         {saved && (
-          <span className="text-[13px] text-status-allow">Salvo com sucesso</span>
+          <span className="text-[13px] text-status-allow">{t('org_settings.saved')}</span>
         )}
       </div>
     </div>
