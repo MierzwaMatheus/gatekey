@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Check, HardDrive } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type Provider = 'r2' | 's3' | 'skip'
 
@@ -7,6 +8,7 @@ interface R2Config { accountId: string; bucket: string; accessKey: string; secre
 interface S3Config { bucket: string; region: string; accessKey: string; secretKey: string }
 
 export function ColdStorageConfig() {
+  const { t } = useTranslation('common')
   const [provider, setProvider] = useState<Provider>('skip')
   const [r2, setR2] = useState<R2Config>({ accountId: '', bucket: '', accessKey: '', secretKey: '' })
   const [s3, setS3] = useState<S3Config>({ bucket: '', region: '', accessKey: '', secretKey: '' })
@@ -24,7 +26,7 @@ export function ColdStorageConfig() {
       {/* Provider selector */}
       <div className="space-y-2">
         <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide">
-          Provedor de cold storage
+          {t('cold.provider_label')}
         </p>
         <div className="flex gap-2">
           {(['r2', 's3', 'skip'] as Provider[]).map((p) => (
@@ -39,7 +41,7 @@ export function ColdStorageConfig() {
                   : 'border-border-default text-text-secondary hover:bg-surface-hover',
               ].join(' ')}
             >
-              {p === 'r2' ? 'Cloudflare R2' : p === 's3' ? 'Amazon S3' : 'Pular'}
+              {p === 'r2' ? 'Cloudflare R2' : p === 's3' ? 'Amazon S3' : t('cold.skip_label')}
             </button>
           ))}
         </div>
@@ -97,7 +99,7 @@ export function ColdStorageConfig() {
         <div className="flex items-center gap-2 p-3 rounded-card bg-surface-elevated border border-border-default">
           <HardDrive size={16} className="text-text-secondary" />
           <p className="text-[12px] text-text-secondary">
-            Cold storage desabilitado. Logs com mais de 30 dias permanecerão apenas no hot tier.
+            {t('cold.disabled_msg')}
           </p>
         </div>
       )}
@@ -108,11 +110,11 @@ export function ColdStorageConfig() {
           onClick={handleSave}
           className="px-4 py-2 text-sm font-medium bg-accent-primary text-black rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
         >
-          Salvar configuração
+          {t('cold.save')}
         </button>
         {saved && (
           <span className="flex items-center gap-1 text-[12px] text-status-allow">
-            <Check size={13} /> Salvo
+            <Check size={13} /> {t('cold.saved')}
           </span>
         )}
       </div>

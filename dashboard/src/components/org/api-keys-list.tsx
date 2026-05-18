@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Copy, Check } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { listApiKeys, createApiKey, revokeApiKey, type ApiKeySummary, type ApiKeyCreated } from '../../lib/org-api'
 
 const ALL_SCOPES = [
@@ -22,11 +23,11 @@ function maskPublicId(publicId: string): string {
 function formatRelativeTime(ts: number): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'agora'
-  if (mins < 60) return `${mins}m atrás`
+  if (mins < 1) return '<1m'
+  if (mins < 60) return `${mins}m`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h atrás`
-  return `${Math.floor(hours / 24)}d atrás`
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
 }
 
 /* SVG de chave com dentes = escopos ativos */
@@ -76,6 +77,7 @@ function ApiKeyVisual({ scopes }: { scopes: string[] }) {
 }
 
 function CreateApiKeyForm({ token, onSuccess }: { token: string; onSuccess: (key: ApiKeyCreated) => void }) {
+  const { t } = useTranslation('common')
   const [selectedScopes, setSelectedScopes] = useState<string[]>([])
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -98,7 +100,7 @@ function CreateApiKeyForm({ token, onSuccess }: { token: string; onSuccess: (key
       setDescription('')
     } catch (err) {
       const msg = (err as Error).message ?? ''
-      setError(msg === 'QuotaExceeded' ? 'Cota de API Keys atingida.' : 'Erro ao criar API Key.')
+      setError(msg === 'QuotaExceeded' ? t('apikeys.quota_exceeded') : t('apikeys.error_load'))
     } finally {
       setLoading(false)
     }
@@ -110,11 +112,11 @@ function CreateApiKeyForm({ token, onSuccess }: { token: string; onSuccess: (key
         type="text"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Descrição (ex: CI/CD pipeline)"
+        placeholder={t('apikeys.description_placeholder')}
         className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-default rounded-input text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-accent"
       />
       <div>
-        <p className="text-[12px] text-text-secondary mb-2">Escopos</p>
+        <p className="text-[12px] text-text-secondary mb-2">{t('apikeys.scopes_label')}</p>
         <div className="flex flex-wrap gap-2">
           {ALL_SCOPES.map((scope) => (
             <label
@@ -144,13 +146,14 @@ function CreateApiKeyForm({ token, onSuccess }: { token: string; onSuccess: (key
         disabled={loading || selectedScopes.length === 0}
         className="px-4 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"
       >
-        {loading ? 'Criando…' : 'Criar API Key'}
+        {loading ? t('apikeys.creating') : t('apikeys.create')}
       </button>
     </form>
   )
 }
 
 function ApiKeyCreatedModal({ keyData, onClose }: { keyData: ApiKeyCreated; onClose: () => void }) {
+  const { t } = useTranslation('common')
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
@@ -171,10 +174,10 @@ function ApiKeyCreatedModal({ keyData, onClose }: { keyData: ApiKeyCreated; onCl
               <circle cx="8" cy="12" r="0.75" fill="#E3B341" />
             </svg>
           </div>
-          <h2 className="text-[15px] font-medium text-text-primary">API Key criada</h2>
+          <h2 className="text-[15px] font-medium text-text-primary">{t('apikeys.created_title')}</h2>
         </div>
         <p className="text-[13px] text-status-warning mb-4 font-medium">
-          Copie agora — este secret não será exibido novamente.
+          {t('apikeys.secret_copy_warning')}
         </p>
         <div className="bg-surface-elevated border border-border-default rounded-input p-3 flex items-center justify-between gap-3 mb-5">
           <span className="font-mono text-[12px] text-text-primary break-all">{keyData.secret}</span>
@@ -183,18 +186,18 @@ function ApiKeyCreatedModal({ keyData, onClose }: { keyData: ApiKeyCreated; onCl
             className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-[11px] text-text-secondary border border-border-default rounded-[4px] hover:bg-surface-hover transition-colors cursor-pointer"
           >
             {copied ? <Check size={12} className="text-status-allow" /> : <Copy size={12} />}
-            {copied ? 'Copiado' : 'Copiar'}
+            {copied ? t('apikeys.copied') : t('apikeys.copy')}
           </button>
         </div>
         <div className="text-[12px] text-text-secondary space-y-1 mb-5">
-          <p><span className="text-text-primary">ID público:</span> <span className="font-mono">{keyData.publicId}</span></p>
-          <p><span className="text-text-primary">Escopos:</span> {keyData.scopes.join(', ') || '—'}</p>
+          <p><span className="text-text-primary">ID:</span> <span className="font-mono">{keyData.publicId}</span></p>
+          <p><span className="text-text-primary">{t('apikeys.scopes')}</span> {keyData.scopes.join(', ') || '—'}</p>
         </div>
         <button
           onClick={onClose}
           className="w-full px-4 py-2 bg-surface-elevated border border-border-default text-text-primary text-sm rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
         >
-          Entendi, fechei o modal
+          {t('apikeys.close_modal')}
         </button>
       </div>
     </div>
@@ -207,17 +210,18 @@ function RevokeModal({ keyId, onConfirm, onCancel, loading }: {
   onCancel: () => void
   loading: boolean
 }) {
+  const { t } = useTranslation('common')
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCancel}>
       <div className="bg-surface-card border border-border-default rounded-card shadow-float p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-[15px] font-medium text-text-primary mb-2">Revogar API Key</h2>
+        <h2 className="text-[15px] font-medium text-text-primary mb-2">{t('apikeys.revoke_title')}</h2>
         <p className="text-[13px] text-text-secondary mb-5">
-          Tem certeza? A key <span className="font-mono text-status-deny">{maskPublicId(keyId)}</span> será revogada imediatamente.
+          <span className="font-mono text-status-deny">{maskPublicId(keyId)}</span>
         </p>
         <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} disabled={loading} className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer disabled:opacity-60">Cancelar</button>
+          <button onClick={onCancel} disabled={loading} className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer disabled:opacity-60">{t('apikeys.revoke_cancel')}</button>
           <button onClick={onConfirm} disabled={loading} className="px-3 py-1.5 text-[13px] text-black bg-status-deny rounded-button hover:opacity-90 cursor-pointer disabled:opacity-60">
-            {loading ? 'Revogando…' : 'Revogar'}
+            {loading ? t('apikeys.revoking') : t('apikeys.revoke_confirm')}
           </button>
         </div>
       </div>
@@ -230,6 +234,7 @@ interface ApiKeysListProps {
 }
 
 export function ApiKeysList({ token }: ApiKeysListProps) {
+  const { t } = useTranslation('common')
   const [keys, setKeys] = useState<ApiKeySummary[] | null>(null)
   const [error, setError] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -267,7 +272,7 @@ export function ApiKeysList({ token }: ApiKeysListProps) {
     }
   }
 
-  if (error) return <div className="py-8 text-center text-sm text-status-deny">Erro ao carregar API Keys.</div>
+  if (error) return <div className="py-8 text-center text-sm text-status-deny">{t('apikeys.error_load')}</div>
 
   if (keys === null) {
     return <div className="space-y-2">{[1, 2].map((i) => <div key={i} className="h-24 bg-surface-elevated animate-pulse rounded-card" />)}</div>
@@ -277,7 +282,7 @@ export function ApiKeysList({ token }: ApiKeysListProps) {
     <div className="space-y-5">
       {/* Lista de keys */}
       {keys.length === 0 && !showCreate && (
-        <p className="text-[13px] text-text-secondary">Nenhuma API Key criada ainda.</p>
+        <p className="text-[13px] text-text-secondary">{t('apikeys.none')}</p>
       )}
 
       <div className="space-y-3" data-testid="api-keys-list">
@@ -315,12 +320,12 @@ export function ApiKeysList({ token }: ApiKeysListProps) {
                     </span>
                   ))}
                   {key.scopes.length === 0 && (
-                    <span className="text-[11px] text-text-secondary">Sem escopos</span>
+                    <span className="text-[11px] text-text-secondary">{t('apikeys.no_scopes')}</span>
                   )}
                 </div>
                 {key.lastUsedAt && (
                   <p className="text-[11px] text-text-secondary mt-1.5 font-mono">
-                    Último uso: {formatRelativeTime(key.lastUsedAt)}
+                    {t('apikeys.last_used')} {formatRelativeTime(key.lastUsedAt)}
                   </p>
                 )}
               </div>
@@ -329,7 +334,7 @@ export function ApiKeysList({ token }: ApiKeysListProps) {
                   onClick={() => setRevokeTarget(key._id)}
                   className="flex-shrink-0 px-2.5 py-1 text-[11px] text-status-deny border border-status-deny/30 rounded-[4px] hover:bg-status-deny/10 transition-colors cursor-pointer"
                 >
-                  Revogar
+                  {t('apikeys.revoke')}
                 </button>
               )}
             </div>
@@ -344,11 +349,11 @@ export function ApiKeysList({ token }: ApiKeysListProps) {
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-1.5 px-4 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
           >
-            + Nova API Key
+            {t('apikeys.create_btn')}
           </button>
         ) : (
           <div>
-            <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">Nova API Key</p>
+            <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">{t('apikeys.new_key')}</p>
             <CreateApiKeyForm
               token={token}
               onSuccess={(key) => {

@@ -3,6 +3,18 @@ import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 import ptBRCommon from '../locales/pt-BR/common.json'
 import enCommon from '../locales/en/common.json'
+import ptBRAuth from '../locales/pt-BR/auth.json'
+import enAuth from '../locales/en/auth.json'
+import ptBRUsers from '../locales/pt-BR/users.json'
+import enUsers from '../locales/en/users.json'
+import ptBRRoles from '../locales/pt-BR/roles.json'
+import enRoles from '../locales/en/roles.json'
+import ptBRBindings from '../locales/pt-BR/bindings.json'
+import enBindings from '../locales/en/bindings.json'
+import ptBRAudit from '../locales/pt-BR/audit.json'
+import enAudit from '../locales/en/audit.json'
+import ptBRPlayground from '../locales/pt-BR/playground.json'
+import enPlayground from '../locales/en/playground.json'
 
 i18n
   .use(LanguageDetector)
@@ -10,10 +22,10 @@ i18n
   .init({
     fallbackLng: 'pt-BR',
     defaultNS: 'common',
-    ns: ['common'],
+    ns: ['common', 'auth', 'users', 'roles', 'bindings', 'audit', 'playground'],
     resources: {
-      'pt-BR': { common: ptBRCommon },
-      en: { common: enCommon },
+      'pt-BR': { common: ptBRCommon, auth: ptBRAuth, users: ptBRUsers, roles: ptBRRoles, bindings: ptBRBindings, audit: ptBRAudit, playground: ptBRPlayground },
+      en: { common: enCommon, auth: enAuth, users: enUsers, roles: enRoles, bindings: enBindings, audit: enAudit, playground: enPlayground },
     },
     interpolation: { escapeValue: false },
     detection: {

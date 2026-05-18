@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { listCapabilities, createCapability, type Capability } from '../../lib/root-api'
 
 /* Empty state — octógono + chave pontilhada ausente */
 function EmptyState() {
+  const { t } = useTranslation('common')
   return (
     <div data-testid="capabilities-empty" className="flex flex-col items-center justify-center py-16 gap-4">
       <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true">
@@ -30,8 +32,8 @@ function EmptyState() {
           fill="none"
         />
       </svg>
-      <p className="text-[15px] text-text-primary">Nenhuma capability no catálogo</p>
-      <p className="text-[13px] text-text-secondary">Adicione a primeira capability base abaixo.</p>
+      <p className="text-[15px] text-text-primary">{t('caps.empty_title')}</p>
+      <p className="text-[13px] text-text-secondary">{t('caps.empty_subtitle')}</p>
     </div>
   )
 }
@@ -57,6 +59,7 @@ interface CapabilitiesListProps {
 }
 
 export function CapabilitiesList({ token }: CapabilitiesListProps) {
+  const { t } = useTranslation('common')
   const [capabilities, setCapabilities] = useState<Capability[] | null>(null)
 
   const load = useCallback(() => {
@@ -82,7 +85,7 @@ export function CapabilitiesList({ token }: CapabilitiesListProps) {
       {/* Catálogo existente */}
       <div className="space-y-3">
         <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide">
-          Catálogo base
+          {t('caps.catalog_base')}
         </p>
         {capabilities === null ? (
           <LoadingSkeleton />
@@ -107,7 +110,7 @@ export function CapabilitiesList({ token }: CapabilitiesListProps) {
       {/* Formulário de adição */}
       <div className="border-t border-border-default pt-5 space-y-3">
         <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide">
-          Adicionar ao catálogo base
+          {t('caps.add_to_catalog')}
         </p>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
           <div className="flex gap-2">
@@ -141,7 +144,7 @@ export function CapabilitiesList({ token }: CapabilitiesListProps) {
               disabled={isSubmitting}
               className="px-4 py-1.5 text-[12px] font-medium bg-accent-primary text-black rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex-shrink-0"
             >
-              {isSubmitting ? 'Adicionando…' : '+ Adicionar'}
+              {isSubmitting ? t('caps.adding') : t('caps.add_btn')}
             </button>
           </div>
         </form>

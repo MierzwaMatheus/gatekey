@@ -1,0 +1,18 @@
+{
+  "header": "Roles",
+  "empty": "Nenhum role customizado neste workspace.",
+  "col_name": "Nome",
+  "col_type": "Tipo",
+  "col_capabilities": "Capabilities",
+  "col_actions": "Ações",
+  "type_base": "base",
+  "type_custom": "custom",
+  "action_delete": "Deletar",
+  "create_name_placeholder": "ex: editor-docs",
+  "create_submit": "Criar Role",
+  "create_submit_loading": "Criando…",
+  "delete_title": "Deletar role {{name}}?",
+  "delete_warning": "Este role possui bindings ativos e não pode ser deletado.",
+  "delete_confirm": "Deletar",
+  "delete_confirm_loading": "Deletando…"
+}

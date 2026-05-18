@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from 'convex/react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
@@ -26,6 +27,7 @@ interface BindingsListProps {
 }
 
 export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
+  const { t } = useTranslation('bindings')
   const [revokeTarget, setRevokeTarget] = useState<WorkspaceBinding | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -62,7 +64,7 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
   if (bindings.length === 0) {
     return (
       <div data-testid="bindings-empty" className="text-center py-12">
-        <p className="text-text-muted text-sm">Nenhum binding neste workspace.</p>
+        <p className="text-text-muted text-sm">{t('empty')}</p>
       </div>
     )
   }
@@ -70,15 +72,15 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
   return (
     <>
       <DenseGridContainer testId="bindings-list">
-        <DenseGridHeader label="Bindings" stats={[{ label: 'total', value: bindings.length }]} />
+        <DenseGridHeader label={t('header')} stats={[{ label: 'total', value: bindings.length }]} />
         <DenseGridTable>
           <DenseGridThead>
             <DenseGridThNum />
-            <DenseGridTh>Usuário</DenseGridTh>
-            <DenseGridTh>Role</DenseGridTh>
-            <DenseGridTh>Resource Type</DenseGridTh>
-            <DenseGridTh>Resource ID</DenseGridTh>
-            <DenseGridTh align="right">Ações</DenseGridTh>
+            <DenseGridTh>{t('col_user')}</DenseGridTh>
+            <DenseGridTh>{t('col_role')}</DenseGridTh>
+            <DenseGridTh>{t('col_resource_type')}</DenseGridTh>
+            <DenseGridTh>{t('col_resource_id')}</DenseGridTh>
+            <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
           </DenseGridThead>
           <tbody>
             {bindings.map((b, i) => (
@@ -91,7 +93,7 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
                 <DenseGridCellStack primary={b.resourceType} />
                 <DenseGridCellStack
                   primary={
-                    <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? 'workspace inteiro'}</span>
+                    <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? t('resource_id_workspace')}</span>
                   }
                 />
                 <DenseGridActionsCell>
@@ -100,7 +102,7 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
                     testId={`btn-revoke-${b._id}`}
                     onClick={() => setRevokeTarget(b)}
                   >
-                    Revogar
+                    {t('action_revoke')}
                   </DenseGridActionBtn>
                 </DenseGridActionsCell>
               </DenseGridRow>
@@ -121,8 +123,8 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-text-primary text-sm mb-4">
-              Revogar binding de <strong>{revokeTarget.roleId}</strong> em{' '}
-              <strong>{revokeTarget.resourceId ?? 'workspace inteiro'}</strong>?
+              {t('action_revoke')} binding: <strong>{revokeTarget.roleId}</strong> —{' '}
+              <strong>{revokeTarget.resourceId ?? t('resource_id_workspace')}</strong>?
             </p>
             <div className="flex gap-2">
               <button
@@ -131,13 +133,13 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
                 disabled={actionLoading}
                 className="px-3 py-1.5 text-xs bg-status-deny text-white rounded-button disabled:opacity-60 cursor-pointer"
               >
-                {actionLoading ? 'Revogando…' : 'Revogar'}
+                {actionLoading ? '…' : t('action_revoke')}
               </button>
               <button
                 onClick={() => setRevokeTarget(null)}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer"
               >
-                Cancelar
+                {t('common:cancel', { ns: 'common' })}
               </button>
             </div>
           </div>

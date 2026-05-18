@@ -1,11 +1,143 @@
 {
   "app_name": "GateKey",
-  "loading": "Carregando...",
+  "loading": "Carregando…",
   "error": "Erro",
   "save": "Salvar",
   "cancel": "Cancelar",
   "confirm": "Confirmar",
   "delete": "Excluir",
   "back": "Voltar",
-  "logout": "Sair"
+  "logout": "Sair",
+  "actions": "Ações",
+
+  "nav": {
+    "admin": "/ administração",
+    "orgs": "Organizações",
+    "sessions": "Sessões Ativas",
+    "audit_log": "Audit Log",
+    "capabilities": "Capabilities",
+    "api_keys": "API Keys",
+    "quotas": "Cotas",
+    "cold_storage": "Cold Storage",
+    "settings": "Configurações"
+  },
+
+  "orgs": {
+    "label": "Organizações",
+    "empty_title": "Nenhuma organização criada",
+    "empty_subtitle": "Crie a primeira organização para começar.",
+    "error": "Erro ao carregar organizações.",
+    "col_name": "Nome",
+    "col_status": "Status",
+    "col_users": "Usuários",
+    "col_workspaces": "Workspaces",
+    "col_activity": "Atividade",
+    "now": "agora"
+  },
+
+  "caps": {
+    "empty_title": "Nenhuma capability no catálogo",
+    "empty_subtitle": "Adicione a primeira capability base abaixo.",
+    "catalog_base": "Catálogo base",
+    "add_to_catalog": "Adicionar ao catálogo base",
+    "adding": "Adicionando…",
+    "add_btn": "+ Adicionar"
+  },
+
+  "apikeys": {
+    "none": "Nenhuma API Key criada ainda.",
+    "last_used": "Último uso:",
+    "create_btn": "+ Nova API Key",
+    "new_key": "Nova API Key",
+    "scopes_label": "Escopos",
+    "creating": "Criando…",
+    "create": "Criar API Key",
+    "secret_copy_warning": "Copie agora — este secret não será exibido novamente.",
+    "copied": "Copiado",
+    "copy": "Copiar",
+    "scopes": "Escopos:",
+    "no_scopes": "Sem escopos",
+    "created_title": "API Key criada",
+    "revoke": "Revogar",
+    "revoking": "Revogando…",
+    "revoke_title": "Revogar API Key",
+    "revoke_confirm": "Revogar",
+    "revoke_cancel": "Cancelar",
+    "error_load": "Erro ao carregar API Keys.",
+    "quota_exceeded": "Cota de API Keys atingida.",
+    "close_modal": "Entendi, fechei o modal",
+    "description_placeholder": "Descrição (ex: CI/CD pipeline)",
+    "none_browser": "Nenhuma API Key criada."
+  },
+
+  "cold": {
+    "provider_label": "Provedor de cold storage",
+    "save": "Salvar configuração",
+    "saved": "Salvo",
+    "disabled_msg": "Cold storage desabilitado. Logs com mais de 30 dias permanecerão apenas no hot tier.",
+    "skip_label": "Pular"
+  },
+
+  "org_form": {
+    "name_label": "Nome da Organização",
+    "admin_email_label": "Email do Org Admin",
+    "creating": "Criando…",
+    "create_btn": "Criar Organização",
+    "error": "Erro ao criar organização"
+  },
+
+  "org_actions": {
+    "suspend": "Suspender",
+    "delete_btn": "Deletar",
+    "suspend_title": "Suspender organização",
+    "suspend_desc": "A organização será suspensa. Todos os usuários perderão acesso imediatamente.",
+    "suspend_confirm": "Confirmar suspensão",
+    "suspending": "Suspendendo…",
+    "delete_title": "Deletar organização",
+    "delete_desc": "Esta ação é irreversível. Digite o nome abaixo para confirmar.",
+    "delete_confirm": "Deletar permanentemente",
+    "deleting": "Deletando…"
+  },
+
+  "quotas": {
+    "users_per_org": "Usuários por org",
+    "workspaces_per_org": "Workspaces por org",
+    "users_per_workspace": "Usuários por workspace",
+    "capabilities_per_org": "Capabilities por org",
+    "roles_per_workspace": "Roles por workspace",
+    "sessions_per_user": "Sessões por usuário",
+    "api_keys_per_org": "API Keys por org",
+    "save": "Salvar cotas",
+    "saving": "Salvando…",
+    "saved": "Salvo"
+  },
+
+  "caps_org": {
+    "base_catalog": "Catálogo Base",
+    "custom_catalog": "Customizadas da Org",
+    "none_custom": "Nenhuma capability customizada ainda.",
+    "new_cap": "Nova Capability",
+    "creating": "Criando…",
+    "create": "Criar capability",
+    "error": "Erro ao carregar capabilities.",
+    "quota_exceeded": "Cota de capabilities atingida.",
+    "error_create": "Erro ao criar capability."
+  },
+
+  "org_settings": {
+    "login_methods_title": "Métodos de Login",
+    "login_methods_desc": "Controla quais métodos de autenticação estão disponíveis para usuários desta org.",
+    "mfa_title": "MFA (Autenticação de Dois Fatores)",
+    "mfa_desc": "Quando obrigatório, usuários sem MFA configurado serão redirecionados para o setup no primeiro login.",
+    "mfa_required_label": "MFA obrigatório",
+    "mfa_required_desc": "Exige TOTP ou backup code em todos os logins",
+    "jwt_title": "Expiração de Tokens JWT",
+    "jwt_desc": "Define por quanto tempo os tokens de acesso e refresh são válidos.",
+    "access_token_label": "Access token (minutos)",
+    "refresh_token_label": "Refresh token (dias)",
+    "save": "Salvar configurações",
+    "saving": "Salvando…",
+    "saved": "Salvo com sucesso",
+    "error": "Erro ao carregar configurações."
+  }
 }

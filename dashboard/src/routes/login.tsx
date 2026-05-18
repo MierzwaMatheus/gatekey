@@ -2,6 +2,7 @@ import { createRoute } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Route as rootRoute } from './__root'
 import { loginSchema, type LoginFormData } from '../lib/schemas'
 import { authService, AuthError, parseJwtPayload } from '../lib/auth-service'
@@ -28,6 +29,7 @@ type Tab = 'password' | 'magic-link'
 type LoginPhase = 'credentials' | 'mfa_challenge' | 'mfa_setup'
 
 export function LoginPage() {
+  const { t } = useTranslation('auth')
   const { setAuth } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('password')
@@ -87,14 +89,14 @@ export function LoginPage() {
     } catch (err) {
       if (err instanceof AuthError) {
         if (err.reason === 'invalid_credentials') {
-          setApiError('CREDENCIAIS INVÁLIDAS. ACESSO NEGADO.')
+          setApiError(t('login.error_invalid_credentials'))
         } else if (err.reason === 'account_locked') {
-          setApiError('PORTADOR BLOQUEADO TEMPORARIAMENTE.')
+          setApiError(t('login.error_account_locked'))
         } else {
-          setApiError('FALHA NA AUTENTICAÇÃO. TENTE NOVAMENTE.')
+          setApiError(t('login.error_auth_failure'))
         }
       } else {
-        setApiError('ERRO INESPERADO. TENTE NOVAMENTE.')
+        setApiError(t('login.error_unexpected'))
       }
     } finally {
       setIsLoading(false)
@@ -109,7 +111,7 @@ export function LoginPage() {
       const result = await authService.challengeMfa(mfaToken, mfaCode)
       navigateAfterLogin(result.accessToken, result.orgId)
     } catch {
-      setApiError('CÓDIGO INVÁLIDO OU EXPIRADO.')
+      setApiError(t('mfa.error_invalid_code'))
     } finally {
       setIsLoading(false)
     }
@@ -123,7 +125,7 @@ export function LoginPage() {
       const result = await authService.verifyMfaSetup(mfaToken, mfaCode)
       setMfaBackupCodes(result.backupCodes)
     } catch {
-      setApiError('CÓDIGO INVÁLIDO. VERIFIQUE O APP AUTENTICADOR.')
+      setApiError(t('mfa.error_invalid_setup_code'))
     } finally {
       setIsLoading(false)
     }
@@ -139,9 +141,9 @@ export function LoginPage() {
       setMagicLinkSent(true)
     } catch (err) {
       if (err instanceof AuthError && err.reason === 'method_disabled') {
-        setApiError('MÉTODO NÃO HABILITADO NESTA ORG.')
+        setApiError(t('magic_link.error_method_disabled'))
       } else {
-        setApiError('ERRO AO ENVIAR LINK. TENTE NOVAMENTE.')
+        setApiError(t('magic_link.error_send_failure'))
       }
     } finally {
       setIsLoading(false)
@@ -162,14 +164,12 @@ export function LoginPage() {
           <div className="bg-surface-card border border-border-default border-l-0">
             <div className="px-6 py-3 flex items-center justify-between border-b border-border-subtle">
               <span className="font-mono text-[11px] font-semibold tracking-widest text-accent-primary uppercase">
-                {isSetup ? 'MFA · CONFIGURAÇÃO OBRIGATÓRIA' : 'MFA · VERIFICAÇÃO DOIS FATORES'}
+                {isSetup ? t('mfa.title_setup') : t('mfa.title_challenge')}
               </span>
             </div>
             <div className="px-6 py-6 space-y-5">
               <p className="font-mono text-[11px] text-text-muted">
-                {isSetup
-                  ? 'Sua conta requer configuração de MFA. Acesse as configurações de segurança para configurar.'
-                  : 'Informe o código de 6 dígitos do seu aplicativo autenticador, ou um código de backup.'}
+                {isSetup ? t('mfa.description_setup') : t('mfa.description_challenge')}
               </p>
               {apiError && (
                 <div role="alert" className="px-3 py-2 border border-status-deny text-status-deny font-mono text-[10px] uppercase tracking-wide">
@@ -181,7 +181,7 @@ export function LoginPage() {
                   {mfaBackupCodes.length > 0 ? (
                     <>
                       <p className="font-mono text-[11px] text-text-secondary">
-                        MFA ativado com sucesso. Guarde estes códigos de backup em local seguro — cada um só pode ser usado uma vez.
+                        {t('mfa.backup_codes_saved')}
                       </p>
                       <div className="bg-surface-elevated border border-border-default p-3 grid grid-cols-2 gap-1">
                         {mfaBackupCodes.map((c) => (
@@ -193,25 +193,25 @@ export function LoginPage() {
                         className="w-full py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors hover:brightness-90"
                         style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
                       >
-                        FAZER LOGIN →
+                        {t('mfa.login_after_setup')}
                       </button>
                     </>
                   ) : (
                     <form onSubmit={onMfaSetupVerify} noValidate className="space-y-4">
                       <p className="font-mono text-[11px] text-text-muted">
-                        Escaneie o QR code no seu app autenticador (Google Authenticator, Authy, etc.) usando a URI abaixo, ou copie o segredo manualmente.
+                        {t('mfa.setup_description')}
                       </p>
                       <div className="bg-surface-elevated border border-border-default px-3 py-2">
-                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">SEGREDO BASE32</p>
+                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">{t('mfa.setup_secret_label')}</p>
                         <p className="font-mono text-[11px] text-accent-primary break-all">{mfaSetupSecret}</p>
                       </div>
                       <div className="bg-surface-elevated border border-border-default px-3 py-2">
-                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">URI TOTP (cole no app)</p>
+                        <p className="font-mono text-[9px] text-text-muted uppercase mb-1">{t('mfa.setup_uri_label')}</p>
                         <p className="font-mono text-[10px] text-text-secondary break-all">{mfaSetupQr}</p>
                       </div>
                       <div>
                         <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                          <span className="text-accent-primary">A</span> CÓDIGO DE CONFIRMAÇÃO
+                          <span className="text-accent-primary">A</span> {t('mfa.field_code_label_setup')}
                         </p>
                         <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                           <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -219,7 +219,7 @@ export function LoginPage() {
                             type="text"
                             inputMode="numeric"
                             autoComplete="one-time-code"
-                            placeholder="000000"
+                            placeholder={t('mfa.field_code_placeholder')}
                             maxLength={6}
                             value={mfaCode}
                             onChange={e => setMfaCode(e.target.value)}
@@ -234,7 +234,7 @@ export function LoginPage() {
                           onClick={() => { setPhase('credentials'); setMfaToken(''); setMfaCode('') }}
                           className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase hover:text-text-secondary transition-colors"
                         >
-                          ← VOLTAR
+                          {t('mfa.back')}
                         </button>
                         <button
                           type="submit"
@@ -242,7 +242,7 @@ export function LoginPage() {
                           className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90"
                           style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
                         >
-                          {isLoading ? 'VERIFICANDO…' : 'ATIVAR MFA →'}
+                          {isLoading ? t('mfa.submit_setup_loading') : t('mfa.submit_setup')}
                         </button>
                       </div>
                     </form>
@@ -252,7 +252,7 @@ export function LoginPage() {
                 <form onSubmit={onMfaChallenge} noValidate className="space-y-4">
                   <div>
                     <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                      <span className="text-accent-primary">A</span> CÓDIGO TOTP / BACKUP
+                      <span className="text-accent-primary">A</span> {t('mfa.field_code_label')}
                     </p>
                     <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                       <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -260,7 +260,7 @@ export function LoginPage() {
                         type="text"
                         inputMode="numeric"
                         autoComplete="one-time-code"
-                        placeholder="000000"
+                        placeholder={t('mfa.field_code_placeholder')}
                         maxLength={32}
                         value={mfaCode}
                         onChange={e => setMfaCode(e.target.value)}
@@ -275,7 +275,7 @@ export function LoginPage() {
                       onClick={() => { setPhase('credentials'); setMfaToken(''); setMfaCode('') }}
                       className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase hover:text-text-secondary transition-colors"
                     >
-                      ← VOLTAR
+                      {t('mfa.back')}
                     </button>
                     <button
                       type="submit"
@@ -283,7 +283,7 @@ export function LoginPage() {
                       className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90 active:brightness-75"
                       style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
                     >
-                      {isLoading ? 'VERIFICANDO…' : 'CONFIRMAR CÓDIGO →'}
+                      {isLoading ? t('mfa.submit_challenge_loading') : t('mfa.submit_challenge')}
                     </button>
                   </div>
                 </form>
@@ -297,76 +297,67 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen bg-surface-page flex items-center justify-center p-4">
-      {/* card with orange left border */}
       <div className="w-full max-w-[560px] relative" style={{ borderLeft: '3px solid #F0A500' }}>
-        {/* top-right corner bracket */}
         <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-border-accent" />
 
         <div className="bg-surface-card border border-border-default border-l-0" style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}>
 
-          {/* header */}
           <div className="px-6 py-3 flex items-center justify-between border-b border-border-subtle">
             <span className="font-mono text-[11px] font-semibold tracking-widest text-accent-primary uppercase">
-              CREDENCIAL · SOLICITAÇÃO
+              {t('login.header')}
             </span>
             <span className="font-mono text-[10px] tracking-widest text-text-muted uppercase">
-              FORM · A-014 · REV 07
+              {t('login.form_ref')}
             </span>
           </div>
 
-          {/* tabs */}
           <div className="flex border-b border-border-subtle">
-            {(['password', 'magic-link'] as Tab[]).map((t) => (
+            {(['password', 'magic-link'] as Tab[]).map((tabItem) => (
               <button
-                key={t}
+                key={tabItem}
                 type="button"
-                onClick={() => handleTabChange(t)}
+                onClick={() => handleTabChange(tabItem)}
                 className={[
                   'flex-1 py-2.5 font-mono text-[10px] tracking-widest uppercase transition-colors',
-                  tab === t
+                  tab === tabItem
                     ? 'text-accent-primary border-b-2 border-accent-primary -mb-px'
                     : 'text-text-muted hover:text-text-secondary',
                 ].join(' ')}
               >
-                {t === 'password' ? 'SENHA' : 'LINK MÁGICO'}
+                {tabItem === 'password' ? t('login.tab_password') : t('login.tab_magic_link')}
               </button>
             ))}
           </div>
 
-          {/* metadata */}
           <div className="px-6 py-4 grid grid-cols-2 gap-x-8 gap-y-2 border-b border-border-subtle">
             <div>
-              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">ORGANIZAÇÃO</p>
-              <p className="font-mono text-[12px] text-accent-primary">conduit · ops</p>
+              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">{t('login.meta_org')}</p>
+              <p className="font-mono text-[12px] text-accent-primary">{t('login.meta_org_value')}</p>
             </div>
             <div>
-              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">ESCOPO</p>
-              <p className="font-mono text-[12px] text-text-primary">console · admin</p>
+              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">{t('login.meta_scope')}</p>
+              <p className="font-mono text-[12px] text-text-primary">{t('login.meta_scope_value')}</p>
             </div>
             <div>
-              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">JURISDIÇÃO</p>
-              <p className="font-mono text-[12px] text-text-primary">sa-east-1 / br</p>
+              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">{t('login.meta_jurisdiction')}</p>
+              <p className="font-mono text-[12px] text-text-primary">{t('login.meta_jurisdiction_value')}</p>
             </div>
             <div>
-              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">VALIDADE</p>
-              <p className="font-mono text-[12px] text-text-primary">12h · renovável</p>
+              <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-0.5">{t('login.meta_validity')}</p>
+              <p className="font-mono text-[12px] text-text-primary">{t('login.meta_validity_value')}</p>
             </div>
           </div>
 
-          {/* body */}
           <div className="px-6 pt-5 pb-5">
-            {/* section label */}
             <p className="font-mono text-[10px] tracking-widest text-text-muted uppercase mb-3">
-              <span className="text-accent-primary">//</span> SECURE / AUTHENTICATE
+              <span className="text-accent-primary">//</span> {t('login.section_label').replace('// ', '')}
             </p>
 
             <h1 className="text-[26px] font-semibold text-text-primary leading-tight mb-1">
-              Solicitar acesso.
+              {t('login.title')}
             </h1>
             <p className="font-mono text-[11px] text-text-muted mb-5">
-              {tab === 'password'
-                ? 'portador deve apresentar credencial válida.'
-                : 'informe o identificador para receber o link de acesso.'}
+              {tab === 'password' ? t('login.subtitle_password') : t('login.subtitle_magic_link')}
             </p>
 
             {apiError && (
@@ -375,12 +366,12 @@ export function LoginPage() {
               </div>
             )}
 
-            {/* magic link tab */}
             {tab === 'magic-link' && (
               magicLinkSent ? (
                 <div className="py-6 text-center space-y-3">
-                  <p className="font-mono text-[11px] tracking-widest text-accent-primary uppercase">LINK TRANSMITIDO</p>
+                  <p className="font-mono text-[11px] tracking-widest text-accent-primary uppercase">{t('magic_link.sent_title')}</p>
                   <p className="font-mono text-[11px] text-text-muted">
+                    {t('common:loading', { defaultValue: '' })}
                     Verifique <span className="text-text-primary">{magicEmail}</span>.<br />
                     O link expira em 15 minutos.
                   </p>
@@ -389,21 +380,21 @@ export function LoginPage() {
                     onClick={() => { setMagicLinkSent(false); setMagicEmail('') }}
                     className="font-mono text-[10px] text-text-muted hover:text-text-secondary uppercase tracking-widest transition-colors"
                   >
-                    ← TENTAR OUTRO EMAIL
+                    {t('magic_link.sent_retry')}
                   </button>
                 </div>
               ) : (
                 <form onSubmit={onMagicLinkSubmit} noValidate className="space-y-4">
                   <div>
                     <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                      <span className="text-accent-primary">A</span> PORTADOR / IDENTIFICADOR
+                      <span className="text-accent-primary">A</span> {t('magic_link.field_label')}
                     </p>
                     <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                       <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
                       <input
                         type="email"
                         autoComplete="email"
-                        placeholder="a.ribeiro@conduit.io"
+                        placeholder={t('login.field_email_placeholder')}
                         value={magicEmail}
                         onChange={e => setMagicEmail(e.target.value)}
                         className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
@@ -416,7 +407,7 @@ export function LoginPage() {
                       disabled
                       className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase leading-tight text-center cursor-not-allowed opacity-60"
                     >
-                      ESC ·{'\n'}SAIR
+                      {t('magic_link.cancel')}
                     </button>
                     <button
                       type="submit"
@@ -424,19 +415,17 @@ export function LoginPage() {
                       className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90 active:brightness-75"
                       style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
                     >
-                      {isLoading ? 'ENVIANDO…' : 'TRANSMITIR LINK →'}
+                      {isLoading ? t('magic_link.submit_loading') : t('magic_link.submit')}
                     </button>
                   </div>
                 </form>
               )
             )}
 
-            {/* password tab */}
             {tab === 'password' && <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-              {/* email field */}
               <div>
                 <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                  <span className="text-accent-primary">A</span> PORTADOR / IDENTIFICADOR
+                  <span className="text-accent-primary">A</span> {t('login.field_email_label')}
                 </p>
                 <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                   <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -444,20 +433,19 @@ export function LoginPage() {
                     id="email"
                     type="email"
                     autoComplete="email"
-                    placeholder="a.ribeiro@conduit.io"
+                    placeholder={t('login.field_email_placeholder')}
                     className="flex-1 bg-transparent py-2.5 pr-3 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
                     {...register('email')}
                   />
                 </div>
                 {errors.email && (
-                  <p className="mt-1 font-mono text-[10px] text-status-deny uppercase" role="alert">IDENTIFICADOR INVÁLIDO</p>
+                  <p className="mt-1 font-mono text-[10px] text-status-deny uppercase" role="alert">{t('login.error_email_invalid')}</p>
                 )}
               </div>
 
-              {/* password field */}
               <div>
                 <p className="font-mono text-[9px] tracking-widest text-text-muted uppercase mb-1.5">
-                  <span className="text-accent-primary">B</span> CHAVE CRIPTOGRÁFICA
+                  <span className="text-accent-primary">B</span> {t('login.field_password_label')}
                 </p>
                 <div className="relative flex items-center border border-border-default bg-surface-elevated focus-within:border-border-accent transition-colors">
                   <span className="pl-3 pr-1 font-mono text-[13px] text-accent-primary select-none">›</span>
@@ -465,7 +453,7 @@ export function LoginPage() {
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
-                    placeholder="ingresse a chave"
+                    placeholder={t('login.field_password_placeholder')}
                     className="flex-1 bg-transparent py-2.5 text-[13px] font-mono text-text-primary placeholder:text-text-muted focus:outline-none"
                     {...register('password')}
                   />
@@ -474,15 +462,14 @@ export function LoginPage() {
                     onClick={() => setShowPassword(v => !v)}
                     className="px-3 font-mono text-[10px] tracking-widest text-text-muted hover:text-text-secondary transition-colors uppercase border-l border-border-default self-stretch flex items-center"
                   >
-                    {showPassword ? 'HIDE' : 'SHOW'}
+                    {showPassword ? t('login.field_password_hide') : t('login.field_password_show')}
                   </button>
                 </div>
                 {errors.password && (
-                  <p className="mt-1 font-mono text-[10px] text-status-deny uppercase" role="alert">CHAVE OBRIGATÓRIA</p>
+                  <p className="mt-1 font-mono text-[10px] text-status-deny uppercase" role="alert">{t('login.error_password_required')}</p>
                 )}
               </div>
 
-              {/* trust + recover */}
               <div className="flex items-center justify-between pt-1">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -491,21 +478,20 @@ export function LoginPage() {
                     className="w-3.5 h-3.5"
                     style={{ accentColor: '#F0A500' }}
                   />
-                  <span className="font-mono text-[11px] text-text-secondary">confiar neste dispositivo · 30d</span>
+                  <span className="font-mono text-[11px] text-text-secondary">{t('login.trust_device')}</span>
                 </label>
                 <span className="font-mono text-[11px] text-text-muted hover:text-text-secondary cursor-pointer transition-colors">
-                  recuperar →
+                  {t('login.recover')}
                 </span>
               </div>
 
-              {/* action buttons */}
               <div className="flex gap-3 pt-1">
                 <button
                   type="button"
                   disabled
                   className="px-5 py-3 border border-border-default font-mono text-[10px] tracking-widest text-text-muted uppercase leading-tight text-center cursor-not-allowed opacity-60"
                 >
-                  ESC ·{'\n'}SAIR
+                  {t('login.cancel')}
                 </button>
                 <button
                   type="submit"
@@ -513,19 +499,18 @@ export function LoginPage() {
                   className="flex-1 py-3 font-mono text-[11px] font-bold tracking-widest uppercase transition-colors disabled:opacity-60 disabled:cursor-not-allowed hover:brightness-90 active:brightness-75"
                   style={{ backgroundColor: '#F0A500', color: '#0D1117' }}
                 >
-                  {isLoading ? 'AUTENTICANDO…' : 'EMITIR CREDENCIAL →'}
+                  {isLoading ? t('login.submit_loading') : t('login.submit')}
                 </button>
               </div>
             </form>}
           </div>
 
-          {/* status bar */}
           <div className="px-6 py-2.5 border-t border-border-subtle flex items-center justify-between bg-surface-elevated">
             <span className="font-mono text-[10px] tracking-wide" style={{ color: '#3FB950' }}>
-              HANDSHAKE ESTÁVEL · TLS 1.3
+              {t('login.status_handshake')}
             </span>
             <span className="font-mono text-[10px] tracking-wide text-text-muted">
-              CHAIN · 4A:9C:2E:01:B7
+              {t('login.status_chain')}
             </span>
             <span className="font-mono text-[10px] tracking-wide text-text-muted">
               <UtcClock />

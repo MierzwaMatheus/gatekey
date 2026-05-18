@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
 import { createOrg } from '../../lib/root-api'
 
 const createOrgSchema = z.object({
@@ -17,6 +18,7 @@ interface CreateOrgFormProps {
 }
 
 export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
+  const { t } = useTranslation('common')
   const [apiError, setApiError] = useState<string | null>(null)
 
   const {
@@ -33,7 +35,7 @@ export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
       reset()
       onSuccess(result.orgId, result.adminTempPassword)
     } catch (err) {
-      setApiError((err as Error).message ?? 'Erro ao criar organização')
+      setApiError((err as Error).message ?? t('org_form.error'))
     }
   }
 
@@ -41,7 +43,7 @@ export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       <div className="space-y-1.5">
         <label htmlFor="org-name" className="block text-[12px] font-medium text-text-secondary">
-          Nome da Organização
+          {t('org_form.name_label')}
         </label>
         <input
           id="org-name"
@@ -60,7 +62,7 @@ export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
 
       <div className="space-y-1.5">
         <label htmlFor="admin-email" className="block text-[12px] font-medium text-text-secondary">
-          Email do Org Admin
+          {t('org_form.admin_email_label')}
         </label>
         <input
           id="admin-email"
@@ -89,7 +91,7 @@ export function CreateOrgForm({ token, onSuccess }: CreateOrgFormProps) {
         disabled={isSubmitting}
         className="w-full py-2 px-4 text-sm font-medium bg-accent-primary text-black rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
       >
-        {isSubmitting ? 'Criando…' : 'Criar Organização'}
+        {isSubmitting ? t('org_form.creating') : t('org_form.create_btn')}
       </button>
     </form>
   )

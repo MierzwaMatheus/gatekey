@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Icon } from './icons'
+import { LanguageSwitcher } from './language-switcher'
 
 interface TopBarProps {
   scope: string
@@ -40,6 +41,7 @@ export function TopBar({ scope, context, section }: TopBarProps) {
           <span>buscar / userId / IP …</span>
           <span className="kbd">⌘K</span>
         </div>
+        <LanguageSwitcher />
         <button className="icon-btn" title="Refresh">
           <Icon name="refresh" size={13} />
         </button>

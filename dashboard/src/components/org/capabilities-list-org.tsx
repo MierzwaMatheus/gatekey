@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Zap, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { listCapabilities, createCapability, type Capability } from '../../lib/org-api'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -13,6 +14,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 function CreateCapabilityForm({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+  const { t } = useTranslation('common')
   const [apiError, setApiError] = useState<string | null>(null)
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -26,7 +28,7 @@ function CreateCapabilityForm({ token, onSuccess }: { token: string; onSuccess: 
       onSuccess()
     } catch (e) {
       const msg = (e as Error).message ?? ''
-      setApiError(msg === 'QuotaExceeded' ? 'Cota de capabilities atingida.' : 'Erro ao criar capability.')
+      setApiError(msg === 'QuotaExceeded' ? t('caps_org.quota_exceeded') : t('caps_org.error_create'))
     }
   }
 
@@ -57,7 +59,7 @@ function CreateCapabilityForm({ token, onSuccess }: { token: string; onSuccess: 
         className="flex items-center gap-1.5 px-4 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"
       >
         <Plus size={14} />
-        {isSubmitting ? 'Criando…' : 'Criar capability'}
+        {isSubmitting ? t('caps_org.creating') : t('caps_org.create')}
       </button>
     </form>
   )
@@ -68,6 +70,7 @@ interface CapabilitiesListOrgProps {
 }
 
 export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
+  const { t } = useTranslation('common')
   const [capabilities, setCapabilities] = useState<Capability[] | null>(null)
   const [error, setError] = useState(false)
   const [capKey, setCapKey] = useState(0)
@@ -88,7 +91,7 @@ export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
     return () => abortRef.current?.abort()
   }, [token, capKey])
 
-  if (error) return <div className="py-8 text-center text-sm text-status-deny">Erro ao carregar capabilities.</div>
+  if (error) return <div className="py-8 text-center text-sm text-status-deny">{t('caps_org.error')}</div>
 
   if (capabilities === null) {
     return <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-8 bg-surface-elevated animate-pulse rounded-[6px]" />)}</div>
@@ -102,7 +105,7 @@ export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
       {/* Base capabilities */}
       <div>
         <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">
-          Catálogo Base
+          {t('caps_org.base_catalog')}
         </p>
         <div className="flex flex-wrap gap-2">
           {base.map((cap) => (
@@ -120,10 +123,10 @@ export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
       {/* Custom capabilities */}
       <div>
         <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">
-          Customizadas da Org
+          {t('caps_org.custom_catalog')}
         </p>
         {custom.length === 0 ? (
-          <p className="text-[13px] text-text-secondary mb-4">Nenhuma capability customizada ainda.</p>
+          <p className="text-[13px] text-text-secondary mb-4">{t('caps_org.none_custom')}</p>
         ) : (
           <div className="flex flex-wrap gap-2 mb-4">
             {custom.map((cap) => (
@@ -138,7 +141,7 @@ export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
           </div>
         )}
         <div className="border-t border-border-default pt-5">
-          <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">Nova Capability</p>
+          <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-3">{t('caps_org.new_cap')}</p>
           <CreateCapabilityForm token={token} onSuccess={() => setCapKey((k) => k + 1)} />
         </div>
       </div>

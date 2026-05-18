@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listMembers, removeMember, changeMemberRole, listRoles, type WorkspaceMember } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
@@ -32,6 +33,7 @@ interface MembersListProps {
 }
 
 export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersListProps) {
+  const { t } = useTranslation('bindings')
   const [members, setMembers] = useState<WorkspaceMember[] | null>(null)
   const [error, setError] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<WorkspaceMember | null>(null)
@@ -110,12 +112,12 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
   if (members.length === 0) {
     return (
       <div data-testid="members-empty" className="text-center py-12">
-        <p className="text-text-muted text-sm">Nenhum membro neste workspace.</p>
+        <p className="text-text-muted text-sm">{t('members_empty')}</p>
         <button
           onClick={onAddMember}
           className="mt-3 px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
         >
-          Adicionar membro
+          {t('members_add_submit')}
         </button>
       </div>
     )
@@ -124,14 +126,14 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
   return (
     <>
       <DenseGridContainer testId="members-list">
-        <DenseGridHeader label="Membros" stats={[{ label: 'total', value: members.length }]} />
+        <DenseGridHeader label={t('members_header')} stats={[{ label: 'total', value: members.length }]} />
         <DenseGridTable>
           <DenseGridThead>
             <DenseGridThNum />
-            <DenseGridTh>Identificador</DenseGridTh>
-            <DenseGridTh>Role</DenseGridTh>
-            <DenseGridTh>Adicionado</DenseGridTh>
-            <DenseGridTh align="right">Ações</DenseGridTh>
+            <DenseGridTh>{t('members_col_identifier')}</DenseGridTh>
+            <DenseGridTh>{t('members_col_role')}</DenseGridTh>
+            <DenseGridTh>{t('members_col_added')}</DenseGridTh>
+            <DenseGridTh align="right">{t('members_col_actions')}</DenseGridTh>
           </DenseGridThead>
           <tbody>
             {members.map((m, i) => (
@@ -142,10 +144,10 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
                 <DenseGridCellStack primary={relativeTime(m.addedAt)} />
                 <DenseGridActionsCell>
                   <DenseGridActionBtn onClick={() => { setChangeRoleTarget(m); setNewRoleId('') }}>
-                    Trocar role
+                    {t('members_action_change_role')}
                   </DenseGridActionBtn>
                   <DenseGridActionBtn variant="danger" onClick={() => setRemoveTarget(m)}>
-                    Remover
+                    {t('members_action_remove')}
                   </DenseGridActionBtn>
                 </DenseGridActionsCell>
               </DenseGridRow>
@@ -166,7 +168,7 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-text-primary text-sm mb-4">
-              Remover <strong>{removeTarget.userEmail}</strong> do workspace?
+              {t('members_remove_message', { email: removeTarget.userEmail })}
             </p>
             <div className="flex gap-2">
               <button
@@ -174,13 +176,13 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
                 disabled={actionLoading}
                 className="px-3 py-1.5 text-xs bg-status-deny text-white rounded-button disabled:opacity-60 cursor-pointer"
               >
-                {actionLoading ? 'Removendo…' : 'Remover'}
+                {actionLoading ? '…' : t('members_action_remove')}
               </button>
               <button
                 onClick={() => setRemoveTarget(null)}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer"
               >
-                Cancelar
+                {t('common:cancel', { ns: 'common' })}
               </button>
             </div>
           </div>
@@ -198,14 +200,14 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-text-primary text-sm mb-3">
-              Trocar role de <strong>{changeRoleTarget.userEmail}</strong>
+              {t('members_change_role_title', { email: changeRoleTarget.userEmail })}
             </p>
             <select
               value={newRoleId}
               onChange={(e) => setNewRoleId(e.target.value)}
               className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary mb-4"
             >
-              <option value="">Selecione um role…</option>
+              <option value="">{t('members_select_role')}</option>
               {roles.map((r) => (
                 <option key={r._id} value={r._id}>{r.name}</option>
               ))}
@@ -216,13 +218,13 @@ export function MembersList({ token, wsId, onAddMember, refreshKey }: MembersLis
                 disabled={actionLoading || !newRoleId}
                 className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button disabled:opacity-60 cursor-pointer"
               >
-                {actionLoading ? 'Salvando…' : 'Salvar'}
+                {actionLoading ? '…' : t('common:save', { ns: 'common' })}
               </button>
               <button
                 onClick={() => setChangeRoleTarget(null)}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer"
               >
-                Cancelar
+                {t('common:cancel', { ns: 'common' })}
               </button>
             </div>
           </div>
