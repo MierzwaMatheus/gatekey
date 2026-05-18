@@ -18,6 +18,7 @@ import type * as check from "../check.js";
 import type * as checkBatch from "../checkBatch.js";
 import type * as coldStorage from "../coldStorage.js";
 import type * as crons from "../crons.js";
+import type * as effectiveAccess from "../effectiveAccess.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as http from "../http.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   checkBatch: typeof checkBatch;
   coldStorage: typeof coldStorage;
   crons: typeof crons;
+  effectiveAccess: typeof effectiveAccess;
   emailTemplates: typeof emailTemplates;
   hierarchy: typeof hierarchy;
   http: typeof http;

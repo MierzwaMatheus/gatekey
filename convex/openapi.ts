@@ -411,6 +411,63 @@ export const OPENAPI_SPEC = {
         responses: { "200": { description: "Bindings list" } },
       },
     },
+    "/v1/users/{id}/effective-access": {
+      get: {
+        summary: "Get effective access for a user in a workspace",
+        description: "Returns the consolidated view of all access a user has in a workspace, including workspace-level bindings, direct resource bindings, inherited bindings from containers, and explicit deny overrides. Accessible by Root, Org Admin, and Workspace Admin only.",
+        tags: ["Users"],
+        security: [{ BearerJWT: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User ID" },
+          { name: "workspaceId", in: "query", required: true, schema: { type: "string" }, description: "Workspace ID to scope the effective access query" },
+        ],
+        responses: {
+          "200": {
+            description: "Effective access result",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    workspaceAccess: {
+                      oneOf: [
+                        {
+                          type: "object",
+                          properties: {
+                            role: { type: "string", description: "Role name" },
+                            source: { type: "string", enum: ["workspace-binding"] },
+                            expiresAt: { type: "number", description: "Unix timestamp in ms, if binding has expiry" },
+                          },
+                          required: ["role", "source"],
+                        },
+                        { type: "null" },
+                      ],
+                    },
+                    resourceAccess: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          resourceType: { type: "string" },
+                          resourceId: { type: "string" },
+                          effectiveRole: { type: "string", nullable: true, description: "null means explicit deny" },
+                          source: { type: "string", description: "direct-binding | inherited-from-<type>:<parentId> | explicit-deny" },
+                          expiresAt: { type: "number" },
+                          deniedBy: { type: "string", description: "userId of admin who created the deny binding" },
+                        },
+                        required: ["resourceType", "resourceId", "effectiveRole", "source"],
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Missing workspaceId query param" },
+          "403": { description: "Caller does not have sufficient role (must be Root, Org Admin, or Workspace Admin)" },
+        },
+      },
+    },
     "/v1/bindings": {
       get: {
         summary: "List bindings",

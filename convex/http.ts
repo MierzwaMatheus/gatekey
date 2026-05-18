@@ -453,10 +453,24 @@ http.route({
     const segments = url.pathname.replace(/^\/v1\/users\//, "").split("/");
     const userId = segments[0];
     const isPermissions = segments[1] === "permissions";
+    const isEffectiveAccess = segments[1] === "effective-access";
 
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
 
     try {
+      if (isEffectiveAccess) {
+        const workspaceId = url.searchParams.get("workspaceId");
+        if (!workspaceId) return jsonResponse({ error: "missing_workspace_id" }, 400);
+
+        const result = await ctx.runQuery(internal.effectiveAccess.computeEffectiveAccess, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          workspaceId: workspaceId as never,
+          orgId: caller.orgId as never,
+        });
+        return jsonResponse(result);
+      }
+
       if (isPermissions) {
         const permissions = await ctx.runQuery(internal.users.getUserPermissions, {
           callerId: caller.callerId as never,
