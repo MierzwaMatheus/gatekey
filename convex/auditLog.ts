@@ -224,3 +224,33 @@ export const listAuditLog = internalQuery({
     return query.paginate(args.paginationOpts);
   },
 });
+
+export const getAuditEventsForExport = internalQuery({
+  args: {
+    orgId: v.id("orgs"),
+    beforeTimestamp: v.number(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    return ctx.db
+      .query("audit_log")
+      .withIndex("by_orgId_and_timestamp", (q) =>
+        q.eq("orgId", args.orgId).lt("timestamp", args.beforeTimestamp),
+      )
+      .paginate(args.paginationOpts);
+  },
+});
+
+export const recordAuditExport = internalMutation({
+  args: {
+    orgId: v.id("orgs"),
+    period: v.object({ start: v.number(), end: v.number() }),
+    storagePath: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return ctx.db.insert("audit_exports", {
+      ...args,
+      createdAt: Date.now(),
+    });
+  },
+});
