@@ -160,3 +160,48 @@ test("retryAfterMs é positivo quando rate limit excedido no login", async () =>
   expect(result.error).toBe("rate_limit_exceeded");
   expect(result.retryAfterMs).toBeGreaterThan(0);
 });
+
+// ── Integração: refresh rate limit ────────────────────────────────────────────
+
+test("21 chamadas ao refresh com mesmo IP — a 21ª retorna rate_limit_exceeded", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const ip = "203.0.113.3";
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "refresh-rl@test.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 9999999,
+      ip: "1.2.3.4",
+      deviceInfo: "test",
+    }),
+  );
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Org", status: "active", updatedAt: Date.now() }),
+  );
+
+  let lastResult: { success: boolean; error?: string } | null = null;
+
+  for (let i = 0; i < 21; i++) {
+    lastResult = await t.action(internal.auth.refreshTokens, {
+      sessionId: sessionId as never,
+      refreshToken: "token",
+      orgId: orgId as string,
+      ip,
+    }) as { success: boolean; error?: string };
+  }
+
+  expect(lastResult?.success).toBe(false);
+  expect((lastResult as { error?: string })?.error).toBe("rate_limit_exceeded");
+});

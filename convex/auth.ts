@@ -285,6 +285,18 @@ export const refreshTokens = internalAction({
     | { success: true; accessToken: string; refreshToken: string; sessionId: string }
     | { success: false; error: string }
   > => {
+    if (args.ip) {
+      const { getRateLimitKey } = await import("./rateLimit");
+      const rlResult = await ctx.runMutation(internal.rateLimit.checkRateLimit, {
+        key: getRateLimitKey("refresh", args.ip),
+        limit: 20,
+        windowMs: 60 * 1000,
+      });
+      if (!rlResult.allowed) {
+        return { success: false as const, error: "rate_limit_exceeded" };
+      }
+    }
+
     const result = (await ctx.runAction(internal.jwt.rotateRefreshToken, {
       sessionId: args.sessionId,
       refreshToken: args.refreshToken,

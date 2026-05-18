@@ -131,6 +131,15 @@ http.route({
       ip,
     });
     if (!result.success) {
+      if (result.error === "rate_limit_exceeded") {
+        return new Response(
+          JSON.stringify({ error: "RateLimitExceeded", retryAfter: 60 }),
+          {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": "60", ...CORS_HEADERS },
+          },
+        );
+      }
       return withCors({ error: result.error }, 401);
     }
     return withCors({
