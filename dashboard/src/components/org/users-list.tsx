@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from 'convex/react'
 import { Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
@@ -21,41 +22,40 @@ import {
   DenseGridFooter,
 } from '../ui/dense-grid'
 
-function formatRelativeTime(ts: number): string {
+function formatRelativeTime(ts: number, t: (key: string, opts?: object) => string): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'agora'
-  if (mins < 60) return `${mins}m atrás`
+  if (mins < 1) return t('relative_now')
+  if (mins < 60) return t('relative_minutes', { count: mins })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h atrás`
-  return `${Math.floor(hours / 24)}d atrás`
+  if (hours < 24) return t('relative_hours', { count: hours })
+  return t('relative_days', { count: Math.floor(hours / 24) })
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
+  const { t } = useTranslation('users')
   return (
     <div className="flex flex-col items-center justify-center py-16">
       <svg width="120" height="120" viewBox="0 0 120 120" fill="none" aria-hidden="true" className="mb-5">
-        {/* Octógono outline */}
         <polygon
           points="45,8 75,8 104,37 104,83 75,112 45,112 16,83 16,37"
           stroke="#30363D"
           strokeWidth="1.5"
           fill="none"
         />
-        {/* Chave pontilhada ausente */}
         <circle cx="52" cy="60" r="10" stroke="#8B949E" strokeWidth="1" strokeDasharray="4 2" fill="none" />
         <line x1="62" y1="60" x2="80" y2="60" stroke="#8B949E" strokeWidth="1" strokeDasharray="4 2" />
         <line x1="74" y1="60" x2="74" y2="66" stroke="#8B949E" strokeWidth="1" strokeDasharray="4 2" />
         <line x1="68" y1="60" x2="68" y2="66" stroke="#8B949E" strokeWidth="1" strokeDasharray="4 2" />
       </svg>
-      <p className="text-[15px] text-text-primary font-medium mb-1">Nenhum usuário ainda</p>
-      <p className="text-[13px] text-text-secondary mb-5">Crie o primeiro usuário desta organização</p>
+      <p className="text-[15px] text-text-primary font-medium mb-1">{t('empty_title')}</p>
+      <p className="text-[13px] text-text-secondary mb-5">{t('empty_subtitle')}</p>
       <button
         onClick={onAdd}
         className="flex items-center gap-1.5 px-4 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
       >
         <Plus size={14} />
-        Criar usuário
+        {t('create_button')}
       </button>
     </div>
   )
@@ -72,19 +72,20 @@ function SuspendModal({
   onCancel: () => void
   loading: boolean
 }) {
+  const { t } = useTranslation('users')
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCancel}>
       <div
         className="bg-surface-card border border-border-default rounded-card shadow-float p-6 w-full max-w-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-[15px] font-medium text-text-primary mb-2">Suspender usuário</h2>
+        <h2 className="text-[15px] font-medium text-text-primary mb-2">{t('suspend_title')}</h2>
         <p className="text-[13px] text-text-secondary mb-1">
-          Tem certeza que deseja suspender{' '}
+          {t('suspend_message')}{' '}
           <span className="font-mono text-status-deny">{user.email}</span>?
         </p>
         <p className="text-[12px] text-text-secondary mb-5">
-          O usuário perderá acesso imediatamente.
+          {t('suspend_warning')}
         </p>
         <div className="flex gap-3 justify-end">
           <button
@@ -92,14 +93,14 @@ function SuspendModal({
             disabled={loading}
             className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
           >
-            Cancelar
+            {t('common:cancel', { ns: 'common' })}
           </button>
           <button
             onClick={onConfirm}
             disabled={loading}
             className="px-3 py-1.5 text-[13px] text-black bg-status-deny rounded-button hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
           >
-            {loading ? 'Suspendendo…' : 'Suspender'}
+            {loading ? t('suspend_confirm_loading') : t('suspend_confirm')}
           </button>
         </div>
       </div>
@@ -118,12 +119,13 @@ function ResetPasswordModal({
   onCancel: () => void
   loading: boolean
 }) {
+  const { t } = useTranslation('users')
   const [newPassword, setNewPassword] = useState('')
   const [error, setError] = useState('')
 
   function handleSubmit() {
     if (newPassword.length < 8) {
-      setError('A senha deve ter no mínimo 8 caracteres')
+      setError(t('reset_password_error_length'))
       return
     }
     onConfirm(newPassword)
@@ -135,16 +137,16 @@ function ResetPasswordModal({
         className="bg-surface-card border border-border-default rounded-card shadow-float p-6 w-full max-w-sm"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-[15px] font-medium text-text-primary mb-2">Redefinir senha</h2>
+        <h2 className="text-[15px] font-medium text-text-primary mb-2">{t('reset_password_title')}</h2>
         <p className="text-[13px] text-text-secondary mb-4">
-          Nova senha para{' '}
+          {t('reset_password_message')}{' '}
           <span className="font-mono text-text-primary">{user.email}</span>
         </p>
         <input
           type="password"
           value={newPassword}
           onChange={(e) => { setNewPassword(e.target.value); setError('') }}
-          placeholder="Nova senha (mín. 8 caracteres)"
+          placeholder={t('reset_password_placeholder')}
           className="w-full px-3 py-2 text-sm bg-surface-elevated border border-border-default rounded-input text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-accent mb-1"
         />
         {error && <p className="text-[12px] text-status-deny mb-3">{error}</p>}
@@ -155,14 +157,14 @@ function ResetPasswordModal({
             disabled={loading}
             className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
           >
-            Cancelar
+            {t('common:cancel', { ns: 'common' })}
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading || newPassword.length < 8}
             className="px-3 py-1.5 text-[13px] text-black bg-accent-primary rounded-button hover:bg-accent-hover transition-colors cursor-pointer disabled:opacity-60"
           >
-            {loading ? 'Salvando…' : 'Salvar senha'}
+            {loading ? t('reset_password_confirm_loading') : t('reset_password_confirm')}
           </button>
         </div>
       </div>
@@ -177,6 +179,7 @@ interface UsersListProps {
 }
 
 export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
+  const { t } = useTranslation('users')
   const [suspendTarget, setSuspendTarget] = useState<UserSummary | null>(null)
   const [resetTarget, setResetTarget] = useState<UserSummary | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -231,15 +234,15 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
   return (
     <>
       <DenseGridContainer testId="users-table">
-        <DenseGridHeader label="Usuários" stats={[{ label: 'total', value: users.length }]} />
+        <DenseGridHeader label={t('header')} stats={[{ label: 'total', value: users.length }]} />
         <DenseGridTable>
           <DenseGridThead>
             <DenseGridThNum />
-            <DenseGridTh>Identificador</DenseGridTh>
-            <DenseGridTh>Status</DenseGridTh>
-            <DenseGridTh>Role</DenseGridTh>
-            <DenseGridTh>Atualizado</DenseGridTh>
-            <DenseGridTh align="right">Ações</DenseGridTh>
+            <DenseGridTh>{t('col_identifier')}</DenseGridTh>
+            <DenseGridTh>{t('col_status')}</DenseGridTh>
+            <DenseGridTh>{t('col_role')}</DenseGridTh>
+            <DenseGridTh>{t('col_updated')}</DenseGridTh>
+            <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
           </DenseGridThead>
           <tbody>
             {users.map((user, i) => (
@@ -256,16 +259,16 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
                   <span className="text-[11px] text-[#8B949E]">{user.orgRole}</span>
                 </DenseGridCell>
                 <DenseGridCell>
-                  <span className="text-[11px] text-[#6E7681]">{formatRelativeTime(user.updatedAt)}</span>
+                  <span className="text-[11px] text-[#6E7681]">{formatRelativeTime(user.updatedAt, t)}</span>
                 </DenseGridCell>
                 <DenseGridActionsCell>
                   {user.status === 'active' && (
                     <DenseGridActionBtn variant="danger" onClick={() => setSuspendTarget(user)}>
-                      Suspender
+                      {t('action_suspend')}
                     </DenseGridActionBtn>
                   )}
                   <DenseGridActionBtn onClick={() => setResetTarget(user)}>
-                    Redefinir senha
+                    {t('action_reset_password')}
                   </DenseGridActionBtn>
                 </DenseGridActionsCell>
               </DenseGridRow>

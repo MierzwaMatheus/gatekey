@@ -5,6 +5,8 @@ import ptBRCommon from '../locales/pt-BR/common.json'
 import enCommon from '../locales/en/common.json'
 import ptBRAuth from '../locales/pt-BR/auth.json'
 import enAuth from '../locales/en/auth.json'
+import ptBRUsers from '../locales/pt-BR/users.json'
+import enUsers from '../locales/en/users.json'
 
 i18n
   .use(LanguageDetector)
@@ -12,10 +14,10 @@ i18n
   .init({
     fallbackLng: 'pt-BR',
     defaultNS: 'common',
-    ns: ['common', 'auth'],
+    ns: ['common', 'auth', 'users'],
     resources: {
-      'pt-BR': { common: ptBRCommon, auth: ptBRAuth },
-      en: { common: enCommon, auth: enAuth },
+      'pt-BR': { common: ptBRCommon, auth: ptBRAuth, users: ptBRUsers },
+      en: { common: enCommon, auth: enAuth, users: enUsers },
     },
     interpolation: { escapeValue: false },
     detection: {
