@@ -513,8 +513,8 @@
 - [ ] Configurar geração automática de OpenAPI a partir das anotações/schemas dos HTTP Actions (ex: `zod-openapi` ou similar)
 - [ ] Servir documentação em `/v1/docs` como Swagger UI em ambiente de desenvolvimento
 - [ ] Vincular URL de documentação ao Playground interativo do dashboard
-- [ ] Escrever teste E2E: login com email+senha → criar binding → `POST /v1/check` retorna `{allowed: true}`
-- [ ] Escrever teste E2E: criar binding → deletar binding → `POST /v1/check` retorna `{allowed: false}`
+- [x] Escrever teste E2E: login com email+senha → criar binding → `POST /v1/check` retorna `{allowed: true}`
+- [x] Escrever teste E2E: criar binding → deletar binding → `POST /v1/check` retorna `{allowed: false}`
 - [ ] Escrever teste E2E: atingir cota de usuários → próxima criação retorna `QuotaExceeded` com campos corretos
 - [ ] Escrever teste E2E: atingir cota de workspaces → idem
 - [ ] Escrever teste E2E: atingir cota de roles → idem
