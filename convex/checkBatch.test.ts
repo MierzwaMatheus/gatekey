@@ -378,3 +378,55 @@ test("POST /v1/check/batch: mais de 100 itens retorna 422", async () => {
 
   expect(res.status).toBe(422);
 });
+
+// ── Ciclo 9: herança de container → parent_binding ────────────────────────────
+
+test("checkBatch integração: item com binding direto retorna allowed:true (base para herança)", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId, roleId } = await setupBatchContext(t);
+
+  // Registrar resource_type "document" que herda de "folder"
+  await t.run((ctx) =>
+    ctx.db.insert("resource_types", {
+      orgId,
+      name: "document",
+      inheritsFrom: "folder",
+      inheritanceMode: "auto",
+    }),
+  );
+
+  // Binding no folder pai
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "folder",
+      resourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  // Binding direto no documento com parentResourceId para acionar herança
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_child",
+      parentResourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  const result = await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_child" },
+    ],
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0].allowed).toBe(true);
+});
