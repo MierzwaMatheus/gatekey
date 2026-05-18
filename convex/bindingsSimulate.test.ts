@@ -195,6 +195,145 @@ test("simulateBinding: role com capability que admin não possui lança no_privi
   ).rejects.toThrow("no_privilege_escalation");
 });
 
+// ── Ciclos HTTP ───────────────────────────────────────────────────────────────
+
+async function setupHttpContext(t: ReturnType<typeof convexTest>) {
+  const ctx = await setupSimulateContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootToken = await t.action(internal.jwt.signJwt, {
+    sub: String(ctx.rootId),
+    orgId: String(ctx.orgId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  return { ...ctx, rootToken };
+}
+
+test("POST /v1/bindings/simulate: simular allow binding → delta.gained contém recurso, nenhum binding na tabela", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, orgId, workspaceId, userId, editorRoleId } = await setupHttpContext(t);
+
+  const bindingsBefore = await t.run((ctx) => ctx.db.query("bindings").collect());
+
+  const res = await t.fetch("/v1/bindings/simulate", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: String(userId),
+      roleId: String(editorRoleId),
+      workspaceId: String(workspaceId),
+      resourceType: "document",
+      resourceId: "doc_integration",
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.simulated).toBe(true);
+  expect(body.delta.gained).toHaveLength(1);
+  expect(body.delta.gained[0].resourceId).toBe("doc_integration");
+
+  const bindingsAfter = await t.run((ctx) => ctx.db.query("bindings").collect());
+  expect(bindingsAfter).toHaveLength(bindingsBefore.length);
+});
+
+test("POST /v1/bindings/simulate: simular deny binding → delta.lost contém recurso", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, orgId, workspaceId, userId, editorRoleId } = await setupHttpContext(t);
+
+  // usuário tem allow em doc_deny_test
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId: editorRoleId,
+      resourceType: "document",
+      resourceId: "doc_deny_test",
+      workspaceId,
+    }),
+  );
+
+  const res = await t.fetch("/v1/bindings/simulate", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: String(userId),
+      roleId: String(editorRoleId),
+      workspaceId: String(workspaceId),
+      resourceType: "document",
+      resourceId: "doc_deny_test",
+      type: "deny",
+    }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.simulated).toBe(true);
+  expect(body.delta.lost).toHaveLength(1);
+  expect(body.delta.lost[0].resourceId).toBe("doc_deny_test");
+});
+
+test("POST /v1/bindings/simulate: admin sem capability recebe 403 cannot_grant_capability", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupHttpContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  // criar admin com capability limitada
+  const adminId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "limited-admin@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: adminId, orgId, role: "admin", status: "active" }),
+  );
+
+  const adminToken = await t.action(internal.jwt.signJwt, {
+    sub: String(adminId),
+    orgId: String(orgId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  // role com capability especial
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { orgId, name: "super:write", isBase: false, description: "Super write" }),
+  );
+  const specialRoleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "super-role", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("role_capabilities", { roleId: specialRoleId, capabilityId: capId }),
+  );
+
+  const res = await t.fetch("/v1/bindings/simulate", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      userId: String(userId),
+      roleId: String(specialRoleId),
+      workspaceId: String(workspaceId),
+      resourceType: "document",
+      resourceId: "doc_priv",
+    }),
+  });
+
+  expect(res.status).toBe(403);
+  const body = await res.json();
+  expect(body.reason).toBe("cannot_grant_capability");
+});
+
 // ── Ciclo 5: nenhum binding persistido ────────────────────────────────────────
 
 test("simulateBinding: nenhum binding é persistido após a chamada", async () => {

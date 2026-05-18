@@ -835,6 +835,59 @@ http.route({
   }),
 });
 
+// ── POST /v1/bindings/simulate ────────────────────────────────────────────────
+
+http.route({ path: "/v1/bindings/simulate", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/bindings/simulate",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req, "bindings:write");
+    if (isResponse(caller)) return caller;
+
+    let body: {
+      userId?: string;
+      roleId?: string;
+      resourceType?: string;
+      resourceId?: string;
+      parentResourceId?: string;
+      workspaceId?: string;
+      type?: string;
+    };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.userId || !body.roleId || !body.resourceType || !body.workspaceId) {
+      return jsonResponse({ error: "missing_fields" }, 400);
+    }
+
+    try {
+      const result = await ctx.runAction(internal.bindingsSimulate.simulateBinding, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: body.workspaceId as never,
+        userId: body.userId as never,
+        roleId: body.roleId as never,
+        resourceType: body.resourceType,
+        resourceId: body.resourceId,
+        parentResourceId: body.parentResourceId,
+        type: body.type as "allow" | "deny" | undefined,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("no_privilege_escalation")) {
+        return jsonResponse({ error: "forbidden: no_privilege_escalation", reason: "cannot_grant_capability" }, 403);
+      }
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── DELETE /v1/bindings/:id ───────────────────────────────────────────────────
 
 http.route({
