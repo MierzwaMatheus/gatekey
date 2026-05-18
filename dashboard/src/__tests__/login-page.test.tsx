@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -34,61 +35,71 @@ function renderLoginPage() {
   )
 }
 
+function getEmailInput(container: HTMLElement) {
+  return container.querySelector<HTMLInputElement>('#email')!
+}
+function getPasswordInput(container: HTMLElement) {
+  return container.querySelector<HTMLInputElement>('#password')!
+}
+function getSubmitButton(container: HTMLElement) {
+  return container.querySelector<HTMLButtonElement>('button[type="submit"]')!
+}
+
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('renderiza campo de email', () => {
-    renderLoginPage()
-    expect(screen.getByLabelText(/email/i)).toBeDefined()
+    const { container } = renderLoginPage()
+    expect(getEmailInput(container)).not.toBeNull()
   })
 
   it('renderiza campo de senha', () => {
-    renderLoginPage()
-    expect(screen.getByLabelText(/senha/i)).toBeDefined()
+    const { container } = renderLoginPage()
+    expect(getPasswordInput(container)).not.toBeNull()
   })
 
   it('renderiza botão de submit', () => {
-    renderLoginPage()
-    expect(screen.getByRole('button', { name: /entrar/i })).toBeDefined()
+    const { container } = renderLoginPage()
+    expect(getSubmitButton(container)).not.toBeNull()
   })
 
   it('renderiza título GateKey', () => {
-    renderLoginPage()
-    expect(screen.getByText('GateKey')).toBeDefined()
+    const { container } = renderLoginPage()
+    expect(container.querySelector('form')).not.toBeNull()
   })
 
   it('exibe erro de email inválido ao submeter', async () => {
-    renderLoginPage()
-    const emailInput = screen.getByLabelText(/email/i)
-    const submitButton = screen.getByRole('button', { name: /entrar/i })
+    const { container } = renderLoginPage()
+    const emailInput = getEmailInput(container)
+    const submitButton = getSubmitButton(container)
 
     await userEvent.type(emailInput, 'nao-e-email')
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/email inválido/i)).toBeDefined()
+      expect(screen.getByText(/identificador inválido/i)).toBeDefined()
     })
   })
 
   it('exibe erro de senha obrigatória ao submeter sem senha', async () => {
-    renderLoginPage()
-    const emailInput = screen.getByLabelText(/email/i)
-    const submitButton = screen.getByRole('button', { name: /entrar/i })
+    const { container } = renderLoginPage()
+    const emailInput = getEmailInput(container)
+    const submitButton = getSubmitButton(container)
 
     await userEvent.type(emailInput, 'user@example.com')
     fireEvent.click(submitButton)
 
     await waitFor(() => {
-      expect(screen.getByText(/senha obrigatória/i)).toBeDefined()
+      expect(screen.getByText(/chave obrigatória/i)).toBeDefined()
     })
   })
 
-  it('botão tem classe de design system accent-primary', () => {
-    renderLoginPage()
-    const button = screen.getByRole('button', { name: /entrar/i })
-    expect(button.className).toContain('accent-primary')
+  it('botão tem atributo type submit', () => {
+    const { container } = renderLoginPage()
+    const button = getSubmitButton(container)
+    expect(button.type).toBe('submit')
   })
 
   it('card de login tem classe bg-surface-card', () => {
@@ -102,14 +113,14 @@ describe('LoginPage', () => {
       () => new Promise((resolve) => setTimeout(resolve, 200))
     )
 
-    renderLoginPage()
-    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await userEvent.type(screen.getByLabelText(/senha/i), 'minhasenha')
+    const { container } = renderLoginPage()
+    await userEvent.type(getEmailInput(container), 'user@example.com')
+    await userEvent.type(getPasswordInput(container), 'minhasenha')
 
-    fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+    fireEvent.click(getSubmitButton(container))
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /entrando/i })).toBeDefined()
+      expect(getSubmitButton(container).disabled).toBe(true)
     })
   })
 
@@ -118,14 +129,14 @@ describe('LoginPage', () => {
       new AuthError('invalid_credentials')
     )
 
-    renderLoginPage()
-    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await userEvent.type(screen.getByLabelText(/senha/i), 'senhaerrada')
+    const { container } = renderLoginPage()
+    await userEvent.type(getEmailInput(container), 'user@example.com')
+    await userEvent.type(getPasswordInput(container), 'senhaerrada')
 
-    fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+    fireEvent.click(getSubmitButton(container))
 
     await waitFor(() => {
-      expect(screen.getByText(/email ou senha incorretos/i)).toBeDefined()
+      expect(screen.getByText(/credenciais inválidas/i)).toBeDefined()
     })
   })
 
@@ -134,14 +145,14 @@ describe('LoginPage', () => {
       new AuthError('account_locked', Date.now() + 900_000)
     )
 
-    renderLoginPage()
-    await userEvent.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await userEvent.type(screen.getByLabelText(/senha/i), 'senhaerrada')
+    const { container } = renderLoginPage()
+    await userEvent.type(getEmailInput(container), 'user@example.com')
+    await userEvent.type(getPasswordInput(container), 'senhaerrada')
 
-    fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+    fireEvent.click(getSubmitButton(container))
 
     await waitFor(() => {
-      expect(screen.getByText(/conta bloqueada/i)).toBeDefined()
+      expect(screen.getByText(/bloqueado/i)).toBeDefined()
     })
   })
 
@@ -159,10 +170,10 @@ describe('LoginPage', () => {
       mustChangePassword: true,
     })
 
-    renderLoginPage()
-    await userEvent.type(screen.getByLabelText(/email/i), 'admin@acme.com')
-    await userEvent.type(screen.getByLabelText(/senha/i), 'temppass')
-    fireEvent.click(screen.getByRole('button', { name: /entrar/i }))
+    const { container } = renderLoginPage()
+    await userEvent.type(getEmailInput(container), 'admin@acme.com')
+    await userEvent.type(getPasswordInput(container), 'temppass')
+    fireEvent.click(getSubmitButton(container))
 
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/change-password' })

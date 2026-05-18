@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { WorkspaceLayout } from '../components/workspace/workspace-layout'
@@ -72,7 +73,7 @@ describe('WorkspaceLayout', () => {
   it('renders GateKey header with workspace id in sidebar', () => {
     renderWithAuth('workspace_admin')
     expect(screen.getByText('GateKey')).toBeDefined()
-    expect(screen.getByText(/ws_/)).toBeDefined()
+    expect(screen.getAllByText(/ws_/).length).toBeGreaterThan(0)
   })
 
   it('renders children content area', () => {

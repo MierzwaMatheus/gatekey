@@ -1,9 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { usePaginatedQuery } from 'convex/react'
-import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
-import type { AuditEvent } from '../../lib/workspace-api'
+import { listWorkspaceAuditLog, type AuditEvent } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -38,23 +35,39 @@ export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps
   const [actionFilter, setActionFilter] = useState('')
   const [resultFilter, setResultFilter] = useState<'allow' | 'deny' | ''>('')
 
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.auditLog.listAuditLogQuery,
-    token
-      ? {
-          token,
-          orgId: orgId as Id<'orgs'>,
-          workspaceId: wsId as Id<'workspaces'>,
-          action: actionFilter || undefined,
-          result: (resultFilter || undefined) as 'allow' | 'deny' | undefined,
-        }
-      : 'skip',
-    { initialNumItems: 50 },
-  )
+  const [logs, setLogs] = useState<AuditEvent[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDone, setIsDone] = useState(false)
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  const logs = results as AuditEvent[]
-  const isLoading = status === 'LoadingFirstPage'
-  const isDone = status === 'Exhausted'
+  const fetchLogs = useCallback(async (cur?: string | null) => {
+    if (!token) return
+    try {
+      const page = await listWorkspaceAuditLog(token, wsId, {
+        action: actionFilter || undefined,
+        result: (resultFilter || undefined) as 'allow' | 'deny' | undefined,
+        cursor: cur ?? undefined,
+        numItems: 50,
+      })
+      if (cur) {
+        setLogs((prev) => [...prev, ...page.logs])
+      } else {
+        setLogs(page.logs)
+      }
+      setIsDone(page.isDone)
+      setCursor(page.cursor)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }, [token, orgId, wsId, actionFilter, resultFilter])
+
+  useEffect(() => {
+    setIsLoading(true)
+    setLogs([])
+    fetchLogs(null)
+  }, [fetchLogs])
 
   if (isLoading) {
     return (
@@ -132,8 +145,8 @@ export function AuditLogWorkspace({ token, orgId, wsId }: AuditLogWorkspaceProps
           </DenseGridTable>
           <DenseGridFooter
             showing={logs.length}
-            onLoadMore={!isDone ? () => loadMore(50) : undefined}
-            loadingMore={status === 'LoadingMore'}
+            onLoadMore={!isDone ? () => { setIsLoadingMore(true); fetchLogs(cursor) } : undefined}
+            loadingMore={isLoadingMore}
             isDone={isDone}
           />
         </DenseGridContainer>

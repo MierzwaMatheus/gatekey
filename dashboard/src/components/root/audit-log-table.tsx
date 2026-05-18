@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { usePaginatedQuery } from 'convex/react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Plus,
   Link,
@@ -12,9 +11,7 @@ import {
   Building2,
   ScrollText,
 } from 'lucide-react'
-import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
-import type { AuditEvent } from '../../lib/root-api'
+import { listAuditLog, type AuditEvent } from '../../lib/root-api'
 
 function formatRelative(ts: number): string {
   const diff = Date.now() - ts
@@ -98,30 +95,52 @@ interface AuditLogTableProps {
 }
 
 export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
-  // Filtros
   const [filterAction, setFilterAction] = useState('')
   const [filterResult, setFilterResult] = useState<'' | 'allow' | 'deny'>('')
   const [filterFrom, setFilterFrom] = useState('')
   const [filterTo, setFilterTo] = useState('')
 
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.auditLog.listAuditLogQuery,
-    token
-      ? {
-          token,
-          orgId: (orgId as Id<'orgs'>) ?? undefined,
-          action: filterAction || undefined,
-          result: (filterResult || undefined) as 'allow' | 'deny' | undefined,
-          from: filterFrom ? new Date(filterFrom).getTime() : undefined,
-          to: filterTo ? new Date(filterTo).getTime() : undefined,
-        }
-      : 'skip',
-    { initialNumItems: 50 },
-  )
+  const [logs, setLogs] = useState<AuditEvent[] | undefined>(undefined)
+  const [isDone, setIsDone] = useState(false)
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  const logs = results as AuditEvent[] | undefined
-  const isDone = status === 'Exhausted'
-  const isLoading = status === 'LoadingFirstPage'
+  const fetchLogs = useCallback(async (cur?: string | null) => {
+    if (!token) return
+    try {
+      const page = await listAuditLog(token, {
+        orgId,
+        action: filterAction || undefined,
+        result: (filterResult || undefined) as 'allow' | 'deny' | undefined,
+        from: filterFrom ? new Date(filterFrom).getTime() : undefined,
+        to: filterTo ? new Date(filterTo).getTime() : undefined,
+        cursor: cur ?? undefined,
+        numItems: 50,
+      })
+      if (cur) {
+        setLogs((prev) => [...(prev ?? []), ...page.logs])
+      } else {
+        setLogs(page.logs)
+      }
+      setIsDone(page.isDone)
+      setCursor(page.cursor)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }, [token, orgId, filterAction, filterResult, filterFrom, filterTo])
+
+  useEffect(() => {
+    setIsLoading(true)
+    setLogs(undefined)
+    fetchLogs(null)
+  }, [fetchLogs])
+
+  function loadMore() {
+    setIsLoadingMore(true)
+    fetchLogs(cursor)
+  }
 
   return (
     <div className="space-y-3">
@@ -236,11 +255,11 @@ export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
         <div className="flex justify-center pt-2">
           <button
             data-testid="btn-load-more"
-            onClick={() => loadMore(50)}
-            disabled={status === 'LoadingMore'}
+            onClick={() => loadMore()}
+            disabled={isLoadingMore}
             className="px-4 py-2 text-sm text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
           >
-            {status === 'LoadingMore' ? 'Carregando…' : 'Carregar mais'}
+            {isLoadingMore ? 'Carregando…' : 'Carregar mais'}
           </button>
         </div>
       )}

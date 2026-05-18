@@ -1381,7 +1381,7 @@ http.route({
       } catch {
         return withCors({ error: "invalid_body" }, 400);
       }
-      if (!body.email) {
+      if (!body.email || !body.orgId) {
         return withCors({ error: "missing_fields" }, 400);
       }
       const ip = req.headers.get("x-forwarded-for") ?? undefined;

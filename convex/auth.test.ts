@@ -712,8 +712,8 @@ test("magicLinkHtml: template EN contém link correto", async () => {
 test("loginWithPassword: usuário com mustChangePassword=true retorna flag no resultado", async () => {
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
-  const bcrypt = await import("bcryptjs");
-  const hash = await bcrypt.hash("temp-pass", 10);
+  const argon2 = await import("argon2");
+  const hash = await argon2.hash("temp-pass");
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "newadmin@acme.io",
@@ -743,9 +743,8 @@ test("loginWithPassword: org com mfaRequired=true e usuário sem MFA retorna mfa
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
 
-  // auth.ts usa bcryptjs.compare — deve-se criar o hash com bcryptjs
-  const bcrypt = await import("bcryptjs");
-  const passwordHash = await bcrypt.hash("password123", 10);
+  const argon2 = await import("argon2");
+  const passwordHash = await argon2.hash("password123");
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "mfa-user@test.com",
@@ -787,8 +786,8 @@ test("loginWithPassword: mfa_setup_required retorna mfaSetupToken para permitir 
   const orgId = await t.run(async (ctx) =>
     ctx.db.insert("orgs", { name: "SetupOrg", status: "active", updatedAt: Date.now() }),
   );
-  const bcrypt = await import("bcryptjs");
-  const passwordHash = await bcrypt.hash("setup-password", 10);
+  const argon2 = await import("argon2");
+  const passwordHash = await argon2.hash("setup-password");
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "needsmfa@test.com",
@@ -823,8 +822,8 @@ test("loginWithPassword: MFA ativo retorna mfa_required com mfaToken, sem access
   const orgId = await t.run(async (ctx) =>
     ctx.db.insert("orgs", { name: "MfaOrg", status: "active", updatedAt: Date.now() }),
   );
-  const bcrypt = await import("bcryptjs");
-  const passwordHash = await bcrypt.hash("mfa-password", 10);
+  const argon2 = await import("argon2");
+  const passwordHash = await argon2.hash("mfa-password");
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "mfaactive@test.com",
@@ -862,8 +861,8 @@ test("loginWithPassword: usuário isRoot sem MFA configurado retorna mfa_setup_r
   const t = convexTest(schema, modules);
   const orgId = await setupOrg(t);
 
-  const bcrypt = await import("bcryptjs");
-  const passwordHash = await bcrypt.hash("root-password", 10);
+  const argon2 = await import("argon2");
+  const passwordHash = await argon2.hash("root-password");
   const userId = await t.run(async (ctx) =>
     ctx.db.insert("users", {
       email: "root@test.com",

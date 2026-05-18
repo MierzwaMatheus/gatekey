@@ -1,9 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from 'convex/react'
-import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
-import { deleteBinding, type WorkspaceBinding } from '../../lib/workspace-api'
+import { listBindings, deleteBinding, type WorkspaceBinding } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -26,19 +23,16 @@ interface BindingsListProps {
   wsId: string
 }
 
-export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
+export function BindingsList({ token, orgId: _orgId, wsId }: BindingsListProps) {
   const { t } = useTranslation('bindings')
   const [revokeTarget, setRevokeTarget] = useState<WorkspaceBinding | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [bindings, setBindings] = useState<WorkspaceBinding[] | undefined>(undefined)
 
-  const queryResult = useQuery(
-    api.bindings.listBindingsQuery,
-    token
-      ? { token, orgId: orgId as Id<'orgs'>, workspaceId: wsId as Id<'workspaces'> }
-      : 'skip',
-  )
-
-  const bindings = queryResult as WorkspaceBinding[] | undefined
+  useEffect(() => {
+    if (!token) return
+    listBindings(token, wsId).then(setBindings).catch(() => setBindings([]))
+  }, [token, wsId])
 
   async function handleRevoke() {
     if (!revokeTarget) return
@@ -46,6 +40,8 @@ export function BindingsList({ token, orgId, wsId }: BindingsListProps) {
     try {
       await deleteBinding(token, revokeTarget._id)
       setRevokeTarget(null)
+      const updated = await listBindings(token, wsId)
+      setBindings(updated)
     } finally {
       setActionLoading(false)
     }
