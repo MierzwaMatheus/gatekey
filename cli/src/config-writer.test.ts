@@ -2,7 +2,7 @@ import { mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { saveEnvConfig } from "./config-writer.js";
+import { saveEnvConfig, saveRootCredentials } from "./config-writer.js";
 
 describe("saveEnvConfig", () => {
   let dir: string;
@@ -68,5 +68,32 @@ describe("saveEnvConfig", () => {
 
     const content = await readFile(join(dir, ".env.gatekey"), "utf-8");
     expect(content).not.toContain("R2_");
+  });
+});
+
+describe("saveRootCredentials", () => {
+  let dir: string;
+
+  beforeEach(async () => {
+    dir = join(tmpdir(), `gatekey-root-test-${Date.now()}`);
+    await mkdir(dir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("cria arquivo .gatekey-root com JSON contendo email e password", async () => {
+    await saveRootCredentials({ email: "root@example.com", password: "s3cr3t" }, dir);
+    const content = await readFile(join(dir, ".gatekey-root"), "utf-8");
+    const parsed = JSON.parse(content);
+    expect(parsed.email).toBe("root@example.com");
+    expect(parsed.password).toBe("s3cr3t");
+  });
+
+  it("arquivo .gatekey-root é JSON válido", async () => {
+    await saveRootCredentials({ email: "root@example.com", password: "pass" }, dir);
+    const content = await readFile(join(dir, ".gatekey-root"), "utf-8");
+    expect(() => JSON.parse(content)).not.toThrow();
   });
 });
