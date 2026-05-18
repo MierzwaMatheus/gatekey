@@ -11,13 +11,66 @@ async function resolveRoleName(ctx: QueryCtx, roleId: Id<"roles">): Promise<stri
   return role?.name ?? "unknown";
 }
 
+async function assertCanViewEffectiveAccess(
+  ctx: QueryCtx,
+  callerId: Id<"users">,
+  targetUserId: Id<"users">,
+  workspaceId: Id<"workspaces">,
+  orgId: Id<"orgs">,
+) {
+  const caller = await ctx.db.get(callerId);
+  if (!caller) throw new Error("forbidden: caller_not_found");
+  if (caller.isRoot) return;
+
+  // Verificar que o usuário alvo pertence à mesma org do caller
+  const targetMembership = await ctx.db
+    .query("org_members")
+    .filter((q) =>
+      q.and(q.eq(q.field("userId"), targetUserId), q.eq(q.field("orgId"), orgId)),
+    )
+    .first();
+  if (!targetMembership) throw new Error("forbidden: user_not_in_org");
+
+  // Org Admin da org pode acessar
+  const callerOrgMembership = await ctx.db
+    .query("org_members")
+    .filter((q) =>
+      q.and(q.eq(q.field("userId"), callerId), q.eq(q.field("orgId"), orgId)),
+    )
+    .first();
+  if (callerOrgMembership?.role === "admin") return;
+
+  // Workspace Admin: binding com role "admin" no workspace
+  const adminRole = await ctx.db
+    .query("roles")
+    .filter((q) => q.and(q.eq(q.field("name"), "admin"), q.eq(q.field("isBase"), true)))
+    .first();
+
+  if (adminRole) {
+    const wsAdminBinding = await ctx.db
+      .query("bindings")
+      .withIndex("by_workspaceId_and_userId", (q) =>
+        q.eq("workspaceId", workspaceId).eq("userId", callerId),
+      )
+      .filter((q) => q.eq(q.field("roleId"), adminRole._id))
+      .first();
+    if (wsAdminBinding) return;
+  }
+
+  throw new Error("forbidden: insufficient_role");
+}
+
 export const computeEffectiveAccess = internalQuery({
   args: {
+    callerId: v.optional(v.id("users")),
     userId: v.id("users"),
     workspaceId: v.id("workspaces"),
     orgId: v.id("orgs"),
   },
   handler: async (ctx, args) => {
+    if (args.callerId) {
+      await assertCanViewEffectiveAccess(ctx, args.callerId, args.userId, args.workspaceId, args.orgId);
+    }
     const now = Date.now();
 
     // Coletar todos os bindings do usuário no workspace

@@ -29,21 +29,21 @@
 
 ### 6.2 GET /v1/users/:id/effective-access — closes #20
 
-- [ ] Escrever teste unitário: `computeEffectiveAccess(userId, workspaceId)` para usuário sem nenhum binding retorna `{workspaceAccess: null, resourceAccess: []}`
-- [ ] Escrever teste unitário: binding de workspace-level resulta em `{workspaceAccess: {role, source: "workspace-binding"}, resourceAccess: []}`
-- [ ] Escrever teste unitário: binding direto em resource retorna entrada em `resourceAccess` com `source: "direct-binding"`
-- [ ] Escrever teste unitário: binding em container com `inheritanceMode: "auto"` resulta em entrada de item filho com `source: "inherited-from-folder:<containerId>"`
-- [ ] Escrever teste unitário: deny binding em resource retorna entrada com `effectiveRole: null, source: "explicit-deny", deniedBy: <adminId>`
-- [ ] Escrever teste unitário: binding com `expiresAt` no passado é excluído dos resultados
-- [ ] Escrever teste unitário: deny em container-level aparece em `resourceAccess` de cada item filho do container
-- [ ] Escrever teste unitário: usuário com binding exclusivamente em resource-level (sem workspace binding) — `workspaceAccess: null` e apenas o recurso específico em `resourceAccess`
-- [ ] Criar função `computeEffectiveAccess({userId, workspaceId})` em `convex/effectiveAccess.ts` — passo 1: coleta binding de workspace-level do usuário, se existir inclui em `workspaceAccess`
-- [ ] Implementar passo 2 em `computeEffectiveAccess`: coleta todos os allow bindings do usuário no workspace (resource-level e container-level) via índice `bindings_by_workspace_user`
-- [ ] Implementar passo 3 em `computeEffectiveAccess`: coleta todos os deny bindings do usuário no workspace (todos os níveis) via índice `bindings_by_workspace_user` com filtro `type: "deny"`
-- [ ] Implementar passo 4 em `computeEffectiveAccess`: para cada allow binding com `expiresAt` não-nulo, descarta se `expiresAt < Date.now()`
-- [ ] Implementar passo 5 em `computeEffectiveAccess`: para cada allow binding em container-level, busca todos os recursos filhos via `resource_types.inheritsFrom` e gera entradas com `source: "inherited-from-<type>:<containerId>"`
-- [ ] Implementar passo 6 em `computeEffectiveAccess`: aplica deny-first — para cada recurso na lista, se existe deny binding ativo que cobre aquele recurso (resource-level, container-level ou workspace-level), sobrescreve com `{effectiveRole: null, source: "explicit-deny", deniedBy}`
-- [ ] Implementar resolução de `source` para cada entrada: `"direct-binding"`, `"inherited-from-<type>:<parentId>"`, `"workspace-binding"`, `"explicit-deny"`
+- [x] Escrever teste unitário: `computeEffectiveAccess(userId, workspaceId)` para usuário sem nenhum binding retorna `{workspaceAccess: null, resourceAccess: []}`
+- [x] Escrever teste unitário: binding de workspace-level resulta em `{workspaceAccess: {role, source: "workspace-binding"}, resourceAccess: []}`
+- [x] Escrever teste unitário: binding direto em resource retorna entrada em `resourceAccess` com `source: "direct-binding"`
+- [x] Escrever teste unitário: binding em container com `inheritanceMode: "auto"` resulta em entrada de item filho com `source: "inherited-from-folder:<containerId>"`
+- [x] Escrever teste unitário: deny binding em resource retorna entrada com `effectiveRole: null, source: "explicit-deny", deniedBy: <adminId>`
+- [x] Escrever teste unitário: binding com `expiresAt` no passado é excluído dos resultados
+- [x] Escrever teste unitário: deny em container-level aparece em `resourceAccess` de cada item filho do container
+- [x] Escrever teste unitário: usuário com binding exclusivamente em resource-level (sem workspace binding) — `workspaceAccess: null` e apenas o recurso específico em `resourceAccess`
+- [x] Criar função `computeEffectiveAccess({userId, workspaceId})` em `convex/effectiveAccess.ts` — passo 1: coleta binding de workspace-level do usuário, se existir inclui em `workspaceAccess`
+- [x] Implementar passo 2 em `computeEffectiveAccess`: coleta todos os allow bindings do usuário no workspace (resource-level e container-level) via índice `bindings_by_workspace_user`
+- [x] Implementar passo 3 em `computeEffectiveAccess`: coleta todos os deny bindings do usuário no workspace (todos os níveis) via índice `bindings_by_workspace_user` com filtro `type: "deny"`
+- [x] Implementar passo 4 em `computeEffectiveAccess`: para cada allow binding com `expiresAt` não-nulo, descarta se `expiresAt < Date.now()`
+- [x] Implementar passo 5 em `computeEffectiveAccess`: para cada allow binding em container-level, busca todos os recursos filhos via `resource_types.inheritsFrom` e gera entradas com `source: "inherited-from-<type>:<containerId>"`
+- [x] Implementar passo 6 em `computeEffectiveAccess`: aplica deny-first — para cada recurso na lista, se existe deny binding ativo que cobre aquele recurso (resource-level, container-level ou workspace-level), sobrescreve com `{effectiveRole: null, source: "explicit-deny", deniedBy}`
+- [x] Implementar resolução de `source` para cada entrada: `"direct-binding"`, `"inherited-from-<type>:<parentId>"`, `"workspace-binding"`, `"explicit-deny"`
 - [ ] Registrar rota `GET /v1/users/:id/effective-access` em `convex/http.ts` no handler do pathPrefix `/v1/users/` — detectar segmento `effective-access` no pathname
 - [ ] Aplicar PEP na rota: acessível por Workspace Admin (do workspace no query param), Org Admin da org, e Root; bloquear Members
 - [ ] Validar query param `workspaceId` obrigatório — retornar 400 se ausente
