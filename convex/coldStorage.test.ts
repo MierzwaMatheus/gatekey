@@ -103,3 +103,17 @@ test("serializeEventsToNdjsonGz produz buffer gzip descomprimível com JSON vál
   expect(JSON.parse(lines[0]).action).toBe("login");
   expect(JSON.parse(lines[1]).action).toBe("logout");
 });
+
+// ── Ciclo 4: uploadToR2 falha graciosamente sem env vars ──────────────────────
+
+test("uploadToR2 lança erro descritivo quando R2_ACCOUNT_ID não está configurado", async () => {
+  const t = convexTest(schema, modules);
+
+  const fakeBuffer = new ArrayBuffer(8);
+  await expect(
+    t.action(internal.coldStorage.uploadToR2, {
+      buffer: fakeBuffer,
+      storagePath: "test-org/2024/01/01/logs.ndjson.gz",
+    }),
+  ).rejects.toThrow("R2_ACCOUNT_ID");
+});
