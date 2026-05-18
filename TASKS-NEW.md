@@ -12,9 +12,9 @@
 - [x] Escrever teste unitário: `checkBatch` com item cujo usuário está suspenso retorna `{allowed: false, reason: "user_inactive"}` naquele índice
 - [x] Escrever teste unitário: `checkBatch` com item sem binding retorna `{allowed: false, reason: "no_binding_found"}` naquele índice
 - [x] Escrever teste unitário: `checkBatch` com item com binding válido retorna `{allowed: true}` naquele índice
-- [ ] Escrever teste unitário: falha em um item não interrompe o processamento dos demais
-- [ ] Criar função `checkBatch(items: CheckRequest[])` em `convex/checkBatch.ts` — itera sobre o array chamando `pdpDecide` para cada item, retorna array de `{allowed, reason, source}` na mesma ordem
-- [ ] Garantir que `checkBatch` retorna resultados **na mesma ordem** do array de entrada mesmo com processamento paralelo
+- [x] Escrever teste unitário: falha em um item não interrompe o processamento dos demais
+- [x] Criar função `checkBatch(items: CheckRequest[])` em `convex/checkBatch.ts` — itera sobre o array chamando `pdpDecide` para cada item, retorna array de `{allowed, reason, source}` na mesma ordem
+- [x] Garantir que `checkBatch` retorna resultados **na mesma ordem** do array de entrada mesmo com processamento paralelo
 - [ ] Chamar `writeAuditEvent` para cada item do batch com o resultado individual (action: `permission.check`, result: allow/deny, reason)
 - [ ] Registrar rota `POST /v1/check/batch` em `convex/http.ts` apontando para handler que chama `checkBatch`
 - [ ] Aplicar PEP na rota `POST /v1/check/batch` exigindo escopo `check` (mesma regra do `/check` singular)

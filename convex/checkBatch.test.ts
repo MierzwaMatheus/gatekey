@@ -184,3 +184,27 @@ test("checkBatch: falha em um item não interrompe os demais e ordem é preserva
   expect(result[1].allowed).toBe(true);
   expect(result[2].allowed).toBe(false);
 });
+
+// ── Ciclo 6: audit log por item ───────────────────────────────────────────────
+
+test("checkBatch: grava um evento de audit por item no batch", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId, userId } = await setupBatchContext(t);
+
+  await t.action(internal.checkBatch.performCheckBatch, {
+    callerId: userId,
+    orgId,
+    workspaceId,
+    items: [
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_1" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_2" },
+      { userId, capability: "document:read", resourceType: "document", resourceId: "doc_3" },
+    ],
+  });
+
+  const auditEntries = await t.run((ctx) =>
+    ctx.db.query("audit_log").order("desc").take(10),
+  );
+  const checkEntries = auditEntries.filter((e) => e.action === "permission.check");
+  expect(checkEntries).toHaveLength(3);
+});
