@@ -295,6 +295,42 @@ test("exportAuditLogs exporta eventos antigos e preserva eventos recentes no hot
   expect(recentEvent!.timestamp).toBeGreaterThanOrEqual(exportedPeriodEnd);
 });
 
+// ── Ciclo 5.2-2: generatePresignedUrl gera URL com TTL de 15 min ─────────────
+
+test("generatePresignedUrl retorna URL https com o storagePath e expiração de 900s", async () => {
+  const t = convexTest(schema, modules);
+
+  process.env.R2_ACCOUNT_ID = "test-account";
+  process.env.R2_ACCESS_KEY_ID = "test-key";
+  process.env.R2_SECRET_ACCESS_KEY = "test-secret";
+  process.env.R2_BUCKET_NAME = "test-bucket";
+
+  try {
+    const url = await t.action(internal.coldStorage.generatePresignedUrl, {
+      storagePath: "org123/2024/01/31/logs.ndjson.gz",
+    });
+
+    expect(url).toMatch(/^https:\/\//);
+    expect(url).toContain("org123");
+    expect(url).toContain("X-Amz-Expires=900");
+  } finally {
+    delete process.env.R2_ACCOUNT_ID;
+    delete process.env.R2_ACCESS_KEY_ID;
+    delete process.env.R2_SECRET_ACCESS_KEY;
+    delete process.env.R2_BUCKET_NAME;
+  }
+});
+
+test("generatePresignedUrl lança erro quando R2_ACCOUNT_ID não está configurado", async () => {
+  const t = convexTest(schema, modules);
+
+  await expect(
+    t.action(internal.coldStorage.generatePresignedUrl, {
+      storagePath: "org123/2024/01/31/logs.ndjson.gz",
+    }),
+  ).rejects.toThrow("R2_ACCOUNT_ID");
+});
+
 // ── Ciclo 5.2-1: getAuditExportByPeriod retorna export do período solicitado ───
 
 test("getAuditExportByPeriod retorna registro quando há export no período solicitado", async () => {

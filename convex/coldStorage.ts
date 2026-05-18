@@ -4,7 +4,8 @@ import { internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { gzipSync } from "node:zlib";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const serializeEventsToNdjsonGz = internalAction({
   args: {
@@ -55,6 +56,33 @@ export const uploadToR2 = internalAction({
     );
 
     return args.storagePath;
+  },
+});
+
+export const generatePresignedUrl = internalAction({
+  args: {
+    storagePath: v.string(),
+  },
+  returns: v.string(),
+  handler: async (_ctx, args) => {
+    const accountId = process.env.R2_ACCOUNT_ID;
+    const accessKeyId = process.env.R2_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+    const bucket = process.env.R2_BUCKET_NAME;
+
+    if (!accountId) throw new Error("R2_ACCOUNT_ID not configured");
+    if (!accessKeyId) throw new Error("R2_ACCESS_KEY_ID not configured");
+    if (!secretAccessKey) throw new Error("R2_SECRET_ACCESS_KEY not configured");
+    if (!bucket) throw new Error("R2_BUCKET_NAME not configured");
+
+    const client = new S3Client({
+      region: "auto",
+      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      credentials: { accessKeyId, secretAccessKey },
+    });
+
+    const command = new GetObjectCommand({ Bucket: bucket, Key: args.storagePath });
+    return getSignedUrl(client, command, { expiresIn: 900 });
   },
 });
 
