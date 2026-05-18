@@ -27,6 +27,14 @@ export const OPENAPI_SPEC = {
           message: { type: "string" },
         },
       },
+      RateLimitExceeded: {
+        type: "object",
+        properties: {
+          error: { type: "string", example: "RateLimitExceeded" },
+          retryAfter: { type: "number", description: "Seconds until the rate limit window resets" },
+        },
+        required: ["error", "retryAfter"],
+      },
     },
   },
   paths: {
@@ -66,7 +74,14 @@ export const OPENAPI_SPEC = {
             },
           },
           "401": { description: "Invalid credentials" },
-          "429": { description: "Account locked or quota exceeded" },
+          "429": {
+            description: "Rate limit exceeded or account locked",
+            content: {
+              "application/json": {
+                schema: { "$ref": "#/components/schemas/RateLimitExceeded" },
+              },
+            },
+          },
         },
       },
     },
@@ -93,6 +108,14 @@ export const OPENAPI_SPEC = {
         responses: {
           "200": { description: "New token pair" },
           "401": { description: "Invalid or rotated refresh token" },
+          "429": {
+            description: "Rate limit exceeded",
+            content: {
+              "application/json": {
+                schema: { "$ref": "#/components/schemas/RateLimitExceeded" },
+              },
+            },
+          },
         },
       },
     },
@@ -252,6 +275,14 @@ export const OPENAPI_SPEC = {
             },
           },
           "401": { description: "Unauthorized" },
+          "429": {
+            description: "Rate limit exceeded (per-org limit on /check)",
+            content: {
+              "application/json": {
+                schema: { "$ref": "#/components/schemas/RateLimitExceeded" },
+              },
+            },
+          },
         },
       },
     },
@@ -321,6 +352,14 @@ export const OPENAPI_SPEC = {
           },
           "401": { description: "Token ausente ou inválido" },
           "403": { description: "Escopo check ausente na API Key" },
+          "429": {
+            description: "Rate limit exceeded (per-org limit on /check/batch)",
+            content: {
+              "application/json": {
+                schema: { "$ref": "#/components/schemas/RateLimitExceeded" },
+              },
+            },
+          },
           "422": {
             description: "Body inválido (array vazio, mais de 100 itens, campo obrigatório ausente)",
             content: {

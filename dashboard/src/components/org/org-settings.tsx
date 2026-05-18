@@ -26,6 +26,8 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
   const [mfaRequired, setMfaRequired] = useState(false)
   const [jwtAccessMin, setJwtAccessMin] = useState(60)
   const [jwtRefreshDays, setJwtRefreshDays] = useState(30)
+  const [checkPerMin, setCheckPerMin] = useState<number | ''>('')
+  const [checkBatchPerMin, setCheckBatchPerMin] = useState<number | ''>('')
 
   useEffect(() => {
     setError(false)
@@ -36,6 +38,8 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
         setMfaRequired(s.mfaRequired)
         setJwtAccessMin(Math.round(s.jwtExpiryAccess / 60))
         setJwtRefreshDays(Math.round(s.jwtExpiryRefresh / 86400))
+        setCheckPerMin(s.rateLimits?.checkPerMin ?? '')
+        setCheckBatchPerMin(s.rateLimits?.checkBatchPerMin ?? '')
       })
       .catch(() => setError(true))
   }, [token, orgId])
@@ -55,6 +59,10 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
         mfaRequired,
         jwtExpiryAccess: jwtAccessMin * 60,
         jwtExpiryRefresh: jwtRefreshDays * 86400,
+        rateLimits: {
+          checkPerMin: checkPerMin !== '' ? checkPerMin : undefined,
+          checkBatchPerMin: checkBatchPerMin !== '' ? checkBatchPerMin : undefined,
+        },
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -171,9 +179,44 @@ export function OrgSettings({ token, orgId }: OrgSettingsProps) {
         </div>
       </section>
 
+      {/* Rate Limits */}
+      <section>
+        <h2 className="text-[14px] font-medium text-text-primary mb-1">{t('org_settings.rate_limits_title')}</h2>
+        <p className="text-[12px] text-text-secondary mb-4">
+          {t('org_settings.rate_limits_desc')}
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-[12px] text-text-secondary mb-1 block">{t('org_settings.check_per_min_label')}</label>
+            <input
+              data-testid="input-check-per-min"
+              type="number"
+              min={1}
+              placeholder={t('org_settings.rate_limit_default_placeholder')}
+              value={checkPerMin}
+              onChange={(e) => setCheckPerMin(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
+              className="w-full px-3 py-2 text-sm font-mono bg-surface-elevated border border-border-default rounded-input text-text-primary focus:outline-none focus:border-border-accent"
+            />
+          </div>
+          <div>
+            <label className="text-[12px] text-text-secondary mb-1 block">{t('org_settings.check_batch_per_min_label')}</label>
+            <input
+              data-testid="input-check-batch-per-min"
+              type="number"
+              min={1}
+              placeholder={t('org_settings.rate_limit_default_placeholder')}
+              value={checkBatchPerMin}
+              onChange={(e) => setCheckBatchPerMin(e.target.value === '' ? '' : Math.max(1, Number(e.target.value)))}
+              className="w-full px-3 py-2 text-sm font-mono bg-surface-elevated border border-border-default rounded-input text-text-primary focus:outline-none focus:border-border-accent"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Salvar */}
       <div className="flex items-center gap-3">
         <button
+          data-testid="btn-save"
           onClick={handleSave}
           disabled={saving}
           className="px-5 py-2 bg-accent-primary text-black text-sm font-medium rounded-button hover:bg-accent-hover transition-colors disabled:opacity-60 cursor-pointer"

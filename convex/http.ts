@@ -76,6 +76,20 @@ http.route({
         if (result.error === "mfa_setup_required") {
           return withCors({ mfa_setup_required: true, mfa_setup_token: result.mfaSetupToken });
         }
+        if (result.error === "rate_limit_exceeded") {
+          const retryAfterSecs = Math.ceil((result.retryAfterMs ?? 60000) / 1000);
+          return new Response(
+            JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+            {
+              status: 429,
+              headers: {
+                "Content-Type": "application/json",
+                "Retry-After": String(retryAfterSecs),
+                ...CORS_HEADERS,
+              },
+            },
+          );
+        }
         const status = result.error === "account_locked" ? 429
           : result.error === "method_disabled" ? 403
           : 401;
@@ -117,6 +131,15 @@ http.route({
       ip,
     });
     if (!result.success) {
+      if (result.error === "rate_limit_exceeded") {
+        return new Response(
+          JSON.stringify({ error: "RateLimitExceeded", retryAfter: 60 }),
+          {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": "60", ...CORS_HEADERS },
+          },
+        );
+      }
       return withCors({ error: result.error }, 401);
     }
     return withCors({
@@ -394,6 +417,7 @@ http.route({
       mfaRequired?: boolean;
       jwtExpiryAccess?: number;
       jwtExpiryRefresh?: number;
+      rateLimits?: { checkPerMin?: number; checkBatchPerMin?: number };
     } = {};
     try { body = await req.json(); } catch { /* empty */ }
     try {
@@ -406,6 +430,7 @@ http.route({
           mfaRequired: body.mfaRequired,
           jwtExpiryAccess: body.jwtExpiryAccess,
           jwtExpiryRefresh: body.jwtExpiryRefresh,
+          rateLimits: body.rateLimits,
         });
         return jsonResponse({ success: true });
       }
@@ -1040,6 +1065,23 @@ http.route({
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const userAgent = req.headers.get("user-agent") ?? undefined;
 
+    const rl = await ctx.runMutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: caller.orgId as never,
+      endpoint: "check",
+      defaultLimit: 100,
+      windowMs: 60 * 1000,
+    });
+    if (!rl.allowed) {
+      const retryAfterSecs = Math.ceil(rl.retryAfterMs / 1000);
+      return new Response(
+        JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": String(retryAfterSecs), ...CORS_HEADERS },
+        },
+      );
+    }
+
     try {
       const result = await ctx.runAction(internal.check.performCheck, {
         callerId: caller.callerId as never,
@@ -1108,6 +1150,23 @@ http.route({
 
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
     const userAgent = req.headers.get("user-agent") ?? undefined;
+
+    const rlBatch = await ctx.runMutation(internal.rateLimit.checkOrgRateLimit, {
+      orgId: caller.orgId as never,
+      endpoint: "checkBatch",
+      defaultLimit: 20,
+      windowMs: 60 * 1000,
+    });
+    if (!rlBatch.allowed) {
+      const retryAfterSecs = Math.ceil(rlBatch.retryAfterMs / 1000);
+      return new Response(
+        JSON.stringify({ error: "RateLimitExceeded", retryAfter: retryAfterSecs }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", "Retry-After": String(retryAfterSecs), ...CORS_HEADERS },
+        },
+      );
+    }
 
     try {
       const items = (body.items as Array<{ userId: string; capability: string; resourceType: string; resourceId?: string }>).map(
@@ -1906,5 +1965,50 @@ http.route({
 });
 
 http.route({ path: "/v1/docs", method: "OPTIONS", handler: preflight });
+
+// ── GET /v1/global-settings/rate-limits ───────────────────────────────────────
+
+http.route({ path: "/v1/global-settings/rate-limits", method: "OPTIONS", handler: preflight });
+
+async function requireRoot(
+  ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
+  caller: CallerContext,
+): Promise<boolean> {
+  const callerUser = await ctx.runQuery(internal.users.getUserById, {
+    callerId: caller.callerId as never,
+    userId: caller.callerId as never,
+    orgId: caller.orgId as never,
+  });
+  return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+}
+
+http.route({
+  path: "/v1/global-settings/rate-limits",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) return jsonResponse({ error: "forbidden" }, 403);
+    const limits = await ctx.runQuery(internal.globalSettings.getGlobalRateLimits, {});
+    return jsonResponse(limits);
+  }),
+});
+
+http.route({
+  path: "/v1/global-settings/rate-limits",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) return jsonResponse({ error: "forbidden" }, 403);
+    let body: { checkPerMin?: number; checkBatchPerMin?: number } = {};
+    try { body = await req.json(); } catch { /* empty */ }
+    await ctx.runMutation(internal.globalSettings.updateGlobalRateLimits, {
+      checkPerMin: body.checkPerMin,
+      checkBatchPerMin: body.checkBatchPerMin,
+    });
+    return jsonResponse({ success: true });
+  }),
+});
 
 export default http;

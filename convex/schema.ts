@@ -37,6 +37,10 @@ export default defineSchema({
     jwtExpiryRefresh: v.number(),
     quotas: v.record(v.string(), v.number()),
     defaultLanguage: v.optional(v.string()),
+    rateLimits: v.optional(v.object({
+      checkPerMin: v.optional(v.number()),
+      checkBatchPerMin: v.optional(v.number()),
+    })),
   }),
 
   workspaces: defineTable({
@@ -177,6 +181,18 @@ export default defineSchema({
     count: v.number(),
     windowStart: v.number(),
   }).index("by_ip_and_endpoint", ["ip", "endpoint"]),
+
+  global_settings: defineTable({
+    checkRateLimitPerMin: v.optional(v.number()),
+    checkBatchRateLimitPerMin: v.optional(v.number()),
+  }),
+
+  rate_limit_counters: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStart: v.number(),
+    windowMs: v.number(),
+  }).index("by_key", ["key"]),
 
   impersonation_sessions: defineTable({
     rootUserId: v.string(),
