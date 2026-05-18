@@ -44,14 +44,14 @@ export async function extractApiKeyContext(
 ): Promise<ApiKeyContext> {
   const { publicId, secret } = extractApiKeyContextFormat(authHeader);
 
-  const bcrypt = await import("bcryptjs");
+  const argon2 = await import("argon2");
 
   const key = await ctx.runQuery(internal.pdp.findApiKey, { publicId });
   if (!key || key.status !== "active") {
     throw new Error("api_key_invalid");
   }
 
-  const valid = await bcrypt.compare(secret, key.secretHash);
+  const valid = await argon2.verify(key.secretHash, secret);
   if (!valid) {
     throw new Error("api_key_invalid");
   }

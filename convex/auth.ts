@@ -35,7 +35,7 @@ export const loginWithPassword = internalAction({
     | { success: true; accessToken: string; refreshToken: string; sessionId: string; mustChangePassword: boolean }
     | { success: false; error: string; lockedUntil?: number; mfaToken?: string; mfaSetupToken?: string }
   > => {
-    const bcrypt = await import("bcryptjs");
+    const argon2 = await import("argon2");
 
     // Verificar rate limiting por IP
     if (args.ip) {
@@ -96,7 +96,7 @@ export const loginWithPassword = internalAction({
       return { success: false as const, error: "account_locked", lockedUntil: user.lockedUntil };
     }
 
-    const passwordValid = await bcrypt.compare(args.password, user.passwordHash);
+    const passwordValid = await argon2.verify(user.passwordHash, args.password);
 
     if (!passwordValid) {
       const newAttempts = (await ctx.runMutation(internal.authStore.incrementLoginAttempts, {
@@ -249,8 +249,8 @@ export const createUserWithPassword = internalAction({
   },
   returns: v.string(),
   handler: async (ctx, args): Promise<string> => {
-    const bcrypt = await import("bcryptjs");
-    const passwordHash = await bcrypt.hash(args.password, 10);
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.password);
     return (await ctx.runMutation(internal.authStore.createUserRecord, {
       email: args.email,
       passwordHash,
@@ -358,8 +358,8 @@ export const resetUserPassword = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    const bcrypt = await import("bcryptjs");
-    const passwordHash = await bcrypt.hash(args.newPassword, 10);
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.newPassword);
 
     await ctx.runMutation(internal.hierarchy.patchUserPasswordHash, {
       callerId: args.callerId,
@@ -390,9 +390,9 @@ export const createOrgWithBootstrap = internalAction({
     adminTempPassword: v.union(v.string(), v.null()),
   }),
   handler: async (ctx, args): Promise<{ orgId: Id<"orgs">; adminTempPassword: string | null }> => {
-    const bcrypt = await import("bcryptjs");
+    const argon2 = await import("argon2");
     const tempPassword = generateTempPassword();
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    const passwordHash = await argon2.hash(tempPassword);
 
     const result = (await ctx.runMutation(internal.hierarchy.createOrg, {
       callerId: args.callerId,
@@ -418,8 +418,8 @@ export const createUser = internalAction({
   },
   returns: v.id("users"),
   handler: async (ctx, args): Promise<Id<"users">> => {
-    const bcrypt = await import("bcryptjs");
-    const passwordHash = await bcrypt.hash(args.password, 10);
+    const argon2 = await import("argon2");
+    const passwordHash = await argon2.hash(args.password);
 
     return await ctx.runMutation(internal.hierarchy.createUserForOrg, {
       callerId: args.callerId,

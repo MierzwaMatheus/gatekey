@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest'
 import { Route as LoginRoute } from '../routes/login'
 import { Route as RootRoute } from '../routes/root/index'

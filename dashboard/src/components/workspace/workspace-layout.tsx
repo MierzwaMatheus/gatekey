@@ -63,7 +63,7 @@ export function WorkspaceLayout({
 
   return (
     <div className="app">
-      <aside className="sidebar" data-testid="workspace-sidebar">
+      <aside className="sidebar w-[220px]" data-testid="workspace-sidebar">
         <div className="sidebar-meta">
           <span>// gatekey.iam</span>
           <span>v2.4.1</span>
@@ -110,12 +110,14 @@ export function WorkspaceLayout({
           <div className="user-chip">
             <div className="avatar">WA</div>
             <div className="user-meta">
-              <div className="user-name">ws_admin</div>
-              <div className="user-sub">{ctxLabel}</div>
+              <div className="user-name">admin</div>
+              <div className="user-sub">{wsId ?? 'workspace'}</div>
             </div>
           </div>
         </div>
       </aside>
+
+      <div data-testid="circuit-texture" className="circuit-texture" />
 
       <main className="main">
         <TopBar scope="ws" context={ctxLabel} section={SECTION_LABELS[activeSection]} />

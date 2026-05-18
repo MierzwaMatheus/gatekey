@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /* ── Tokens semânticos do Tailwind v4 (gate-* definidos em styles.css) ── */
@@ -49,4 +50,6 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
-/* body styles gerenciados pelo styles.css */
+body {
+  font-family: 'Inter', sans-serif;
+}

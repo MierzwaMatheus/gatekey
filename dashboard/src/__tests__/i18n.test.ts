@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeAll } from 'vitest'
 import i18n from '../lib/i18n'
 

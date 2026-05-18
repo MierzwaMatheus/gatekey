@@ -1,10 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQuery } from 'convex/react'
 import { MonitorDot, X } from 'lucide-react'
-import { api } from '@convex/_generated/api'
-import type { Id } from '@convex/_generated/dataModel'
-import { revokeSession, type SessionSummary } from '../../lib/root-api'
+import { listSessions, revokeSession, type SessionSummary } from '../../lib/root-api'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -108,18 +105,12 @@ export function SessionsList({ token }: SessionsListProps) {
   const [orgIdFilter, setOrgIdFilter] = useState('')
   const [revoking, setRevoking] = useState<SessionSummary | null>(null)
   const [revokeLoading, setRevokeLoading] = useState(false)
+  const [sessions, setSessions] = useState<SessionSummary[] | undefined>(undefined)
 
-  const queryResult = useQuery(
-    api.sessions.listSessionsQuery,
-    token
-      ? {
-          token,
-          userId: (userIdFilter || undefined) as Id<'users'> | undefined,
-        }
-      : 'skip',
-  )
-
-  const sessions = queryResult as SessionSummary[] | undefined
+  useEffect(() => {
+    if (!token) return
+    listSessions(token, userIdFilter || undefined).then(setSessions).catch(() => setSessions([]))
+  }, [token, userIdFilter])
 
   const filtered = sessions?.filter((s) =>
     (!orgIdFilter || s.orgId === orgIdFilter),
@@ -131,6 +122,8 @@ export function SessionsList({ token }: SessionsListProps) {
     try {
       await revokeSession(token, revoking._id)
       setRevoking(null)
+      const updated = await listSessions(token, userIdFilter || undefined)
+      setSessions(updated)
     } finally {
       setRevokeLoading(false)
     }
@@ -182,12 +175,12 @@ export function SessionsList({ token }: SessionsListProps) {
                   <DenseGridRowNum index={i} />
                   <DenseGridCellStack
                     primary={
-                      <span data-testid={`session-userid-${session._id}`}>{session.userId}</span>
+                      <span data-testid={`session-userid-${session._id}`} className="font-mono text-[11px]">{session.userId}</span>
                     }
                   />
                   <DenseGridCellStack
                     primary={
-                      <span data-testid={`session-ip-${session._id}`} className="text-[11px] text-[#8B949E]">
+                      <span data-testid={`session-ip-${session._id}`} className="font-mono text-[11px] text-[#8B949E]">
                         {session.ip ?? '—'}
                       </span>
                     }

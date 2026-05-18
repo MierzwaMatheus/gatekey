@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 import { describe, it, expect } from 'vitest'

@@ -89,7 +89,7 @@ export function ChangePasswordPage() {
             </p>
 
             {errorApi && (
-              <div role="alert" className="mb-4 px-3 py-2 border border-status-deny text-status-deny font-mono text-[10px] uppercase tracking-wide">
+              <div data-testid="error-api" role="alert" className="mb-4 px-3 py-2 border border-status-deny text-status-deny font-mono text-[10px] uppercase tracking-wide">
                 {errorApi}
               </div>
             )}

@@ -163,6 +163,7 @@ export function DenseGridFooter({ showing, total, onLoadMore, loadingMore, isDon
       </span>
       {onLoadMore && !isDone && (
         <button
+          data-testid="btn-load-more"
           onClick={onLoadMore}
           disabled={loadingMore}
           className="text-[10px] font-mono text-[#8B949E] hover:text-[#E6EDF3] transition-colors cursor-pointer disabled:opacity-50 uppercase tracking-[0.08em]"

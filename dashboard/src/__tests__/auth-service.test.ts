@@ -1,8 +1,10 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const MOCK_CONVEX_URL = 'https://test.convex.cloud'
 
 vi.stubEnv('VITE_CONVEX_URL', MOCK_CONVEX_URL)
+vi.stubEnv('VITE_CONVEX_SITE_URL', MOCK_CONVEX_URL)
 
 // JWT payload com orgId para parsear
 const MOCK_ACCESS_TOKEN = [

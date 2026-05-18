@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import bcrypt from "bcryptjs";
+import argon2 from "argon2";
 import { GatekeyClient } from "../sdk/src/client.js";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -15,7 +15,7 @@ async function setupMfaRequiredOrg(email: string) {
   await t.action(internal.jwt.initializeKeyPair, {});
 
   const PASSWORD = "mfa-test-pass";
-  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+  const passwordHash = await argon2.hash(PASSWORD);
 
   const orgId = await t.run((ctx) =>
     ctx.db.insert("orgs", { name: "MfaOrg", status: "active", updatedAt: Date.now() }),
@@ -169,7 +169,7 @@ test("SDK MFA: magic-link verify retorna mfa_setup_required quando org tem mfaRe
   await t.action(internal.jwt.initializeKeyPair, {});
 
   const PASSWORD = "ml-mfa-pass";
-  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+  const passwordHash = await argon2.hash(PASSWORD);
 
   const orgId = await t.run((ctx) =>
     ctx.db.insert("orgs", { name: "MlMfaOrg", status: "active", updatedAt: Date.now() }),

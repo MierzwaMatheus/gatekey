@@ -48,7 +48,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
 
   return (
     <div className="app">
-      <aside className="sidebar" data-testid="root-sidebar">
+      <aside className="sidebar w-[220px]" data-testid="root-sidebar">
         <div className="sidebar-meta">
           <span>// gatekey.iam</span>
           <span>v2.4.1</span>
@@ -58,7 +58,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
           <div className="brand">
             <LogoMark />
             <span className="brand-text">GateKey</span>
-            <span className="brand-meta">CTRL</span>
+            <span className="brand-meta">Root</span>
           </div>
           <div className="context-pill">
             <div className="ctx-tag">scope context</div>
@@ -80,7 +80,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
                 key={it.id}
                 data-testid={it.id}
                 onClick={() => onSectionChange?.(it.section)}
-                className="nav-item"
+                className={`nav-item border-l-2 ${isActive ? 'border-accent-primary text-text-primary' : 'border-transparent text-text-secondary'}`}
                 data-active={isActive}
               >
                 <span className="nav-num">{String(idx + 1).padStart(2, '0')}</span>
@@ -97,7 +97,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
             data-active={false}
             data-testid="nav-settings"
           >
-            <span className="nav-num">{String(NAV_ITEMS.length + 1).padStart(2, '0')}</span>
+            <span className="nav-num">{String(NAV_DEFS.length + 1).padStart(2, '0')}</span>
             <Icon name="settings" size={14} />
             <span className="nav-label">{t('nav.settings')}</span>
           </button>
@@ -110,6 +110,8 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
           </div>
         </div>
       </aside>
+
+      <div data-testid="circuit-texture" className="circuit-texture" />
 
       <main className="main">
         <TopBar scope="root" context="global" section={t(`nav.${activeSection.replace('-', '_')}`)} />
