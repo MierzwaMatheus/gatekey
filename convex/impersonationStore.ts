@@ -38,18 +38,7 @@ export const endImpersonationSession = internalMutation({
 
 export const getImpersonationSessionByHash = internalQuery({
   args: { tokenHash: v.string() },
-  returns: v.union(
-    v.object({
-      _id: v.id("impersonation_sessions"),
-      rootUserId: v.string(),
-      targetUserId: v.string(),
-      tokenHash: v.string(),
-      createdAt: v.number(),
-      expiresAt: v.number(),
-      endedAt: v.optional(v.number()),
-    }),
-    v.null(),
-  ),
+  returns: v.any(),
   handler: async (ctx, { tokenHash }) => {
     return await ctx.db
       .query("impersonation_sessions")

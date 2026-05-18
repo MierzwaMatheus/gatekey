@@ -180,6 +180,61 @@ test("createImpersonationToken: armazena registro em impersonation_sessions com 
   expect(session!.endedAt).toBeUndefined();
 });
 
+// ── Ciclo 5: endImpersonationSession ────────────────────────────────────────
+
+test("endImpersonationSession: marca endedAt no registro da sessão", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+  expect(session!.endedAt).toBeUndefined();
+
+  await t.mutation(internal.impersonationStore.endImpersonationSession, {
+    impersonationSessionId: session!._id,
+  });
+
+  const updated = await t.run((ctx) => ctx.db.get(session!._id));
+  expect(updated!.endedAt).toBeTypeOf("number");
+  expect(updated!.endedAt).toBeGreaterThan(0);
+});
+
+test("endImpersonationSession: sessão encerrada faz verifyImpersonationToken retornar inválido", async () => {
+  const t = convexTest(schema, modules);
+  const { rootUserId, targetUserId } = await setupUsers(t);
+
+  const token = await t.action(internal.impersonation.createImpersonationToken, {
+    rootUserId: rootUserId as unknown as string,
+    targetUserId: targetUserId as unknown as string,
+  });
+
+  const session = await t.run((ctx) =>
+    ctx.db
+      .query("impersonation_sessions")
+      .withIndex("by_rootUserId", (q) => q.eq("rootUserId", rootUserId as unknown as string))
+      .first(),
+  );
+
+  await t.mutation(internal.impersonationStore.endImpersonationSession, {
+    impersonationSessionId: session!._id,
+  });
+
+  const result = await t.action(internal.impersonation.verifyImpersonationToken, { token });
+  expect(result.valid).toBe(false);
+  if (!result.valid) {
+    expect(result.error).toMatch(/ended|revoked|invalid/i);
+  }
+});
+
 // ── Ciclo 2 (continuação): verifyImpersonationToken ──────────────────────────
 
 test("verifyImpersonationToken: token expirado (exp no passado) é rejeitado", async () => {

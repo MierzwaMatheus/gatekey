@@ -75,6 +75,16 @@ export const verifyImpersonationToken = internalAction({
       if (!targetUserId) {
         return { valid: false as const, error: "missing_impersonating_claim" };
       }
+      const tokenHash = createHash("sha256").update(token).digest("hex");
+      const session = (await ctx.runQuery(internal.impersonationStore.getImpersonationSessionByHash, {
+        tokenHash,
+      })) as { endedAt?: number } | null;
+      if (!session) {
+        return { valid: false as const, error: "session_not_found" };
+      }
+      if (session.endedAt !== undefined) {
+        return { valid: false as const, error: "session_ended" };
+      }
       return { valid: true as const, rootUserId: payload.sub, targetUserId };
     } catch (e) {
       return { valid: false as const, error: (e as Error).message };
