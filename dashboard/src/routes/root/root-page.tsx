@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../lib/auth-context'
 import { useLogout } from '../../lib/use-logout'
 import { RootLayout, type RootSection } from '../../components/root/root-layout'
@@ -10,6 +10,8 @@ import { AuditLogTable } from '../../components/root/audit-log-table'
 import { CapabilitiesList } from '../../components/root/capabilities-list'
 import { ApiKeysBrowser } from '../../components/root/api-keys-browser'
 import { ColdStorageConfig } from '../../components/root/cold-storage-config'
+import { ColdStorageRootDownload } from '../../components/root/cold-storage-download'
+import { listOrgs, type OrgSummary } from '../../lib/root-api'
 import { LogOut, Copy, Check } from 'lucide-react'
 import { PageHeader } from '../../components/ui/page-header'
 
@@ -110,8 +112,14 @@ export function RootPage() {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
   const [tempPasswordModal, setTempPasswordModal] = useState<TempPasswordModal | null>(null)
   const [orgsRefreshKey, setOrgsRefreshKey] = useState(0)
+  const [orgsList, setOrgsList] = useState<OrgSummary[]>([])
 
   const tok = token ?? ''
+
+  useEffect(() => {
+    if (!tok) return
+    listOrgs(tok).then(setOrgsList).catch(() => {})
+  }, [tok])
 
   function renderSection() {
     switch (section) {
@@ -156,7 +164,21 @@ export function RootPage() {
           </div>
         )
       case 'cold-storage':
-        return <ColdStorageConfig />
+        return (
+          <div className="space-y-8">
+            <ColdStorageConfig />
+            <div className="border-t border-border-default pt-6">
+              <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
+                Download de Audit Logs (Cold Tier)
+              </p>
+              <ColdStorageRootDownload
+                token={tok}
+                orgs={orgsList.map((o) => ({ id: o._id, name: o.name }))}
+                isConfigured
+              />
+            </div>
+          </div>
+        )
       default:
         return null
     }
