@@ -1,28 +1,52 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { HardDrive, Copy, Check } from 'lucide-react'
 
 interface ColdStorageDownloadProps {
   token: string
   orgId: string
+  isConfigured?: boolean
 }
 
-export function ColdStorageDownload({ token: _token, orgId: _orgId }: ColdStorageDownloadProps) {
+export function ColdStorageDownload({ token, orgId: _orgId, isConfigured = false }: ColdStorageDownloadProps) {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [expiresAt, setExpiresAt] = useState<number | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const isConfigured = false
+  useEffect(() => {
+    if (!expiresAt) return
+    const update = () => {
+      const diff = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000))
+      setSecondsLeft(diff)
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
 
   async function handleGenerate() {
     if (!startDate || !endDate) return
     setLoading(true)
+    setError(null)
+    setDownloadUrl(null)
     try {
-      await new Promise((r) => setTimeout(r, 800))
-      setDownloadUrl('https://cold-storage.example.com/not-configured')
-      setExpiresAt(Date.now() + 15 * 60 * 1000)
+      const res = await fetch(`/v1/audit-exports?start=${startDate}&end=${endDate}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) {
+        const body = await res.json() as { error?: string }
+        if (body.error === 'not_found') setError('Nenhum export encontrado para o período selecionado.')
+        else if (body.error === 'cold_storage_not_configured') setError('Cold storage não está configurado.')
+        else setError('Erro ao gerar link. Tente novamente.')
+        return
+      }
+      const data = await res.json() as { downloadUrl: string; expiresAt: number }
+      setDownloadUrl(data.downloadUrl)
+      setExpiresAt(data.expiresAt)
     } finally {
       setLoading(false)
     }
@@ -50,6 +74,8 @@ export function ColdStorageDownload({ token: _token, orgId: _orgId }: ColdStorag
     )
   }
 
+  const minutesLeft = secondsLeft !== null ? Math.ceil(secondsLeft / 60) : null
+
   return (
     <div className="max-w-md space-y-5">
       <p className="text-[13px] text-text-secondary">
@@ -60,8 +86,9 @@ export function ColdStorageDownload({ token: _token, orgId: _orgId }: ColdStorag
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-[12px] text-text-secondary mb-1 block">Data início</label>
+            <label htmlFor="cold-start-date" className="text-[12px] text-text-secondary mb-1 block">Data início</label>
             <input
+              id="cold-start-date"
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -69,8 +96,9 @@ export function ColdStorageDownload({ token: _token, orgId: _orgId }: ColdStorag
             />
           </div>
           <div>
-            <label className="text-[12px] text-text-secondary mb-1 block">Data fim</label>
+            <label htmlFor="cold-end-date" className="text-[12px] text-text-secondary mb-1 block">Data fim</label>
             <input
+              id="cold-end-date"
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
@@ -88,10 +116,17 @@ export function ColdStorageDownload({ token: _token, orgId: _orgId }: ColdStorag
         </button>
       </div>
 
+      {error && (
+        <p className="text-[13px] text-status-danger">{error}</p>
+      )}
+
       {downloadUrl && expiresAt && (
         <div className="bg-surface-elevated border border-border-default rounded-card p-4 space-y-2">
-          <p className="text-[12px] text-text-secondary">
-            Link válido por <span className="text-status-warning font-mono">15 min</span>
+          <p className="text-[12px] text-text-secondary" data-testid="expiry-countdown">
+            Link válido por{' '}
+            <span className="text-status-warning font-mono">
+              {minutesLeft !== null ? `${minutesLeft} min` : '15 min'}
+            </span>
           </p>
           <div className="flex items-center gap-2">
             <span className="font-mono text-[12px] text-text-primary truncate flex-1">{downloadUrl}</span>
