@@ -133,6 +133,63 @@ describe('getActiveToken — seleção do token ativo', () => {
   })
 })
 
+describe('useImpersonationExpiry — alerta ao expirar', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('chama onExpired com mensagem quando sessão expira', async () => {
+    const endImpersonation = vi.fn().mockResolvedValue(undefined)
+    const onExpired = vi.fn()
+
+    function TestComponent() {
+      useImpersonationExpiry({ impersonationSession: EXPIRED_SESSION, endImpersonation, onExpired })
+      return null
+    }
+
+    render(
+      <AuthProvider initialState={{ token: ROOT_TOKEN, role: 'root', orgId: null, impersonationSession: EXPIRED_SESSION }}>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000)
+    })
+
+    expect(onExpired).toHaveBeenCalledOnce()
+    expect(onExpired).toHaveBeenCalledWith(expect.stringContaining('expirou'))
+  })
+
+  it('não chama onExpired quando sessão ainda é válida', async () => {
+    const endImpersonation = vi.fn()
+    const onExpired = vi.fn()
+
+    function TestComponent() {
+      useImpersonationExpiry({ impersonationSession: ACTIVE_SESSION, endImpersonation, onExpired })
+      return null
+    }
+
+    render(
+      <AuthProvider initialState={{ token: ROOT_TOKEN, role: 'root', orgId: null, impersonationSession: ACTIVE_SESSION }}>
+        <TestComponent />
+      </AuthProvider>
+    )
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000)
+    })
+
+    expect(onExpired).not.toHaveBeenCalled()
+  })
+})
+
 describe('token de impersonation usado nos headers', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
