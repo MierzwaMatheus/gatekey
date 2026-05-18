@@ -109,6 +109,60 @@ describe('Impersonation — fluxo de integração no dashboard', () => {
   })
 })
 
+describe('Integração: token de impersonation usado em chamadas de API subsequentes', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('getActiveToken retorna impersonation token após iniciar sessão — token este que seria usado em chamadas de API geradoras de audit log com actor.type root_impersonating', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          impersonationToken: 'imp_audit_tok',
+          expiresAt: Date.now() + 3600000,
+          sessionId: 'audit_sess',
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ _id: 'user_1', name: 'Ana Lima', email: 'ana@example.com' }),
+      } as Response)
+
+    function TestApp() {
+      const auth = useAuth()
+      return (
+        <div>
+          <span data-testid="active-token">{auth.getActiveToken()}</span>
+          <ImpersonationUsersList
+            users={MOCK_USERS}
+            onImpersonate={(userId) => void auth.startImpersonation(userId)}
+          />
+        </div>
+      )
+    }
+
+    const { getByTestId, getAllByRole } = render(
+      <AuthProvider initialState={{ token: ROOT_TOKEN, role: 'root', orgId: null, impersonationSession: null }}>
+        <TestApp />
+      </AuthProvider>
+    )
+
+    expect(getByTestId('active-token').textContent).toBe(ROOT_TOKEN)
+
+    const [firstButton] = getAllByRole('button', { name: /Entrar como/i })
+    await act(async () => {
+      await userEvent.click(firstButton)
+    })
+
+    expect(getByTestId('active-token').textContent).toBe('imp_audit_tok')
+  })
+})
+
 describe('ImpersonationUsersList', () => {
   it('renderiza email quando name não está disponível', () => {
     const users = [{ id: 'u1', name: '', email: 'only@example.com' }]
