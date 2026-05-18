@@ -527,10 +527,10 @@
 
 ### 5.6 Integração final: GPL + README de self-hosting — closes #18 (com 5.5)
 
-- [ ] Adicionar arquivo `LICENSE` com texto completo da GPL-3.0
-- [ ] Adicionar header SPDX de licença GPL nos arquivos fonte principais do backend, dashboard, SDK e CLI
-- [ ] Escrever `README.md` na raiz com seções: visão geral, pré-requisitos (Node, Convex CLI), `npx gatekey init`, primeiro login no dashboard, configuração de cold storage
-- [ ] Documentar no README como integrar `@gatekey/sdk` em uma app cliente: instalação, inicialização, exemplo de `permissions.check`
-- [ ] Documentar no README como usar `@gatekey/react`: Provider, `usePermission` com exemplo de guard de componente
-- [ ] Documentar no README como usar o Playground para explorar e testar a API
-- [ ] Revisar README para garantir que qualquer desenvolvedor consegue rodar uma instância do zero seguindo apenas o documento
+- [x] Adicionar arquivo `LICENSE` com texto completo da GPL-3.0
+- [x] Adicionar header SPDX de licença GPL nos arquivos fonte principais do backend, dashboard, SDK e CLI
+- [x] Escrever `README.md` na raiz com seções: visão geral, pré-requisitos (Node, Convex CLI), `npx gatekey init`, primeiro login no dashboard, configuração de cold storage
+- [x] Documentar no README como integrar `@gatekey/sdk` em uma app cliente: instalação, inicialização, exemplo de `permissions.check`
+- [x] Documentar no README como usar `@gatekey/react`: Provider, `usePermission` com exemplo de guard de componente
+- [x] Documentar no README como usar o Playground para explorar e testar a API
+- [x] Revisar README para garantir que qualquer desenvolvedor consegue rodar uma instância do zero seguindo apenas o documento

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import type { GatekeyClient } from "@gatekey/sdk";
 import type { AuthState } from "./types.js";

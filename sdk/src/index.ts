@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 export { GatekeyClient } from "./client.js";
 export { AuthModule } from "./auth.js";
 export { MfaModule } from "./mfa.js";

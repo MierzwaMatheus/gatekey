@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 export function magicLinkHtml(link: string, locale: string): string {
   if (locale === "pt-BR") {
     return `<!DOCTYPE html>

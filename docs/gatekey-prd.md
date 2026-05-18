@@ -1,6 +1,6 @@
 # GateKey — Product Requirements Document
 
-> **Versão:** 0.2 — Questões em aberto resolvidas  
+> **Versão:** 0.3 — Modelo de autorização expandido (deny binding, no privilege escalation, binding expirável, acesso efetivo)  
 > **Status:** Em definição  
 > **Stack:** React + Convex (fullstack)  
 > **Modelo:** Open source, self-hosted pelo desenvolvedor para clientes
@@ -31,6 +31,8 @@ O sistema é **open source e self-hosted**: o desenvolvedor (você) instala e op
 2. **A permissão mora no grafo, não no código** — toda decisão de acesso é uma consulta ao banco, não uma condição hardcoded
 3. **Agnóstico de domínio com suporte a hierarquia opt-in** — o IAM não impõe estrutura de recursos, mas suporta herança quando a app declara
 4. **Fail closed** — em caso de dúvida, nega. Nunca o contrário.
+5. **Deny tem precedência absoluta** — um deny binding explícito sempre sobrepõe qualquer allow, independente de origem (herança, workspace ou recurso direto)
+6. **No privilege escalation** — nenhum admin pode conceder a outro usuário permissões que ele mesmo não possui
 
 ---
 
@@ -137,10 +139,12 @@ A mesma pessoa pode ser `editor` de um documento específico e `viewer` de outro
 - Capabilities customizadas de uma org são invisíveis para outras orgs
 
 **Role**
-- Agrupamento nomeado de capabilities
-- Roles base: `owner`, `admin`, `editor`, `viewer` (definidos pelo sistema, não removíveis)
-- Cada workspace pode criar roles customizados (`reviewer`, `devops`, `readonly-finance`)
-- Roles customizados são scoped ao workspace — não existem em outros workspaces
+- Agrupamento nomeado de capabilities — também chamado de "profile" na interface do dashboard
+- Roles base: `owner`, `admin`, `editor`, `viewer` (definidos pelo sistema, não removíveis, disponíveis em toda a org)
+- **Org Admin** pode criar roles de org-level: disponíveis em todos os workspaces da org
+- **Workspace Admin** pode criar roles scoped ao workspace: existem apenas naquele workspace, invisíveis nos demais
+- Um role derivado de um role base cria um novo role independente — nunca altera o original
+- Roles customizados podem combinar capabilities base e capabilities customizadas da org
 
 **Resource**
 - Qualquer entidade da app cliente que precisa de controle de acesso
@@ -150,11 +154,29 @@ A mesma pessoa pode ser `editor` de um documento específico e `viewer` de outro
 - Permissões podem ser sobre o workspace inteiro ou sobre instâncias específicas de recursos
 
 **Binding**
-- A relação entre Usuário + Role + Recurso (ou Workspace)
-- Exemplo: `{userId: "u1", roleId: "editor", resourceType: "document", resourceId: "doc_abc"}`
-- Um usuário pode ter múltiplos bindings — cada um sobre um recurso diferente
+- A relação entre Usuário + Role + Recurso (ou Workspace), com tipo `allow` ou `deny`
+- Estrutura completa:
+  ```json
+  {
+    "userId": "u1",
+    "roleId": "editor",
+    "resourceType": "document",
+    "resourceId": "doc_abc",
+    "type": "allow",
+    "expiresAt": null,
+    "reason": "Acesso temporário para revisão do contrato",
+    "createdBy": "admin_xyz",
+    "workspaceId": "ws_1"
+  }
+  ```
+- `type: "deny"` cria uma exceção explícita de bloqueio — tem precedência absoluta sobre qualquer allow
+- `expiresAt` opcional: o Convex Scheduler revoga o binding automaticamente na data informada
+- `reason` opcional: texto livre registrado no audit log para contexto da decisão
+- `createdBy`: sempre registrado — necessário para rastreabilidade e controle de revogação
+- Um usuário pode ter binding **exclusivamente em resource-level** sem binding de workspace — esse usuário acessa apenas aquele recurso específico, sem herdar nada do workspace (ver seção 4.4)
+- Um usuário pode ter múltiplos bindings — cada um sobre um recurso diferente, com tipos diferentes
 
-### 4.3 Herança de permissões
+### 4.3 Herança de permissões e precedência
 
 | Nível | Comportamento |
 |---|---|
@@ -162,6 +184,20 @@ A mesma pessoa pode ser `editor` de um documento específico e `viewer` de outro
 | Org Admin → Workspaces | Herança automática: org admin é admin de todos os workspaces da org |
 | Workspace → Recursos | Configurável por tipo de recurso |
 | Container → Item (two-level) | Opt-in: declarado na hora de registrar o tipo de recurso |
+
+**Regras de precedência (ordem decrescente de prioridade):**
+
+1. **Deny explícito em resource-level** — bloqueia independente de qualquer outro binding
+2. **Deny explícito em container-level** — bloqueia todos os itens filhos, exceto se houver allow direto no item
+3. **Deny explícito em workspace-level** — bloqueia todos os recursos do workspace
+4. **Allow em resource-level** — acesso direto ao recurso
+5. **Allow em container-level** — herdado pelos itens filhos (se inheritanceMode configurado)
+6. **Allow em workspace-level** — herdado por todos os recursos
+7. **Sem binding** — DENY implícito (fail closed)
+
+> **Exemplo de precedência:** Usuário tem `allow:editor` no workspace inteiro, mas tem `deny` no documento X. Resultado: ele acessa tudo no workspace **exceto** o documento X. O deny de resource-level vence o allow de workspace-level.
+
+> **Exemplo de resource-only:** Usuário não tem binding de workspace, mas tem `allow:viewer` no documento Y. Resultado: ele acessa **apenas** o documento Y, sem herdar nenhum acesso do workspace.
 
 **Como a herança two-level funciona:**
 
@@ -175,11 +211,12 @@ A app registra o tipo de recurso com `inheritsFrom` e `inheritanceMode`:
 }
 ```
 
-Quando o PDP avalia uma permissão sobre `doc_abc`, ele:
-1. Busca binding direto: `userId → role → doc_abc`
-2. Se não encontrar, busca o container pai: `userId → role → folder_xyz` (pai de `doc_abc`)
-3. Se não encontrar, busca no workspace: `userId → role → workspace`
-4. Se não encontrar em nenhum nível: **DENY**
+Quando o PDP avalia uma permissão sobre `doc_abc`:
+1. Coleta todos os bindings do usuário para `doc_abc` (allow e deny)
+2. Coleta todos os bindings do usuário para o container pai `folder_xyz` (se tipo tem herança)
+3. Coleta todos os bindings do usuário para o workspace
+4. Aplica as regras de precedência acima — deny sempre vence allow no mesmo nível ou abaixo
+5. Se nenhum allow sobreviver: **DENY**
 
 O PDP faz no máximo **3 lookups** por decisão. Sem custo adicional para tipos sem herança configurada.
 
@@ -188,22 +225,86 @@ O PDP faz no máximo **3 lookups** por decisão. Sem custo adicional para tipos 
 ```
 Request chega com JWT ou API Key
         ↓
-PEP extrai: userId (ou serviceId), orgId, capability, resourceType, resourceId
+PEP extrai: userId, orgId, capability, resourceType, resourceId
         ↓
-PDP verifica em ordem:
+Verificações de identidade e sessão:
   1. Usuário/serviço está ativo? (não suspenso, não deletado)
   2. Sessão/API Key é válida e não revogada?
   3. API Key tem o escopo necessário? (se autenticação por API Key)
-  4. Usuário pertence ao workspace do recurso?
-  5. Binding direto: userId → role → resourceId?
-  6. Binding no container pai? (se tipo tem inheritanceMode configurado)
-  7. Binding no workspace?
-  8. O role encontrado possui a capability solicitada?
+        ↓
+Coleta de bindings (em paralelo):
+  4a. Busca deny bindings do usuário: resource-level → container-level → workspace-level
+  4b. Busca allow bindings do usuário: resource-level → container-level → workspace-level
+  4c. Inclui usuários com binding exclusivo em resource-level (sem binding de workspace)
+        ↓
+Aplicação de precedência:
+  5. Existe deny ativo no nível mais específico que cobre o recurso?
+     → SIM: DENY imediato (registra motivo: "explicit deny binding")
+  6. Existe allow ativo que cobre o recurso (direto, container ou workspace)?
+     → NÃO: DENY (registra motivo: "no allow binding found")
+  7. O role do allow possui a capability solicitada?
+     → NÃO: DENY (registra motivo: "role lacks capability X")
         ↓
 Decisão: ALLOW ou DENY (com motivo específico)
         ↓
-Evento registrado no audit log
+Evento registrado no audit log (incluindo bindings expirados que foram ignorados)
 ```
+
+### 4.5 Regra de no privilege escalation (PEP — criação de binding)
+
+Ao criar um binding (`POST /v1/bindings`), o PEP verifica:
+
+```
+Admin tenta atribuir roleId R ao usuário U sobre recurso X
+        ↓
+PEP coleta: capabilities do role R
+        ↓
+PEP verifica: o admin que faz a chamada possui TODAS as capabilities de R?
+        ↓
+NÃO → 403 "Cannot grant role 'editor': you lack capability 'document:publish'"
+SIM → binding criado normalmente
+```
+
+Isso garante que nenhum admin pode criar um binding que conceda mais acesso do que ele mesmo possui — mesmo que ele tenha acesso de escrita à API de bindings.
+
+### 4.6 Visão de acesso efetivo (Effective Access)
+
+O sistema expõe um endpoint de leitura que calcula o acesso efetivo de um usuário — não os bindings brutos, mas o **resultado real** após aplicar herança, deny e expiração:
+
+```
+GET /v1/users/:id/effective-access?workspaceId=ws_1
+
+Retorna:
+{
+  "userId": "u1",
+  "workspaceId": "ws_1",
+  "workspaceAccess": { "role": "editor", "source": "workspace-binding" },
+  "resourceAccess": [
+    {
+      "resourceType": "document",
+      "resourceId": "doc_abc",
+      "effectiveRole": "owner",
+      "source": "direct-binding",
+      "expiresAt": null
+    },
+    {
+      "resourceType": "document",
+      "resourceId": "doc_xyz",
+      "effectiveRole": null,
+      "source": "explicit-deny",
+      "deniedBy": "admin_1"
+    },
+    {
+      "resourceType": "document",
+      "resourceId": "doc_def",
+      "effectiveRole": "editor",
+      "source": "inherited-from-folder:folder_abc"
+    }
+  ]
+}
+```
+
+Esse endpoint é usado pelo dashboard para a tela de "acesso efetivo" e pelo endpoint de simulação (`/v1/bindings/simulate`).
 
 ---
 
@@ -274,7 +375,7 @@ Apps clientes se autenticam com o IAM via **API Keys escopadas** para operaçõe
 - Descrição, data de criação e registro de última utilização (timestamp + IP)
 - Status: ativa / revogada
 
-O backend armazena apenas o **hash bcryptjs** da chave — nunca o valor em plaintext. Na validação, o PEP faz hash do valor recebido e compara.
+O backend armazena apenas o **hash argon2id** da chave — nunca o valor em plaintext. Na validação, o PEP faz hash do valor recebido e compara.
 
 **Escopos disponíveis:**
 
@@ -324,7 +425,8 @@ Usuários
   GET    /v1/users/:id             → dados do usuário
   PATCH  /v1/users/:id             → atualiza dados
   DELETE /v1/users/:id             → suspende/remove usuário
-  GET    /v1/users/:id/permissions → lista tudo que o usuário pode fazer
+  GET    /v1/users/:id/permissions → lista bindings brutos do usuário
+  GET    /v1/users/:id/effective-access → acesso efetivo calculado (herança + deny + expiração)
 
 Roles & Capabilities
   POST   /v1/roles                 → cria role customizado no workspace
@@ -334,12 +436,14 @@ Roles & Capabilities
   POST   /v1/capabilities          → adiciona capability customizada (org admin)
 
 Bindings
-  POST   /v1/bindings              → atribui role a user sobre recurso ou workspace
-  GET    /v1/bindings              → lista bindings (filtráveis por userId, resourceType)
+  POST   /v1/bindings              → cria binding (allow ou deny, com expiresAt e reason opcionais)
+  GET    /v1/bindings              → lista bindings (filtráveis por userId, resourceType, type)
   DELETE /v1/bindings/:id          → revoga binding
+  POST   /v1/bindings/simulate     → simula criação de binding e retorna acesso efetivo resultante (dry-run)
 
 Verificação de permissão
-  POST   /v1/check                 → {userId, capability, resourceType, resourceId} → {allowed, reason}
+  POST   /v1/check                 → {userId, capability, resourceType, resourceId} → {allowed, reason, source}
+  POST   /v1/check/batch           → [{userId, capability, resourceType, resourceId}] → resultados em array
 
 Tipos de recurso
   POST   /v1/resource-types        → registra tipo com configuração de herança
@@ -474,8 +578,11 @@ Logs são **append-only** — nunca editáveis, nunca deletáveis (nem pelo Root
 
 **Painel Workspace Admin**
 - Gerenciar membros do workspace
-- Criar roles customizados e atribuir capabilities
-- Criar e revogar bindings (usuário → role → recurso)
+- Criar roles customizados (scoped ao workspace) e atribuir capabilities
+- Criar e revogar bindings allow e deny (usuário → role → recurso, com expiresAt e reason)
+- Ver deny bindings ativos em destaque visual distinto dos allow bindings
+- Tela de acesso efetivo por usuário: resultado real com fonte de cada permissão
+- Simulação de binding antes de confirmar (dry-run via `/v1/bindings/simulate`)
 - Configurar tipos de recurso e herança two-level
 - Ver audit log do workspace (hot tier)
 
@@ -521,7 +628,7 @@ Root credentials saved to .gatekey-root (add to .gitignore!)
 1. Valida conexão com o Convex deployment
 2. Executa migrations do schema (todas as tabelas e índices)
 3. Gera o par de chaves RS256 e armazena no Convex (privada nunca sai)
-4. Cria o usuário root com hash bcryptjs da senha
+4. Cria o usuário root com hash bcryptjs (cost 12) da senha
 5. Configura variáveis de ambiente da instância
 6. Opcionalmente configura o bucket de cold storage
 
@@ -547,7 +654,7 @@ Root credentials saved to .gatekey-root (add to .gitignore!)
 | Auth flow | Convex HTTP Actions | Endpoints HTTP sem servidor separado |
 | JWT | `jose` (JOSE padrão) | RS256, JWKS, padrão da indústria |
 | Email | Resend | Magic link, notificações transacionais |
-| Hashing (senha e API Key) | `bcryptjs` (cost factor 10) | argon2id desejável mas incompatível com o runtime V8 do Convex; bcryptjs roda no runtime Node via Convex Actions e é suficientemente seguro para o modelo de ameaça |
+| Hashing (senha e API Key) | `bcryptjs` (JS puro, cost 12) | Compatível com Convex runtime padrão — sem native addons |
 | Cold storage | Cloudflare R2 ou AWS S3 | Configurável na instalação |
 
 ### 12.2 Frontend (dashboard)
@@ -583,12 +690,12 @@ org_settings             → config por org (login methods, MFA, JWT expiry, quo
 workspaces               → workspaces por org
 org_members              → relação user ↔ org (status: active/suspended)
 workspace_members        → relação user ↔ workspace
-roles                    → roles por workspace (base + custom)
+roles                    → roles por workspace (base + custom) com escopo: org-level ou workspace-level
 capabilities             → catálogo de capabilities (base global + custom por org)
 role_capabilities        → capabilities atribuídas a cada role
 resource_types           → tipos registrados por app cliente (com config de herança)
-bindings                 → user + role + resourceType + resourceId + parentResourceId?
-api_keys                 → API Keys por org (hash bcryptjs, escopos, metadata)
+bindings                 → user + role + resourceType + resourceId + type(allow|deny) + expiresAt? + reason? + createdBy
+api_keys                 → API Keys por org (hash argon2id, escopos, metadata)
 sessions                 → sessões ativas (sessionId, expiração, device info)
 session_blacklist        → sessões revogadas (TTL automático)
 audit_log                → eventos append-only (hot tier — 30 dias)
@@ -599,14 +706,16 @@ audit_exports            → registro de exportações para cold tier
 
 | Tabela | Índice | Uso |
 |---|---|---|
-| `bindings` | `(workspaceId, userId)` | Listagem de permissões do usuário |
-| `bindings` | `(resourceType, resourceId)` | Quem tem acesso a este recurso? |
+| `bindings` | `(workspaceId, userId, type)` | Listagem de allows e denies do usuário |
+| `bindings` | `(resourceType, resourceId, type)` | Quem tem allow/deny sobre este recurso? |
 | `bindings` | `(userId, resourceType, resourceId)` | Check direto no PDP |
+| `bindings` | `(expiresAt)` | Scheduler de expiração automática |
 | `audit_log` | `(orgId, timestamp)` | Paginação do log por org |
 | `audit_log` | `(workspaceId, timestamp)` | Paginação por workspace |
 | `session_blacklist` | `sessionId` | Lookup O(1) na verificação de revogação |
 | `sessions` | `userId` | Sessões ativas de um usuário |
 | `api_keys` | `(orgId, status)` | Keys ativas por org |
+| `roles` | `(orgId, scope)` | Roles de org-level vs workspace-level |
 
 ---
 
@@ -614,38 +723,49 @@ audit_exports            → registro de exportações para cold tier
 
 - Todas as Convex mutations e queries com dados sensíveis passam pelo PEP antes de executar
 - Nenhuma decisão de autorização acontece no frontend
-- Rate limiting em endpoints de auth (login, refresh, `/check`) via Convex Scheduler
-- Senhas e API Key secrets hasheados com **bcryptjs** (cost factor 10) via Convex Action (Node runtime) — argon2id seria preferível mas é incompatível com o runtime V8 do Convex; nunca MD5, nunca SHA-1, nunca hashing sem salt
+- Rate limiting em endpoints de auth (login, refresh, `/check`, `/check/batch`) via Convex Scheduler
+- Senhas e API Key secrets hasheados com **bcryptjs** (cost 12) — implementação JS pura, compatível com Convex runtime padrão
 - JWT assinados com **RS256** — chave privada nunca sai do backend
-- JWKS endpoint público para verificação local de tokens pelas apps clientes
+- JWKS endpoint retorna chave atual e anterior durante rotação — tokens antigos permanecem válidos no período de overlap
 - Toda comunicação por HTTPS (Convex gerencia TLS)
 - 5 falhas consecutivas de autenticação = bloqueio temporário (15 min) com log de evento
 - API Keys armazenadas apenas como hash — o valor plaintext é exibido apenas uma vez na criação
-- Todas as decisões do PDP (ALLOW e DENY) são registradas no audit log com motivo
+- Todas as decisões do PDP (ALLOW e DENY) são registradas no audit log com motivo e fonte do binding
+- **No privilege escalation**: o PEP rejeita criação de binding se o admin não possui todas as capabilities do role que tenta atribuir
+- **Deny tem precedência absoluta**: o PDP avalia denies antes de qualquer allow, em todos os níveis
+- Bindings com `expiresAt` são revogados automaticamente por Convex Scheduler — nunca dependem de ação manual
+- Ações em modo impersonation são registradas no audit log com `actor.type: "root_impersonating"` e `actor.impersonating: userId` — nunca atribuídas ao usuário impersonado
 
 ---
 
 ## 15. Fases de desenvolvimento (MVP completo)
 
 ### Fase 1 — Core de autorização
-- Schema Convex completo (todas as tabelas e índices)
-- PEP/PDP funcionais com traversal two-level
-- JWT sign/verify com RS256 + JWKS endpoint
-- Login por email + senha
+- Schema Convex completo (todas as tabelas e índices, incluindo `type`, `expiresAt`, `reason`, `createdBy` em bindings)
+- PEP/PDP funcionais: deny-first, traversal two-level, resource-only binding
+- Regra de no privilege escalation no PEP (criação de binding)
+- JWT sign/verify com RS256 + JWKS endpoint (com suporte a rotação de chave)
+- Login por email + senha (bcryptjs)
 - Hierarquia Root → Org → Workspace → Member
 - Herança de permissões opt-in por tipo de recurso
+- Convex Scheduler para expiração automática de bindings
 
 ### Fase 2 — Management API
 - REST API completa (`/v1/...`) com todos os endpoints
+- `POST /v1/check` e `POST /v1/check/batch`
+- `GET /v1/users/:id/effective-access`
+- `POST /v1/bindings/simulate` (dry-run)
 - API Keys com escopos (criação, hash bcryptjs, validação de escopo no PEP)
-- Audit log hot tier com todos os eventos
+- Audit log hot tier com todos os eventos (incluindo `impersonating`, `deny`, `expired`)
 - Revogação de sessão em tempo real
 - Cotas com validação e erros estruturados
 
 ### Fase 3 — Dashboard
-- Painel Root (orgs, cotas, sessões globais, audit global)
-- Painel Org Admin (usuários, workspaces, API Keys, audit da org)
-- Painel Workspace Admin (membros, roles, bindings, tipos de recurso)
+- Painel Root (orgs, cotas, sessões globais, audit global, modo impersonation com banner)
+- Painel Org Admin (usuários, workspaces, API Keys, audit da org, roles org-level)
+- Painel Workspace Admin (membros, roles workspace-level, bindings allow/deny, acesso efetivo, simulação)
+- Visualização de deny bindings ativos destacada visualmente
+- Tela de acesso efetivo por usuário com fonte de cada permissão
 - Playground interativo com documentação inline
 
 ### Fase 4 — Auth avançado e SDK
@@ -665,4 +785,4 @@ audit_exports            → registro de exportações para cold tier
 
 ---
 
-*GateKey PRD v0.2 — todas as questões em aberto resolvidas*
+*GateKey PRD v0.3 — modelo de autorização expandido: deny binding, no privilege escalation, binding expirável, acesso efetivo*

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";

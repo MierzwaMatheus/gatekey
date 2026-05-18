@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 export const OPENAPI_SPEC = {
   openapi: "3.0.0",
   info: {

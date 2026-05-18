@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import { GatekeyApiError } from "./errors.js";
 import type { CheckResult } from "./types.js";
 

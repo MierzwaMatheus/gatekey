@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import * as p from "@clack/prompts";
 import { hashPassword } from "./crypto.js";
 import { saveEnvConfig, saveRootCredentials, type ColdStorageConfig } from "./config-writer.js";

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2024 GateKey Contributors
+
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
 
