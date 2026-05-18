@@ -15,6 +15,8 @@ import type * as auth from "../auth.js";
 import type * as authStore from "../authStore.js";
 import type * as bindings from "../bindings.js";
 import type * as check from "../check.js";
+import type * as coldStorage from "../coldStorage.js";
+import type * as crons from "../crons.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as hierarchy from "../hierarchy.js";
 import type * as http from "../http.js";
@@ -50,6 +52,8 @@ declare const fullApi: ApiFromModules<{
   authStore: typeof authStore;
   bindings: typeof bindings;
   check: typeof check;
+  coldStorage: typeof coldStorage;
+  crons: typeof crons;
   emailTemplates: typeof emailTemplates;
   hierarchy: typeof hierarchy;
   http: typeof http;

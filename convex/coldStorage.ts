@@ -111,3 +111,25 @@ export const exportAuditLogsForOrg = internalAction({
     });
   },
 });
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const exportAuditLogs = internalAction({
+  args: {
+    mockMode: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const orgs = await ctx.runQuery(internal.auditLog.listOrgsWithStaleEvents, {});
+    const exportEnd = Date.now() - THIRTY_DAYS_MS;
+
+    for (const orgId of orgs) {
+      await ctx.runAction(internal.coldStorage.exportAuditLogsForOrg, {
+        orgId,
+        exportEnd,
+        mockStoragePath: args.mockMode
+          ? `mock/${orgId}/logs.ndjson.gz`
+          : undefined,
+      });
+    }
+  },
+});

@@ -241,6 +241,35 @@ export const getAuditEventsForExport = internalQuery({
   },
 });
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+export const listOrgsWithStaleEvents = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const threshold = Date.now() - THIRTY_DAYS_MS;
+    const staleEvent = await ctx.db
+      .query("audit_log")
+      .filter((q) => q.lt(q.field("timestamp"), threshold))
+      .first();
+    if (!staleEvent) return [];
+
+    const allOrgs = await ctx.db.query("orgs").collect();
+    const orgsWithStale: Id<"orgs">[] = [];
+
+    for (const org of allOrgs) {
+      const event = await ctx.db
+        .query("audit_log")
+        .withIndex("by_orgId_and_timestamp", (q) =>
+          q.eq("orgId", org._id).lt("timestamp", threshold),
+        )
+        .first();
+      if (event) orgsWithStale.push(org._id);
+    }
+
+    return orgsWithStale;
+  },
+});
+
 export const recordAuditExport = internalMutation({
   args: {
     orgId: v.id("orgs"),

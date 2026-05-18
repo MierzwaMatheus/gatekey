@@ -157,3 +157,58 @@ test("exportAuditLogsForOrg cria registro em audit_exports com orgId, period e s
   expect(exports[0].period.end).toBe(exportEnd);
   expect(exports[0].createdAt).toBeGreaterThan(0);
 });
+
+// ── Ciclo 6: exportAuditLogs itera múltiplos orgs ────────────────────────────
+
+test("exportAuditLogs cria registros em audit_exports para cada org com eventos antigos", async () => {
+  const t = convexTest(schema, modules);
+
+  const orgA = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "OrgA", status: "active", updatedAt: Date.now() }),
+  );
+  const orgB = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "OrgB", status: "active", updatedAt: Date.now() }),
+  );
+
+  const now = Date.now();
+  const oldTimestamp = now - THIRTY_DAYS_MS - 5000;
+
+  for (const orgId of [orgA, orgB]) {
+    await t.run((ctx) =>
+      ctx.db.insert("audit_log", {
+        timestamp: oldTimestamp,
+        actorType: "system",
+        actorId: "system",
+        action: "old.event",
+        target: { type: "org" },
+        orgId,
+        result: "allow",
+      }),
+    );
+  }
+
+  // Org sem eventos antigos não deve gerar exportação
+  const orgC = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "OrgC", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("audit_log", {
+      timestamp: now - 1000,
+      actorType: "system",
+      actorId: "system",
+      action: "recent.event",
+      target: { type: "org" },
+      orgId: orgC,
+      result: "allow",
+    }),
+  );
+
+  await t.action(internal.coldStorage.exportAuditLogs, { mockMode: true });
+
+  const exports = await t.run((ctx) => ctx.db.query("audit_exports").collect());
+  expect(exports).toHaveLength(2);
+  const exportedOrgIds = exports.map((e) => e.orgId).sort();
+  expect(exportedOrgIds).toContain(orgA);
+  expect(exportedOrgIds).toContain(orgB);
+  expect(exportedOrgIds).not.toContain(orgC);
+});
