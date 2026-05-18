@@ -44,17 +44,17 @@
 - [x] Implementar passo 5 em `computeEffectiveAccess`: para cada allow binding em container-level, busca todos os recursos filhos via `resource_types.inheritsFrom` e gera entradas com `source: "inherited-from-<type>:<containerId>"`
 - [x] Implementar passo 6 em `computeEffectiveAccess`: aplica deny-first — para cada recurso na lista, se existe deny binding ativo que cobre aquele recurso (resource-level, container-level ou workspace-level), sobrescreve com `{effectiveRole: null, source: "explicit-deny", deniedBy}`
 - [x] Implementar resolução de `source` para cada entrada: `"direct-binding"`, `"inherited-from-<type>:<parentId>"`, `"workspace-binding"`, `"explicit-deny"`
-- [ ] Registrar rota `GET /v1/users/:id/effective-access` em `convex/http.ts` no handler do pathPrefix `/v1/users/` — detectar segmento `effective-access` no pathname
-- [ ] Aplicar PEP na rota: acessível por Workspace Admin (do workspace no query param), Org Admin da org, e Root; bloquear Members
-- [ ] Validar query param `workspaceId` obrigatório — retornar 400 se ausente
-- [ ] Adicionar preflight CORS para o novo path
+- [x] Registrar rota `GET /v1/users/:id/effective-access` em `convex/http.ts` no handler do pathPrefix `/v1/users/` — detectar segmento `effective-access` no pathname
+- [x] Aplicar PEP na rota: acessível por Workspace Admin (do workspace no query param), Org Admin da org, e Root; bloquear Members
+- [x] Validar query param `workspaceId` obrigatório — retornar 400 se ausente
+- [x] Adicionar preflight CORS para o novo path
 - [ ] Atualizar spec OpenAPI com documentação de `GET /v1/users/:id/effective-access`: descrição, query params, response schema com todos os campos incluindo `source` e `deniedBy`
-- [ ] Escrever teste de integração: usuário com binding de workspace `editor` + deny explícito em `doc_xyz` — retorna `workspaceAccess.role = "editor"` e `resourceAccess` contendo entry para `doc_xyz` com `effectiveRole: null`
+- [x] Escrever teste de integração: usuário com binding de workspace `editor` + deny explícito em `doc_xyz` — retorna `workspaceAccess.role = "editor"` e `resourceAccess` contendo entry para `doc_xyz` com `effectiveRole: null`
 - [ ] Escrever teste de integração: usuário com binding de folder + inheritanceMode ativo — retorna entradas de documentos filhos com `source: "inherited-from-folder:<folderId>"`
-- [ ] Escrever teste de integração: binding expirado há 1 segundo não aparece no resultado
-- [ ] Escrever teste de integração: usuário sem workspace binding mas com allow em `doc_abc` — `workspaceAccess: null` e `resourceAccess` contém apenas `doc_abc`
-- [ ] Escrever teste de integração: Org Admin de org_A não consegue chamar endpoint para usuário de org_B
-- [ ] Escrever teste de integração: Member chamando endpoint recebe 403
+- [x] Escrever teste de integração: binding expirado há 1 segundo não aparece no resultado
+- [x] Escrever teste de integração: usuário sem workspace binding mas com allow em `doc_abc` — `workspaceAccess: null` e `resourceAccess` contém apenas `doc_abc`
+- [x] Escrever teste de integração: Org Admin de org_A não consegue chamar endpoint para usuário de org_B
+- [x] Escrever teste de integração: Member chamando endpoint recebe 403
 
 ### 6.3 POST /v1/bindings/simulate — closes #25
 

@@ -563,6 +563,42 @@ test("GET /v1/users/:id/effective-access integração: Org Admin de org_A não c
   expect(res.status).toBe(403);
 });
 
+// ── Ciclo 10 HTTP: folder + inheritanceMode ───────────────────────────────────
+
+test("GET /v1/users/:id/effective-access integração: folder + inheritanceMode retorna filhos com source inherited", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgId, workspaceId, userId, editorRoleId } = await setupBase(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  await t.run((ctx) =>
+    ctx.db.insert("resource_types", { orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto" }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId: editorRoleId, resourceType: "folder", resourceId: "folder_1", workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId, roleId: editorRoleId, resourceType: "document", resourceId: "doc_child",
+      parentResourceId: "folder_1", workspaceId,
+    }),
+  );
+
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: String(rootId), orgId: String(orgId), workspaceIds: [], roles: {}, capabilities: [], sessionId: "", expiresInSeconds: 3600,
+  });
+
+  const res = await t.fetch(
+    `/v1/users/${String(userId)}/effective-access?workspaceId=${String(workspaceId)}`,
+    { method: "GET", headers: { Authorization: `Bearer ${token}` } },
+  );
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  const inherited = body.resourceAccess.find((r: { resourceId: string }) => r.resourceId === "doc_child");
+  expect(inherited).toMatchObject({ source: "inherited-from-folder:folder_1" });
+});
+
 // ── Ciclo 8: apenas resource binding ─────────────────────────────────────────
 
 test("computeEffectiveAccess: usuário com binding exclusivamente em resource-level tem workspaceAccess null", async () => {
