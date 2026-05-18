@@ -72,13 +72,13 @@
 - [x] Implementar passo 5 em `simulateBinding`: calcula `delta.lost` — recursos/capabilities presentes em `before` mas não em `after` (relevante para deny simulation)
 - [x] Garantir que `simulateBinding` **não chama** `writeAuditEvent` — simulações não geram eventos de audit
 - [x] Retornar `{simulated: true, before: EffectiveAccess, after: EffectiveAccess, delta: {gained: [], lost: []}}` no response
-- [ ] Registrar rota `POST /v1/bindings/simulate` em `convex/http.ts`
-- [ ] Aplicar PEP na rota: mesmos requisitos de autorização do `POST /v1/bindings` (bindings:write scope)
-- [ ] Adicionar preflight CORS para `/v1/bindings/simulate`
-- [ ] Atualizar spec OpenAPI com documentação de `POST /v1/bindings/simulate`: nota de "dry-run — nenhum dado é persistido", body schema idêntico ao `POST /v1/bindings`, response schema com `simulated`, `before`, `after`, `delta`
-- [ ] Escrever teste de integração: simular allow binding → verificar `delta.gained` contém o recurso → verificar que nenhum binding existe na tabela após a chamada
-- [ ] Escrever teste de integração: simular deny binding sobre recurso que usuário tinha allow → verificar `delta.lost` contém o recurso
-- [ ] Escrever teste de integração: admin tenta simular binding com capability que não possui → recebe 403 com reason `cannot_grant_capability`
+- [x] Registrar rota `POST /v1/bindings/simulate` em `convex/http.ts`
+- [x] Aplicar PEP na rota: mesmos requisitos de autorização do `POST /v1/bindings` (bindings:write scope)
+- [x] Adicionar preflight CORS para `/v1/bindings/simulate`
+- [x] Atualizar spec OpenAPI com documentação de `POST /v1/bindings/simulate`: nota de "dry-run — nenhum dado é persistido", body schema idêntico ao `POST /v1/bindings`, response schema com `simulated`, `before`, `after`, `delta`
+- [x] Escrever teste de integração: simular allow binding → verificar `delta.gained` contém o recurso → verificar que nenhum binding existe na tabela após a chamada
+- [x] Escrever teste de integração: simular deny binding sobre recurso que usuário tinha allow → verificar `delta.lost` contém o recurso
+- [x] Escrever teste de integração: admin tenta simular binding com capability que não possui → recebe 403 com reason `cannot_grant_capability`
 
 ---
 
