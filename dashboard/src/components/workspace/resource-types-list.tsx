@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listResourceTypes, type ResourceType } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
@@ -21,6 +22,7 @@ interface ResourceTypesListProps {
 }
 
 export function ResourceTypesList({ token, refreshKey }: ResourceTypesListProps) {
+  const { t } = useTranslation('bindings')
   const [resourceTypes, setResourceTypes] = useState<ResourceType[] | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
@@ -50,20 +52,20 @@ export function ResourceTypesList({ token, refreshKey }: ResourceTypesListProps)
   if (resourceTypes.length === 0) {
     return (
       <div data-testid="resource-types-empty" className="text-center py-12">
-        <p className="text-text-muted text-sm">Nenhum resource type registrado.</p>
+        <p className="text-text-muted text-sm">{t('resource_types_empty')}</p>
       </div>
     )
   }
 
   return (
     <DenseGridContainer testId="resource-types-list">
-      <DenseGridHeader label="Resource Types" stats={[{ label: 'total', value: resourceTypes.length }]} />
+      <DenseGridHeader label={t('resource_types_header')} stats={[{ label: 'total', value: resourceTypes.length }]} />
       <DenseGridTable>
         <DenseGridThead>
           <DenseGridThNum />
-          <DenseGridTh>Nome</DenseGridTh>
-          <DenseGridTh>Herda De</DenseGridTh>
-          <DenseGridTh>Modo de Herança</DenseGridTh>
+          <DenseGridTh>{t('resource_types_col_name')}</DenseGridTh>
+          <DenseGridTh>{t('resource_types_col_inherits')}</DenseGridTh>
+          <DenseGridTh>{t('resource_types_col_mode')}</DenseGridTh>
         </DenseGridThead>
         <tbody>
           {resourceTypes.map((rt, i) => (

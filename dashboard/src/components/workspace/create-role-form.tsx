@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createRole, listCapabilities } from '../../lib/workspace-api'
 import type { WorkspaceCapability } from '../../lib/workspace-api'
 
@@ -10,6 +11,7 @@ interface CreateRoleFormProps {
 }
 
 export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleFormProps) {
+  const { t } = useTranslation('roles')
   const [capabilities, setCapabilities] = useState<WorkspaceCapability[] | null>(null)
   const [name, setName] = useState('')
   const [selectedCaps, setSelectedCaps] = useState<Set<string>>(new Set())
@@ -59,7 +61,7 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleF
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="ex: editor-docs"
+          placeholder={t('create_name_placeholder')}
           className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
           required
         />
@@ -93,14 +95,14 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleF
           disabled={loading || !name.trim()}
           className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
         >
-          {loading ? 'Criando…' : 'Criar Role'}
+          {loading ? t('create_submit_loading') : t('create_submit')}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
         >
-          Cancelar
+          {t('common:cancel', { ns: 'common' })}
         </button>
       </div>
     </form>

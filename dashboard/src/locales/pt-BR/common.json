@@ -7,5 +7,9 @@
   "confirm": "Confirmar",
   "delete": "Excluir",
   "back": "Voltar",
-  "logout": "Sair"
+  "logout": "Sair",
+  "save": "Salvar",
+  "actions": "Ações",
+  "loading": "Carregando…",
+  "cancel": "Cancelar"
 }

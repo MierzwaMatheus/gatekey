@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listRoles, deleteRole, listCapabilities, type WorkspaceRole } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
@@ -24,6 +25,7 @@ interface RolesListProps {
 }
 
 export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
+  const { t } = useTranslation('roles')
   const [roles, setRoles] = useState<WorkspaceRole[] | null>(null)
   const [capNames, setCapNames] = useState<Record<string, string>>({})
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceRole | null>(null)
@@ -79,7 +81,7 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
   if (roles.length === 0) {
     return (
       <div data-testid="roles-empty" className="text-center py-12">
-        <p className="text-text-muted text-sm">Nenhum role customizado neste workspace.</p>
+        <p className="text-text-muted text-sm">{t('empty')}</p>
       </div>
     )
   }
@@ -87,14 +89,14 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
   return (
     <>
       <DenseGridContainer testId="roles-list">
-        <DenseGridHeader label="Roles" stats={[{ label: 'total', value: roles.length }]} />
+        <DenseGridHeader label={t('header')} stats={[{ label: 'total', value: roles.length }]} />
         <DenseGridTable>
           <DenseGridThead>
             <DenseGridThNum />
-            <DenseGridTh>Nome</DenseGridTh>
-            <DenseGridTh>Tipo</DenseGridTh>
-            <DenseGridTh>Capabilities</DenseGridTh>
-            <DenseGridTh align="right">Ações</DenseGridTh>
+            <DenseGridTh>{t('col_name')}</DenseGridTh>
+            <DenseGridTh>{t('col_type')}</DenseGridTh>
+            <DenseGridTh>{t('col_capabilities')}</DenseGridTh>
+            <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
           </DenseGridThead>
           <tbody>
             {roles.map((r, i) => (
@@ -116,7 +118,7 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
                       testId={`btn-delete-${r._id}`}
                       onClick={() => { setDeleteTarget(r); setDeleteError(null) }}
                     >
-                      Deletar
+                      {t('action_delete')}
                     </DenseGridActionBtn>
                   )}
                 </DenseGridActionsCell>
@@ -138,15 +140,12 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-text-primary text-sm mb-2">
-              Deletar role <strong>{deleteTarget.name}</strong>?
-            </p>
-            <p className="text-text-secondary text-xs mb-4">
-              Esta ação é irreversível. Usuários com este role perderão as permissões associadas.
+              {t('delete_title', { name: deleteTarget.name })}
             </p>
             {deleteError && (
               <p data-testid="delete-role-error" className="text-status-deny text-xs mb-3">
                 {deleteError.includes('active_bindings')
-                  ? 'Existem bindings ativos usando este role. Remova-os antes de deletar.'
+                  ? t('delete_warning')
                   : deleteError}
               </p>
             )}
@@ -157,13 +156,13 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
                 disabled={actionLoading}
                 className="px-3 py-1.5 text-xs bg-status-deny text-white rounded-button disabled:opacity-60 cursor-pointer"
               >
-                {actionLoading ? 'Deletando…' : 'Deletar'}
+                {actionLoading ? t('delete_confirm_loading') : t('delete_confirm')}
               </button>
               <button
                 onClick={() => setDeleteTarget(null)}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover cursor-pointer"
               >
-                Cancelar
+                {t('common:cancel', { ns: 'common' })}
               </button>
             </div>
           </div>

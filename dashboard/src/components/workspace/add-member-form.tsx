@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { listUsers } from '../../lib/org-api'
 import { listRoles, addMember } from '../../lib/workspace-api'
 import type { UserSummary } from '../../lib/org-api'
@@ -12,6 +13,7 @@ interface AddMemberFormProps {
 }
 
 export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFormProps) {
+  const { t } = useTranslation('bindings')
   const [users, setUsers] = useState<UserSummary[] | null>(null)
   const [roles, setRoles] = useState<WorkspaceRole[] | null>(null)
   const [selectedUser, setSelectedUser] = useState('')
@@ -41,13 +43,13 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
   }
 
   if (!users || !roles) {
-    return <div className="text-text-muted text-sm py-2">Carregando…</div>
+    return <div className="text-text-muted text-sm py-2">{t('members_loading')}</div>
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
       <div>
-        <label className="block text-xs text-text-secondary mb-1">Usuário</label>
+        <label className="block text-xs text-text-secondary mb-1">{t('members_add_user_label')}</label>
         <select
           data-testid="select-user"
           value={selectedUser}
@@ -55,7 +57,7 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
           className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
           required
         >
-          <option value="">Selecione um usuário…</option>
+          <option value="">{t('members_add_user_placeholder')}</option>
           {users.map((u) => (
             <option key={u._id} value={u._id}>{u.email}</option>
           ))}
@@ -63,14 +65,14 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
       </div>
 
       <div>
-        <label className="block text-xs text-text-secondary mb-1">Role</label>
+        <label className="block text-xs text-text-secondary mb-1">{t('members_add_role_label')}</label>
         <select
           data-testid="select-role"
           value={selectedRole}
           onChange={(e) => setSelectedRole(e.target.value)}
           className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
         >
-          <option value="">Sem role específico</option>
+          <option value="">{t('members_no_role')}</option>
           {roles.map((r) => (
             <option key={r._id} value={r._id}>{r.name}</option>
           ))}
@@ -86,7 +88,7 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
           disabled={loading || !selectedUser}
           className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
         >
-          {loading ? 'Adicionando…' : 'Adicionar'}
+          {loading ? t('members_add_submit_loading') : t('members_add_submit')}
         </button>
         <button
           type="button"
@@ -94,7 +96,7 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
           onClick={onCancel}
           className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
         >
-          Cancelar
+          {t('common:cancel', { ns: 'common' })}
         </button>
       </div>
     </form>
