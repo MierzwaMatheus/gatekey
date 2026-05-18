@@ -523,7 +523,7 @@
 - [x] Escrever teste E2E: atingir cota de API Keys → idem
 - [x] Escrever teste E2E: API Key com escopo `bindings:write` pode criar binding mas não pode chamar `users:write`
 - [x] Escrever teste E2E: revogar sessão → requisição seguinte com o JWT daquela sessão retorna 401
-- [ ] Configurar CI (GitHub Actions) para executar todos os testes em cada push para main
+- [x] Configurar CI (GitHub Actions) para executar todos os testes em cada push para main
 
 ### 5.6 Integração final: GPL + README de self-hosting — closes #18 (com 5.5)
 
