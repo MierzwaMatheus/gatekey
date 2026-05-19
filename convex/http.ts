@@ -331,6 +331,11 @@ http.route({
           callerId: caller.callerId as never,
           orgId: orgId as never,
         });
+      } else if (action === "reactivate") {
+        await ctx.runMutation(internal.hierarchy.reactivateOrg, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
       } else {
         return jsonResponse({ error: "unknown_action" }, 404);
       }
@@ -343,7 +348,7 @@ http.route({
   }),
 });
 
-// ── DELETE /v1/orgs/:id ───────────────────────────────────────────────────────
+// ── DELETE /v1/orgs/:id and DELETE /v1/orgs/:id/sessions ─────────────────────
 
 http.route({
   pathPrefix: "/v1/orgs/",
@@ -352,9 +357,18 @@ http.route({
     const caller = await resolveJwtCaller(ctx, req);
     if (isResponse(caller)) return caller;
     const url = new URL(req.url);
-    const orgId = url.pathname.replace(/^\/v1\/orgs\//, "").split("/")[0];
+    const parts = url.pathname.replace(/^\/v1\/orgs\//, "").split("/");
+    const orgId = parts[0];
+    const subAction = parts[1];
     if (!orgId) return jsonResponse({ error: "missing_org_id" }, 400);
     try {
+      if (subAction === "sessions") {
+        const result = await ctx.runMutation(internal.hierarchy.revokeOrgSessions, {
+          callerId: caller.callerId as never,
+          orgId: orgId as never,
+        });
+        return jsonResponse(result);
+      }
       await ctx.runMutation(internal.hierarchy.deleteOrg, {
         callerId: caller.callerId as never,
         orgId: orgId as never,
