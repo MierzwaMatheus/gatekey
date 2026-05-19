@@ -43,6 +43,92 @@ describe('OrgActions — Suspender', () => {
   })
 })
 
+describe('OrgActions — Reativar', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const suspendedOrg = { _id: 'org1', name: 'Acme Corp', status: 'suspended' as const }
+  const activeOrg = { _id: 'org1', name: 'Acme Corp', status: 'active' as const }
+
+  it('mostra botão Reativar quando org está suspensa', () => {
+    render(<OrgActions token="tok" org={suspendedOrg} onDone={() => {}} />)
+    expect(screen.getByTestId('btn-reactivate-org')).toBeDefined()
+  })
+
+  it('não mostra botão Reativar quando org está ativa', () => {
+    render(<OrgActions token="tok" org={activeOrg} onDone={() => {}} />)
+    expect(screen.queryByTestId('btn-reactivate-org')).toBeNull()
+  })
+
+  it('mostra botão Suspender quando org está ativa', () => {
+    render(<OrgActions token="tok" org={activeOrg} onDone={() => {}} />)
+    expect(screen.getByTestId('btn-suspend-org')).toBeDefined()
+  })
+
+  it('não mostra botão Suspender quando org está suspensa', () => {
+    render(<OrgActions token="tok" org={suspendedOrg} onDone={() => {}} />)
+    expect(screen.queryByTestId('btn-suspend-org')).toBeNull()
+  })
+
+  it('abre modal de confirmação ao clicar em Reativar', async () => {
+    render(<OrgActions token="tok" org={suspendedOrg} onDone={() => {}} />)
+    await userEvent.click(screen.getByTestId('btn-reactivate-org'))
+    expect(screen.getByTestId('modal-reactivate')).toBeDefined()
+  })
+
+  it('chama reactivateOrg e onDone ao confirmar', async () => {
+    vi.mocked(rootApi.reactivateOrg).mockResolvedValue(undefined)
+    const onDone = vi.fn()
+    render(<OrgActions token="tok" org={suspendedOrg} onDone={onDone} />)
+    await userEvent.click(screen.getByTestId('btn-reactivate-org'))
+    await userEvent.click(screen.getByTestId('btn-confirm-reactivate'))
+    await waitFor(() => expect(vi.mocked(rootApi.reactivateOrg)).toHaveBeenCalledWith('tok', 'org1'))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+  })
+
+  it('fecha modal ao cancelar sem chamar reactivateOrg', async () => {
+    render(<OrgActions token="tok" org={suspendedOrg} onDone={() => {}} />)
+    await userEvent.click(screen.getByTestId('btn-reactivate-org'))
+    await userEvent.click(screen.getByTestId('btn-cancel-reactivate'))
+    expect(screen.queryByTestId('modal-reactivate')).toBeNull()
+    expect(vi.mocked(rootApi.reactivateOrg)).not.toHaveBeenCalled()
+  })
+})
+
+describe('OrgActions — Revogar sessões', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const activeOrg = { _id: 'org1', name: 'Acme Corp', status: 'active' as const }
+
+  it('sempre mostra botão Revogar todas as sessões', () => {
+    render(<OrgActions token="tok" org={activeOrg} onDone={() => {}} />)
+    expect(screen.getByTestId('btn-revoke-sessions')).toBeDefined()
+  })
+
+  it('abre modal de confirmação ao clicar em Revogar sessões', async () => {
+    render(<OrgActions token="tok" org={activeOrg} onDone={() => {}} />)
+    await userEvent.click(screen.getByTestId('btn-revoke-sessions'))
+    expect(screen.getByTestId('modal-revoke-sessions')).toBeDefined()
+  })
+
+  it('chama revokeOrgSessions e onDone ao confirmar', async () => {
+    vi.mocked(rootApi.revokeOrgSessions).mockResolvedValue({ sessionsRevoked: 3 })
+    const onDone = vi.fn()
+    render(<OrgActions token="tok" org={activeOrg} onDone={onDone} />)
+    await userEvent.click(screen.getByTestId('btn-revoke-sessions'))
+    await userEvent.click(screen.getByTestId('btn-confirm-revoke-sessions'))
+    await waitFor(() => expect(vi.mocked(rootApi.revokeOrgSessions)).toHaveBeenCalledWith('tok', 'org1'))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+  })
+
+  it('fecha modal ao cancelar sem chamar revokeOrgSessions', async () => {
+    render(<OrgActions token="tok" org={activeOrg} onDone={() => {}} />)
+    await userEvent.click(screen.getByTestId('btn-revoke-sessions'))
+    await userEvent.click(screen.getByTestId('btn-cancel-revoke-sessions'))
+    expect(screen.queryByTestId('modal-revoke-sessions')).toBeNull()
+    expect(vi.mocked(rootApi.revokeOrgSessions)).not.toHaveBeenCalled()
+  })
+})
+
 describe('OrgActions — Deletar', () => {
   beforeEach(() => vi.clearAllMocks())
 
