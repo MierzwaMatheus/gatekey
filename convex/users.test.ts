@@ -828,3 +828,53 @@ test("suspendUserGlobal: não-Root recebe erro forbidden", async () => {
     t.mutation(internal.users.suspendUserGlobal, { actorId: adminId, userId: adminId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 11.1: revokeAllUserSessions (DELETE /v1/users/:id/sessions) ─────────
+
+test("revokeAllUserSessions: Root revoga todas as sessões ativas do usuário", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, adminId } = await setupOrgWithAdmin(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash1",
+      expiresAt: Date.now() + 3600000,
+      ip: "1.2.3.4",
+    }),
+  );
+  void sessionId;
+
+  const result = await t.mutation(internal.users.revokeAllUserSessions, {
+    actorId: rootId,
+    userId: adminId,
+  });
+
+  expect(result.sessionsRevoked).toBe(1);
+
+  const blacklisted = await t.run((ctx) =>
+    ctx.db.query("session_blacklist").collect(),
+  );
+  expect(blacklisted.length).toBe(1);
+});
+
+test("revokeAllUserSessions: usuário sem sessões retorna sessionsRevoked: 0", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, adminId } = await setupOrgWithAdmin(t);
+
+  const result = await t.mutation(internal.users.revokeAllUserSessions, {
+    actorId: rootId,
+    userId: adminId,
+  });
+
+  expect(result.sessionsRevoked).toBe(0);
+});
+
+test("revokeAllUserSessions: não-Root recebe erro forbidden", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId } = await setupOrgWithAdmin(t);
+
+  await expect(
+    t.mutation(internal.users.revokeAllUserSessions, { actorId: adminId, userId: adminId }),
+  ).rejects.toThrow("forbidden");
+});

@@ -468,6 +468,33 @@ export const listAllUsers = internalQuery({
   },
 });
 
+export const revokeAllUserSessions = internalMutation({
+  args: {
+    actorId: v.id("users"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorId);
+    if (!actor?.isRoot) throw new Error("forbidden: root_required");
+
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    let sessionsRevoked = 0;
+    for (const session of sessions) {
+      await ctx.db.insert("session_blacklist", {
+        sessionId: session._id,
+        expiresAt: session.expiresAt,
+      });
+      sessionsRevoked++;
+    }
+
+    return { sessionsRevoked };
+  },
+});
+
 export const suspendUserGlobal = internalMutation({
   args: {
     actorId: v.id("users"),

@@ -595,7 +595,7 @@ http.route({
   }),
 });
 
-// ── DELETE /v1/users/:id ────────────────────────────────────────────────────
+// ── DELETE /v1/users/:id and DELETE /v1/users/:id/sessions ──────────────────
 
 http.route({
   pathPrefix: "/v1/users/",
@@ -605,8 +605,28 @@ http.route({
     if (isResponse(caller)) return caller;
 
     const url = new URL(req.url);
-    const userId = url.pathname.replace(/^\/v1\/users\//, "").split("/")[0];
+    const segments = url.pathname.replace(/^\/v1\/users\//, "").split("/");
+    const userId = segments[0];
+    const subAction = segments[1];
+
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+
+    if (subAction === "sessions") {
+      if (!(await requireRoot(ctx, caller))) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      try {
+        const result = await ctx.runMutation(internal.users.revokeAllUserSessions, {
+          actorId: caller.callerId as never,
+          userId: userId as never,
+        });
+        return jsonResponse(result);
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
+    }
 
     try {
       await ctx.runMutation(internal.users.deleteUser, {
