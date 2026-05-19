@@ -450,6 +450,55 @@ export const OPENAPI_SPEC = {
         responses: { "200": { description: "Bindings list" } },
       },
     },
+    "/v1/users/{id}/transfer": {
+      post: {
+        summary: "Transfer user to another org",
+        description: "Transfers a user from their current org to the target org. Bindings in workspaces belonging to the target org are preserved; all other bindings are revoked. All active sessions are revoked. Audit events are written for each revoked binding and for the transfer itself. Accessible by Root only.",
+        tags: ["Users"],
+        security: [{ BearerJWT: [] }],
+        parameters: [
+          { name: "id", in: "path", required: true, schema: { type: "string" }, description: "User ID to transfer" },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["targetOrgId"],
+                properties: {
+                  targetOrgId: { type: "string", description: "ID of the destination org" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Transfer completed successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    userId: { type: "string" },
+                    fromOrgId: { type: "string" },
+                    toOrgId: { type: "string" },
+                    preservedBindings: { type: "number", description: "Bindings kept (belonged to target org)" },
+                    revokedBindings: { type: "number", description: "Bindings removed (belonged to source org)" },
+                    sessionsRevoked: { type: "number", description: "Active sessions invalidated" },
+                  },
+                },
+              },
+            },
+          },
+          "400": { description: "Missing targetOrgId" },
+          "403": { description: "Caller is not Root" },
+          "404": { description: "Target org not found or not active" },
+          "422": { description: "User is already in the target org" },
+        },
+      },
+    },
     "/v1/users/{id}/effective-access": {
       get: {
         summary: "Get effective access for a user in a workspace",

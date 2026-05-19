@@ -624,6 +624,53 @@ http.route({
   }),
 });
 
+// ── POST /v1/users/:id/transfer ──────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/users/",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const segments = url.pathname.replace(/^\/v1\/users\//, "").split("/");
+    const userId = segments[0];
+    const action = segments[1];
+
+    if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+    if (action !== "transfer") return jsonResponse({ error: "not_found" }, 404);
+
+    if (!(await requireRoot(ctx, caller))) {
+      return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+
+    let body: { targetOrgId?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+    if (!body.targetOrgId) return jsonResponse({ error: "missing_field_targetOrgId" }, 400);
+
+    try {
+      const result = await ctx.runMutation(internal.users.transferUser, {
+        actorId: caller.callerId as never,
+        userId: userId as never,
+        targetOrgId: body.targetOrgId as never,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      if (msg.includes("not_found")) return jsonResponse({ error: msg }, 404);
+      if (msg.includes("already_in_org"))
+        return jsonResponse({ error: "already_in_org", reason: "user_already_in_target_org" }, 422);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── POST /v1/roles ────────────────────────────────────────────────────────────
 
 http.route({

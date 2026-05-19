@@ -405,3 +405,114 @@ export const findUserOrgMembership = internalQuery({
       .first();
   },
 });
+
+// ── Fase 10.1: Transferência de usuário entre orgs ────────────────────────────
+
+export const transferUser = internalMutation({
+  args: {
+    actorId: v.id("users"),
+    userId: v.id("users"),
+    targetOrgId: v.id("orgs"),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorId);
+    if (!actor?.isRoot) throw new Error("forbidden: root_required");
+
+    const targetOrg = await ctx.db.get(args.targetOrgId);
+    if (!targetOrg || targetOrg.status === "deleted")
+      throw new Error("not_found: target_org");
+    if (targetOrg.status !== "active")
+      throw new Error("not_found: target_org");
+
+    const currentMembership = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first();
+    if (!currentMembership) throw new Error("not_found: user_membership");
+
+    const fromOrgId = currentMembership.orgId;
+    if (fromOrgId === args.targetOrgId)
+      throw new Error("unprocessable: already_in_org");
+
+    // Coletar todos os bindings do usuário
+    const allBindings = await ctx.db
+      .query("bindings")
+      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .collect();
+
+    let preservedBindings = 0;
+    let revokedBindings = 0;
+    const revokedBindingIds: string[] = [];
+
+    for (const binding of allBindings) {
+      const workspace = await ctx.db.get(binding.workspaceId);
+      if (workspace && workspace.orgId === args.targetOrgId) {
+        preservedBindings++;
+      } else {
+        revokedBindingIds.push(binding._id as string);
+        await ctx.db.delete(binding._id);
+        revokedBindings++;
+      }
+    }
+
+    // Atualizar org_members
+    await ctx.db.delete(currentMembership._id);
+    await ctx.db.insert("org_members", {
+      userId: args.userId,
+      orgId: args.targetOrgId,
+      role: currentMembership.role,
+      status: "active",
+    });
+
+    // Revogar sessões ativas
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+    let sessionsRevoked = 0;
+    for (const session of sessions) {
+      await ctx.db.insert("session_blacklist", {
+        sessionId: session._id,
+        expiresAt: session.expiresAt,
+      });
+      sessionsRevoked++;
+    }
+
+    // Audit: binding.revoke por cada binding revogado
+    for (const bindingId of revokedBindingIds) {
+      await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+        actorType: "user",
+        actorId: args.actorId as string,
+        action: "binding.revoke",
+        target: { type: "bindings", id: bindingId },
+        result: "allow",
+        reason: "user_transfer_cleanup",
+        orgId: fromOrgId,
+      });
+    }
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.actorId as string,
+      action: "user.transfer",
+      target: { type: "users", id: args.userId as string },
+      result: "allow",
+      reason: `fromOrgId:${fromOrgId},toOrgId:${args.targetOrgId},preserved:${preservedBindings},revoked:${revokedBindings}`,
+      orgId: args.targetOrgId,
+    });
+
+    return {
+      userId: args.userId,
+      fromOrgId,
+      toOrgId: args.targetOrgId,
+      preservedBindings,
+      revokedBindings,
+      sessionsRevoked,
+    };
+  },
+});

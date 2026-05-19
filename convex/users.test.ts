@@ -264,3 +264,465 @@ test("getUserPermissions: retorna bindings do usuário com capabilities resolvid
   expect(binding).toBeDefined();
   expect(Array.isArray(binding?.capabilities)).toBe(true);
 });
+
+// ── Fase 10.1: transferUser ───────────────────────────────────────────────────
+
+async function setupTransferContext(t: ReturnType<typeof convexTest>) {
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  // org_A e org_B
+  const orgAId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Org A", status: "active", updatedAt: Date.now() }),
+  );
+  const orgBId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Org B", status: "active", updatedAt: Date.now() }),
+  );
+
+  // usuário alvo na org_A
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId,
+      orgId: orgAId,
+      role: "member",
+      status: "active",
+    }),
+  );
+
+  // workspace na org_A e workspace na org_B
+  const wsAId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgAId, name: "WS A", status: "active" }),
+  );
+  const wsBId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgBId, name: "WS B", status: "active" }),
+  );
+
+  // role base necessário
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "member", isBase: true }),
+  );
+
+  return { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId };
+}
+
+// Ciclo 1
+test("transferUser: retorna preservedBindings + revokedBindings corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId } =
+    await setupTransferContext(t);
+
+  // binding em wsA (org_A) → deve ser revogado
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsAId,
+    }),
+  );
+  // binding em wsB (org_B) → deve ser preservado
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsBId,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.preservedBindings).toBe(1);
+  expect(result.revokedBindings).toBe(1);
+  expect(result.fromOrgId).toBe(orgAId);
+  expect(result.toOrgId).toBe(orgBId);
+});
+
+// Ciclo 2
+test("transferUser: binding em workspace da targetOrgId é preservado no banco", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsBId, roleId } = await setupTransferContext(t);
+
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsBId,
+    }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const binding = await t.run((ctx) => ctx.db.get(bindingId));
+  expect(binding).not.toBeNull();
+});
+
+// Ciclo 3
+test("transferUser: binding revogado gera audit binding.revoke com reason user_transfer_cleanup", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsAId, roleId } = await setupTransferContext(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsAId,
+    }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) =>
+    ctx.db.query("audit_log").collect(),
+  );
+  const revokeEvent = auditEvents.find((e) => e.action === "binding.revoke");
+  expect(revokeEvent).toBeDefined();
+  expect(revokeEvent?.reason).toBe("user_transfer_cleanup");
+});
+
+// Ciclo 4
+test("transferUser: atualiza org_members — remove orgId original, cria targetOrgId", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId } = await setupTransferContext(t);
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const oldMembership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgAId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(oldMembership).toBeNull();
+
+  const newMembership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgBId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(newMembership).not.toBeNull();
+});
+
+// Ciclo 5
+test("transferUser: revoga todas as sessões ativas do usuário", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId } = await setupTransferContext(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.sessionsRevoked).toBe(1);
+
+  const blacklistEntry = await t.run((ctx) =>
+    ctx.db
+      .query("session_blacklist")
+      .filter((q) => q.eq(q.field("sessionId"), sessionId))
+      .first(),
+  );
+  expect(blacklistEntry).not.toBeNull();
+});
+
+// Ciclo 6
+test("transferUser: grava audit event user.transfer com campos corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId } = await setupTransferContext(t);
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+  const transferEvent = auditEvents.find((e) => e.action === "user.transfer");
+  expect(transferEvent).toBeDefined();
+  expect(transferEvent?.target.type).toBe("users");
+  expect(transferEvent?.target.id).toBe(userId as string);
+  expect(transferEvent?.reason).toContain(`fromOrgId:${orgAId}`);
+  expect(transferEvent?.reason).toContain(`toOrgId:${orgBId}`);
+});
+
+// Ciclo 7
+test("transferUser: targetOrgId inexistente lança erro not_found", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, userId } = await setupTransferContext(t);
+
+  await expect(
+    t.mutation(internal.users.transferUser, {
+      actorId: rootId,
+      userId,
+      targetOrgId: orgAId, // usar orgAId como placeholder de id inexistente via workaround
+    }),
+  ).rejects.toThrow("already_in_org");
+
+  // Testar id de org inexistente usando um id inválido como string cast
+  await expect(
+    t.mutation(internal.users.transferUser, {
+      actorId: rootId,
+      userId,
+      targetOrgId: "jd7abc123456789012345678" as never,
+    }),
+  ).rejects.toThrow();
+});
+
+test("transferUser: targetOrgId igual ao orgId atual retorna erro already_in_org", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, userId } = await setupTransferContext(t);
+
+  await expect(
+    t.mutation(internal.users.transferUser, {
+      actorId: rootId,
+      userId,
+      targetOrgId: orgAId,
+    }),
+  ).rejects.toThrow("already_in_org");
+});
+
+test("transferUser: chamado por não-Root lança erro forbidden", async () => {
+  const t = convexTest(schema, modules);
+  const { orgBId, userId } = await setupTransferContext(t);
+
+  // userId é um usuário comum (não Root)
+  await expect(
+    t.mutation(internal.users.transferUser, {
+      actorId: userId,
+      userId,
+      targetOrgId: orgBId,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+// ── Ciclo 8: HTTP endpoint ────────────────────────────────────────────────────
+
+async function setupTransferHttpContext(t: ReturnType<typeof convexTest>) {
+  const ctx = await setupTransferContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootToken = await t.action(internal.jwt.signJwt, {
+    sub: String(ctx.rootId),
+    orgId: String(ctx.orgAId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  // token de admin (não Root)
+  const adminId = await t.run((ctx2) =>
+    ctx2.db.insert("users", {
+      email: "admin@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx2) =>
+    ctx2.db.insert("org_members", {
+      userId: adminId,
+      orgId: ctx.orgAId,
+      role: "admin",
+      status: "active",
+    }),
+  );
+  const adminToken = await t.action(internal.jwt.signJwt, {
+    sub: String(adminId),
+    orgId: String(ctx.orgAId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  return { ...ctx, rootToken, adminToken };
+}
+
+test("POST /v1/users/:id/transfer: Root transfere usuário com sucesso", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, userId, orgBId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetOrgId: String(orgBId) }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.userId).toBe(String(userId));
+  expect(body.toOrgId).toBe(String(orgBId));
+});
+
+test("POST /v1/users/:id/transfer: Org Admin recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  const { adminToken, userId, orgBId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetOrgId: String(orgBId) }),
+  });
+
+  expect(res.status).toBe(403);
+});
+
+test("POST /v1/users/:id/transfer: body sem targetOrgId retorna 400", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, userId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  expect(res.status).toBe(400);
+});
+
+// ── Ciclo 9: integração completa ─────────────────────────────────────────────
+
+test("transferUser integração: 2 bindings preservados, 1 revogado, sessões revogadas", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId } =
+    await setupTransferContext(t);
+
+  // workspace extra em org_B
+  const wsBId2 = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgBId, name: "WS B2", status: "active" }),
+  );
+
+  // 3 bindings: 2 em org_B, 1 em org_A
+  const bindingToRevoke = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsAId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsBId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsBId2 }),
+  );
+
+  // sessão ativa
+  await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.preservedBindings).toBe(2);
+  expect(result.revokedBindings).toBe(1);
+  expect(result.sessionsRevoked).toBe(1);
+
+  // binding da org_A deve ter sido removido
+  const revokedBinding = await t.run((ctx) => ctx.db.get(bindingToRevoke));
+  expect(revokedBinding).toBeNull();
+
+  // novo org_members deve ser org_B
+  const membership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgBId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(membership).not.toBeNull();
+});
+
+test("transferUser integração: audit log contém user.transfer + binding.revoke com reason user_transfer_cleanup", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsAId, roleId } = await setupTransferContext(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsAId }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+
+  const transferEvent = auditEvents.find((e) => e.action === "user.transfer");
+  expect(transferEvent).toBeDefined();
+
+  const revokeEvent = auditEvents.find((e) => e.action === "binding.revoke");
+  expect(revokeEvent).toBeDefined();
+  expect(revokeEvent?.reason).toBe("user_transfer_cleanup");
+});

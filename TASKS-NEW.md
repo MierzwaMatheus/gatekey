@@ -186,31 +186,31 @@
 
 ### 10.1 Transferência de usuário entre orgs — closes #24
 
-- [ ] Escrever teste unitário: `transferUser({userId, targetOrgId})` retorna `{preservedBindings: N, revokedBindings: M}` onde N + M = total de bindings antes da transferência
-- [ ] Escrever teste unitário: binding em workspace pertencente à `targetOrgId` é preservado após transferência
-- [ ] Escrever teste unitário: binding em workspace pertencente à org original (não à `targetOrgId`) é revogado após transferência
-- [ ] Escrever teste unitário: `transferUser` chamado por não-Root retorna erro de autorização
-- [ ] Escrever teste unitário: `transferUser` com `targetOrgId` igual ao orgId atual do usuário retorna erro 422 com reason `already_in_org`
-- [ ] Escrever teste unitário: `transferUser` com `targetOrgId` inexistente retorna 404
-- [ ] Implementar função `transferUser({userId, targetOrgId, actorId})` em `convex/users.ts` — passo 1: valida que `targetOrgId` existe e está ativa
-- [ ] Implementar passo 2 em `transferUser`: valida que `targetOrgId !== currentOrgId`
-- [ ] Implementar passo 3 em `transferUser`: busca todos os bindings ativos do usuário via índice `bindings_by_workspace_user`
-- [ ] Implementar passo 4 em `transferUser`: para cada binding, verifica se o workspace pertence à `targetOrgId` — usando lookup em `workspaces.orgId`
-- [ ] Implementar passo 5 em `transferUser`: preserva bindings em workspaces da `targetOrgId`; revoga (soft-delete) bindings em workspaces que não pertencem à `targetOrgId`
-- [ ] Implementar passo 6 em `transferUser`: para cada binding revogado, chama `writeAuditEvent` com action `binding.revoke`, reason `"user_transfer_cleanup"`, actorId = Root que iniciou a transferência
-- [ ] Implementar passo 7 em `transferUser`: atualiza `org_members` — remove entrada antiga (orgId anterior), cria nova entrada com `targetOrgId`
-- [ ] Implementar passo 8 em `transferUser`: revoga todas as sessões ativas do usuário inserindo cada `sessionId` na `session_blacklist`
-- [ ] Implementar passo 9 em `transferUser`: chama `writeAuditEvent` com action `user.transfer`, target `{userId, fromOrgId, toOrgId, preservedBindings: N, revokedBindings: M}`
-- [ ] Implementar `POST /v1/users/:id/transfer` em `convex/http.ts` no handler do pathPrefix `/v1/users/` — detectar segmento `transfer` no pathname
-- [ ] Validar body: `{targetOrgId}` obrigatório — retornar 400 se ausente
-- [ ] Aplicar PEP na rota: apenas Root pode executar transferência
-- [ ] Retornar no response: `{userId, fromOrgId, toOrgId, preservedBindings: N, revokedBindings: M, sessionsRevoked: K}`
-- [ ] Adicionar preflight CORS para o path de transfer
-- [ ] Atualizar spec OpenAPI com documentação de `POST /v1/users/:id/transfer`
-- [ ] Escrever teste de integração: usuário em org_A com 3 bindings — 2 em workspaces de org_B, 1 em workspace de org_A — transferir para org_B → 2 bindings preservados, 1 revogado, sessões revogadas
+- [x] Escrever teste unitário: `transferUser({userId, targetOrgId})` retorna `{preservedBindings: N, revokedBindings: M}` onde N + M = total de bindings antes da transferência
+- [x] Escrever teste unitário: binding em workspace pertencente à `targetOrgId` é preservado após transferência
+- [x] Escrever teste unitário: binding em workspace pertencente à org original (não à `targetOrgId`) é revogado após transferência
+- [x] Escrever teste unitário: `transferUser` chamado por não-Root retorna erro de autorização
+- [x] Escrever teste unitário: `transferUser` com `targetOrgId` igual ao orgId atual do usuário retorna erro 422 com reason `already_in_org`
+- [x] Escrever teste unitário: `transferUser` com `targetOrgId` inexistente retorna 404
+- [x] Implementar função `transferUser({userId, targetOrgId, actorId})` em `convex/users.ts` — passo 1: valida que `targetOrgId` existe e está ativa
+- [x] Implementar passo 2 em `transferUser`: valida que `targetOrgId !== currentOrgId`
+- [x] Implementar passo 3 em `transferUser`: busca todos os bindings ativos do usuário via índice `bindings_by_workspace_user`
+- [x] Implementar passo 4 em `transferUser`: para cada binding, verifica se o workspace pertence à `targetOrgId` — usando lookup em `workspaces.orgId`
+- [x] Implementar passo 5 em `transferUser`: preserva bindings em workspaces da `targetOrgId`; revoga (soft-delete) bindings em workspaces que não pertencem à `targetOrgId`
+- [x] Implementar passo 6 em `transferUser`: para cada binding revogado, chama `writeAuditEvent` com action `binding.revoke`, reason `"user_transfer_cleanup"`, actorId = Root que iniciou a transferência
+- [x] Implementar passo 7 em `transferUser`: atualiza `org_members` — remove entrada antiga (orgId anterior), cria nova entrada com `targetOrgId`
+- [x] Implementar passo 8 em `transferUser`: revoga todas as sessões ativas do usuário inserindo cada `sessionId` na `session_blacklist`
+- [x] Implementar passo 9 em `transferUser`: chama `writeAuditEvent` com action `user.transfer`, target `{userId, fromOrgId, toOrgId, preservedBindings: N, revokedBindings: M}`
+- [x] Implementar `POST /v1/users/:id/transfer` em `convex/http.ts` no handler do pathPrefix `/v1/users/` — detectar segmento `transfer` no pathname
+- [x] Validar body: `{targetOrgId}` obrigatório — retornar 400 se ausente
+- [x] Aplicar PEP na rota: apenas Root pode executar transferência
+- [x] Retornar no response: `{userId, fromOrgId, toOrgId, preservedBindings: N, revokedBindings: M, sessionsRevoked: K}`
+- [x] Adicionar preflight CORS para o path de transfer
+- [x] Atualizar spec OpenAPI com documentação de `POST /v1/users/:id/transfer`
+- [x] Escrever teste de integração: usuário em org_A com 3 bindings — 2 em workspaces de org_B, 1 em workspace de org_A — transferir para org_B → 2 bindings preservados, 1 revogado, sessões revogadas
 - [ ] Escrever teste de integração: após transferência, usuário consegue fazer login na org_B mas não na org_A
-- [ ] Escrever teste de integração: audit log contém evento `user.transfer` + eventos individuais `binding.revoke` com reason `"user_transfer_cleanup"`
-- [ ] Escrever teste de integração: Org Admin tentando chamar `POST /v1/users/:id/transfer` recebe 403
+- [x] Escrever teste de integração: audit log contém evento `user.transfer` + eventos individuais `binding.revoke` com reason `"user_transfer_cleanup"`
+- [x] Escrever teste de integração: Org Admin tentando chamar `POST /v1/users/:id/transfer` recebe 403
 
 ---
 
