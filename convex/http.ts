@@ -639,10 +639,26 @@ http.route({
     const action = segments[1];
 
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
-    if (action !== "transfer") return jsonResponse({ error: "not_found" }, 404);
+    if (action !== "transfer" && action !== "suspend-global") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
 
     if (!(await requireRoot(ctx, caller))) {
       return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+
+    if (action === "suspend-global") {
+      try {
+        await ctx.runMutation(internal.users.suspendUserGlobal, {
+          actorId: caller.callerId as never,
+          userId: userId as never,
+        });
+        return jsonResponse({ success: true });
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
     }
 
     let body: { targetOrgId?: string };

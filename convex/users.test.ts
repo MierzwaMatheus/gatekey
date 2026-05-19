@@ -793,3 +793,38 @@ test("listAllUsers: não-Root recebe erro forbidden", async () => {
     t.query(internal.users.listAllUsers, { callerId: adminId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 11.1: suspendUserGlobal (POST /v1/users/:id/suspend-global) ─────────
+
+test("suspendUserGlobal: Root suspende usuário de qualquer org", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, adminId } = await setupOrgWithAdmin(t);
+
+  await t.mutation(internal.users.suspendUserGlobal, {
+    actorId: rootId,
+    userId: adminId,
+  });
+
+  const user = await t.run((ctx) => ctx.db.get(adminId));
+  expect(user?.status).toBe("suspended");
+});
+
+test("suspendUserGlobal: já suspenso é idempotente — retorna success", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, adminId } = await setupOrgWithAdmin(t);
+
+  await t.run((ctx) => ctx.db.patch(adminId, { status: "suspended" }));
+
+  await expect(
+    t.mutation(internal.users.suspendUserGlobal, { actorId: rootId, userId: adminId }),
+  ).resolves.not.toThrow();
+});
+
+test("suspendUserGlobal: não-Root recebe erro forbidden", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId } = await setupOrgWithAdmin(t);
+
+  await expect(
+    t.mutation(internal.users.suspendUserGlobal, { actorId: adminId, userId: adminId }),
+  ).rejects.toThrow("forbidden");
+});

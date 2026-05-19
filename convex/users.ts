@@ -468,6 +468,27 @@ export const listAllUsers = internalQuery({
   },
 });
 
+export const suspendUserGlobal = internalMutation({
+  args: {
+    actorId: v.id("users"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorId);
+    if (!actor?.isRoot) throw new Error("forbidden: root_required");
+
+    await ctx.db.patch(args.userId, { status: "suspended", updatedAt: Date.now() });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.actorId as string,
+      action: "user.suspend_global",
+      target: { type: "users", id: args.userId as string },
+      result: "allow",
+    });
+  },
+});
+
 // ── Fase 10.1: Transferência de usuário entre orgs ────────────────────────────
 
 export const transferUser = internalMutation({
