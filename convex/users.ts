@@ -406,6 +406,68 @@ export const findUserOrgMembership = internalQuery({
   },
 });
 
+// ── Fase 11.1: Gestão global de usuários (Root-only) ─────────────────────────
+
+export const listAllUsers = internalQuery({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.optional(v.id("orgs")),
+    status: v.optional(v.string()),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller?.isRoot) throw new Error("forbidden: root_required");
+
+    const pageSize = args.limit ?? 50;
+
+    if (args.orgId) {
+      // Filtrar por org: buscar membros da org, então os usuários
+      const members = await ctx.db
+        .query("org_members")
+        .filter((q) => q.eq(q.field("orgId"), args.orgId!))
+        .take(pageSize + 1);
+
+      const users = [];
+      for (const m of members) {
+        const user = await ctx.db.get(m.userId);
+        if (!user) continue;
+        if (args.status && user.status !== args.status) continue;
+        if (args.from && user._creationTime < args.from) continue;
+        if (args.to && user._creationTime > args.to) continue;
+        const { passwordHash: _pw, ...safeUser } = user;
+        users.push({ ...safeUser, orgId: args.orgId, orgRole: m.role });
+      }
+
+      const isDone = users.length <= pageSize;
+      return { users: users.slice(0, pageSize), nextCursor: null, isDone };
+    }
+
+    // Sem filtro de org: iterar todos os org_members para montar lista global
+    const allMembers = await ctx.db.query("org_members").take(500);
+    const seenUserIds = new Set<string>();
+    const users = [];
+
+    for (const m of allMembers) {
+      if (seenUserIds.has(m.userId as string)) continue;
+      seenUserIds.add(m.userId as string);
+
+      const user = await ctx.db.get(m.userId);
+      if (!user) continue;
+      if (args.status && user.status !== args.status) continue;
+      if (args.from && user._creationTime < args.from) continue;
+      if (args.to && user._creationTime > args.to) continue;
+      const { passwordHash: _pw, ...safeUser } = user;
+      users.push({ ...safeUser, orgId: m.orgId, orgRole: m.role });
+    }
+
+    return { users, nextCursor: null, isDone: true };
+  },
+});
+
 // ── Fase 10.1: Transferência de usuário entre orgs ────────────────────────────
 
 export const transferUser = internalMutation({

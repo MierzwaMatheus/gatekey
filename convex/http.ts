@@ -2062,6 +2062,51 @@ http.route({
   }),
 });
 
+// ── GET /v1/users/global (Root-only, lista global de usuários) ───────────────
+
+http.route({ path: "/v1/users/global", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/users/global",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) {
+      return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+    const url = new URL(req.url);
+    const orgId = url.searchParams.get("orgId") ?? undefined;
+    const status = url.searchParams.get("status") ?? undefined;
+    const from = url.searchParams.get("from")
+      ? Number(url.searchParams.get("from"))
+      : undefined;
+    const to = url.searchParams.get("to")
+      ? Number(url.searchParams.get("to"))
+      : undefined;
+    const cursor = url.searchParams.get("cursor") ?? undefined;
+    const limit = url.searchParams.get("limit")
+      ? Number(url.searchParams.get("limit"))
+      : undefined;
+    try {
+      const result = await ctx.runQuery(internal.users.listAllUsers, {
+        callerId: caller.callerId as never,
+        orgId: orgId as never,
+        status,
+        from,
+        to,
+        cursor,
+        limit,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── POST /v1/auth/rotate-key ──────────────────────────────────────────────────
 
 http.route({ path: "/v1/auth/rotate-key", method: "OPTIONS", handler: preflight });
