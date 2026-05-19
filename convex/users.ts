@@ -249,6 +249,56 @@ export const deleteUser = internalMutation({
   },
 });
 
+export const reactivateUser = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    userId: v.id("users"),
+    orgId: v.id("orgs"),
+  },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: caller_not_found");
+
+    if (!caller.isRoot) {
+      const callerMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!callerMembership || callerMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+
+      const targetMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.userId),
+            q.eq(q.field("orgId"), args.orgId),
+          ),
+        )
+        .first();
+      if (!targetMembership) throw new Error("forbidden: target_not_in_org");
+    }
+
+    await ctx.db.patch(args.userId, { status: "active", updatedAt: Date.now() });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "user.reactivate",
+      target: { type: "users", id: args.userId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+  },
+});
+
 export const getUserPermissions = internalQuery({
   args: {
     callerId: v.id("users"),

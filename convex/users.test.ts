@@ -878,3 +878,111 @@ test("revokeAllUserSessions: não-Root recebe erro forbidden", async () => {
     t.mutation(internal.users.revokeAllUserSessions, { actorId: adminId, userId: adminId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 12.1-A: reactivateUser ─────────────────────────────────────────────
+
+test("reactivateUser: OrgAdmin reativa usuário suspenso e status volta a active", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "suspended@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId,
+      orgId,
+      role: "member",
+      status: "active",
+    }),
+  );
+
+  await t.mutation(internal.users.reactivateUser, {
+    callerId: adminId,
+    userId,
+    orgId,
+  });
+
+  const updated = await t.run((ctx) => ctx.db.get(userId));
+  expect(updated?.status).toBe("active");
+});
+
+test("reactivateUser: bindings existentes são preservados após reativação", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "suspended2@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId, orgId, role: "member", status: "active" }),
+  );
+
+  const wsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: true }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      workspaceId: wsId,
+      resourceType: "workspace",
+      type: "allow",
+    }),
+  );
+
+  await t.mutation(internal.users.reactivateUser, { callerId: adminId, userId, orgId });
+
+  const binding = await t.run((ctx) => ctx.db.get(bindingId));
+  expect(binding).not.toBeNull();
+});
+
+test("reactivateUser: não-OrgAdmin recebe erro forbidden", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: memberId, orgId, role: "member", status: "active" }),
+  );
+
+  const targetId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: targetId, orgId, role: "member", status: "active" }),
+  );
+
+  await expect(
+    t.mutation(internal.users.reactivateUser, { callerId: memberId, userId: targetId, orgId }),
+  ).rejects.toThrow("forbidden");
+});
