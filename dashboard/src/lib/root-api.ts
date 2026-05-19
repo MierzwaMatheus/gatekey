@@ -162,6 +162,14 @@ export function deleteOrg(token: string, orgId: string): Promise<void> {
   return apiFetch<void>(`/v1/orgs/${orgId}`, token, { method: 'DELETE' })
 }
 
+export function reactivateOrg(token: string, orgId: string): Promise<void> {
+  return apiFetch<void>(`/v1/orgs/${orgId}/reactivate`, token, { method: 'POST' })
+}
+
+export function revokeOrgSessions(token: string, orgId: string): Promise<{ sessionsRevoked: number }> {
+  return apiFetch<{ sessionsRevoked: number }>(`/v1/orgs/${orgId}/sessions`, token, { method: 'DELETE' })
+}
+
 export interface StartImpersonationResult {
   impersonationToken: string
   expiresAt: number
