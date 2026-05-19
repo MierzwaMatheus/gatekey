@@ -211,5 +211,10 @@ export default defineSchema({
     publicKeyJwk: v.string(),
     createdAt: v.number(),
     status: v.union(v.literal("active"), v.literal("retired")),
+    previousKeyId: v.optional(v.string()),
+    previousPrivateKeyJwk: v.optional(v.string()),
+    previousPublicKeyJwk: v.optional(v.string()),
+    previousKeyCreatedAt: v.optional(v.number()),
+    keyRotationOverlapMs: v.optional(v.number()),
   }).index("by_status_and_createdAt", ["status", "createdAt"]),
 });

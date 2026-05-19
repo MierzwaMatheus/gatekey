@@ -111,6 +111,60 @@ export const countActiveSessionsForUser = internalQuery({
   },
 });
 
+export const rotateStoredKeyPair = internalMutation({
+  args: {
+    newKid: v.string(),
+    newPrivateKeyJwk: v.string(),
+    newPublicKeyJwk: v.string(),
+    newCreatedAt: v.number(),
+  },
+  returns: v.id("key_pairs"),
+  handler: async (ctx, args) => {
+    const current = await ctx.db
+      .query("key_pairs")
+      .withIndex("by_status_and_createdAt", (q) => q.eq("status", "active"))
+      .order("desc")
+      .first();
+
+    const overlapMs = 86400000; // 24h padrão
+
+    const newId = await ctx.db.insert("key_pairs", {
+      kid: args.newKid,
+      privateKeyJwk: args.newPrivateKeyJwk,
+      publicKeyJwk: args.newPublicKeyJwk,
+      createdAt: args.newCreatedAt,
+      status: "active",
+      previousKeyId: current?.kid,
+      previousPrivateKeyJwk: current?.privateKeyJwk,
+      previousPublicKeyJwk: current?.publicKeyJwk,
+      previousKeyCreatedAt: current?.createdAt,
+      keyRotationOverlapMs: overlapMs,
+    });
+
+    if (current) {
+      await ctx.db.patch(current._id, { status: "retired" });
+    }
+
+    return newId;
+  },
+});
+
+export const cleanupPreviousKey = internalMutation({
+  args: { keyPairId: v.id("key_pairs") },
+  returns: v.null(),
+  handler: async (ctx, { keyPairId }) => {
+    const record = await ctx.db.get(keyPairId);
+    if (!record) return null;
+    await ctx.db.patch(keyPairId, {
+      previousKeyId: undefined,
+      previousPrivateKeyJwk: undefined,
+      previousPublicKeyJwk: undefined,
+      previousKeyCreatedAt: undefined,
+    });
+    return null;
+  },
+});
+
 export const getSession = internalQuery({
   args: { sessionId: v.id("sessions") },
   returns: v.any(),

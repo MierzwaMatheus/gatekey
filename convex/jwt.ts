@@ -90,10 +90,28 @@ export const verifyJwt = internalAction({
   ),
   handler: async (ctx, { token }) => {
     try {
-      const activeKeys = (await ctx.runQuery(internal.jwtStore.getAllActivePublicKeys, {})) as Array<{
+      const activeKey = (await ctx.runQuery(internal.jwtStore.getActiveKeyPair, {})) as {
+        kid: string;
         publicKeyJwk: string;
-      }>;
-      const payload = await verifyJwtToken(token, activeKeys);
+        previousPublicKeyJwk?: string;
+        previousKeyCreatedAt?: number;
+        keyRotationOverlapMs?: number;
+      } | null;
+
+      if (!activeKey) return { valid: false as const, error: "no_active_key_pair" };
+
+      const keysToTry: Array<{ publicKeyJwk: string }> = [{ publicKeyJwk: activeKey.publicKeyJwk }];
+
+      const overlapMs = activeKey.keyRotationOverlapMs ?? 86400000;
+      if (
+        activeKey.previousPublicKeyJwk &&
+        activeKey.previousKeyCreatedAt !== undefined &&
+        Date.now() - activeKey.previousKeyCreatedAt < overlapMs
+      ) {
+        keysToTry.push({ publicKeyJwk: activeKey.previousPublicKeyJwk });
+      }
+
+      const payload = await verifyJwtToken(token, keysToTry);
       return { valid: true as const, payload };
     } catch (e) {
       return { valid: false as const, error: (e as Error).message };
@@ -101,14 +119,70 @@ export const verifyJwt = internalAction({
   },
 });
 
+export const rotateKeyPair = internalAction({
+  args: {},
+  returns: v.object({
+    newKeyId: v.string(),
+    previousKeyId: v.optional(v.string()),
+    rotatedAt: v.number(),
+    previousKeyExpiresAt: v.number(),
+  }),
+  handler: async (ctx) => {
+    const { privateKey, publicKey } = await generateKeyPair("RS256");
+    const privateKeyJwk = await exportJWK(privateKey);
+    const publicKeyJwk = await exportJWK(publicKey);
+    const newKid = randomBytes(16).toString("hex");
+    privateKeyJwk.kid = newKid;
+    publicKeyJwk.kid = newKid;
+    const newCreatedAt = Date.now();
+
+    const newKeyPairId: string = await ctx.runMutation(internal.jwtStore.rotateStoredKeyPair, {
+      newKid,
+      newPrivateKeyJwk: JSON.stringify(privateKeyJwk),
+      newPublicKeyJwk: JSON.stringify(publicKeyJwk),
+      newCreatedAt,
+    });
+
+    const overlapMs = 86400000;
+    await ctx.scheduler.runAfter(overlapMs, internal.jwtStore.cleanupPreviousKey, {
+      keyPairId: newKeyPairId as never,
+    });
+
+    return {
+      newKeyId: newKid,
+      previousKeyId: undefined,
+      rotatedAt: newCreatedAt,
+      previousKeyExpiresAt: newCreatedAt + overlapMs,
+    };
+  },
+});
+
 export const getJwks = internalAction({
   args: {},
   returns: v.object({ keys: v.array(v.any()) }),
   handler: async (ctx) => {
-    const activeKeys = (await ctx.runQuery(internal.jwtStore.getAllActivePublicKeys, {})) as Array<{
+    const activeKey = (await ctx.runQuery(internal.jwtStore.getActiveKeyPair, {})) as {
+      kid: string;
       publicKeyJwk: string;
-    }>;
-    return { keys: activeKeys.map((k) => JSON.parse(k.publicKeyJwk) as JWK) };
+      previousPublicKeyJwk?: string;
+      previousKeyCreatedAt?: number;
+      keyRotationOverlapMs?: number;
+    } | null;
+
+    if (!activeKey) return { keys: [] };
+
+    const keys: JWK[] = [JSON.parse(activeKey.publicKeyJwk) as JWK];
+
+    const overlapMs = activeKey.keyRotationOverlapMs ?? 86400000;
+    if (
+      activeKey.previousPublicKeyJwk &&
+      activeKey.previousKeyCreatedAt !== undefined &&
+      Date.now() - activeKey.previousKeyCreatedAt < overlapMs
+    ) {
+      keys.push(JSON.parse(activeKey.previousPublicKeyJwk) as JWK);
+    }
+
+    return { keys };
   },
 });
 
