@@ -551,3 +551,92 @@ test("transferUser: chamado por não-Root lança erro forbidden", async () => {
     }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 8: HTTP endpoint ────────────────────────────────────────────────────
+
+async function setupTransferHttpContext(t: ReturnType<typeof convexTest>) {
+  const ctx = await setupTransferContext(t);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootToken = await t.action(internal.jwt.signJwt, {
+    sub: String(ctx.rootId),
+    orgId: String(ctx.orgAId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  // token de admin (não Root)
+  const adminId = await t.run((ctx2) =>
+    ctx2.db.insert("users", {
+      email: "admin@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx2) =>
+    ctx2.db.insert("org_members", {
+      userId: adminId,
+      orgId: ctx.orgAId,
+      role: "admin",
+      status: "active",
+    }),
+  );
+  const adminToken = await t.action(internal.jwt.signJwt, {
+    sub: String(adminId),
+    orgId: String(ctx.orgAId),
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: "",
+    expiresInSeconds: 3600,
+  });
+
+  return { ...ctx, rootToken, adminToken };
+}
+
+test("POST /v1/users/:id/transfer: Root transfere usuário com sucesso", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, userId, orgBId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetOrgId: String(orgBId) }),
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.userId).toBe(String(userId));
+  expect(body.toOrgId).toBe(String(orgBId));
+});
+
+test("POST /v1/users/:id/transfer: Org Admin recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  const { adminToken, userId, orgBId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ targetOrgId: String(orgBId) }),
+  });
+
+  expect(res.status).toBe(403);
+});
+
+test("POST /v1/users/:id/transfer: body sem targetOrgId retorna 400", async () => {
+  const t = convexTest(schema, modules);
+  const { rootToken, userId } = await setupTransferHttpContext(t);
+
+  const res = await t.fetch(`/v1/users/${String(userId)}/transfer`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+
+  expect(res.status).toBe(400);
+});
