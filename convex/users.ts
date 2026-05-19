@@ -406,6 +406,116 @@ export const findUserOrgMembership = internalQuery({
   },
 });
 
+// ── Fase 11.1: Gestão global de usuários (Root-only) ─────────────────────────
+
+export const listAllUsers = internalQuery({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.optional(v.id("orgs")),
+    status: v.optional(v.string()),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller?.isRoot) throw new Error("forbidden: root_required");
+
+    const pageSize = args.limit ?? 50;
+
+    if (args.orgId) {
+      // Filtrar por org: buscar membros da org, então os usuários
+      const members = await ctx.db
+        .query("org_members")
+        .filter((q) => q.eq(q.field("orgId"), args.orgId!))
+        .take(pageSize + 1);
+
+      const users = [];
+      for (const m of members) {
+        const user = await ctx.db.get(m.userId);
+        if (!user) continue;
+        if (args.status && user.status !== args.status) continue;
+        if (args.from && user._creationTime < args.from) continue;
+        if (args.to && user._creationTime > args.to) continue;
+        const { passwordHash: _pw, ...safeUser } = user;
+        users.push({ ...safeUser, orgId: args.orgId, orgRole: m.role });
+      }
+
+      const isDone = users.length <= pageSize;
+      return { users: users.slice(0, pageSize), nextCursor: null, isDone };
+    }
+
+    // Sem filtro de org: iterar todos os org_members para montar lista global
+    const allMembers = await ctx.db.query("org_members").take(500);
+    const seenUserIds = new Set<string>();
+    const users = [];
+
+    for (const m of allMembers) {
+      if (seenUserIds.has(m.userId as string)) continue;
+      seenUserIds.add(m.userId as string);
+
+      const user = await ctx.db.get(m.userId);
+      if (!user) continue;
+      if (args.status && user.status !== args.status) continue;
+      if (args.from && user._creationTime < args.from) continue;
+      if (args.to && user._creationTime > args.to) continue;
+      const { passwordHash: _pw, ...safeUser } = user;
+      users.push({ ...safeUser, orgId: m.orgId, orgRole: m.role });
+    }
+
+    return { users, nextCursor: null, isDone: true };
+  },
+});
+
+export const revokeAllUserSessions = internalMutation({
+  args: {
+    actorId: v.id("users"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorId);
+    if (!actor?.isRoot) throw new Error("forbidden: root_required");
+
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    let sessionsRevoked = 0;
+    for (const session of sessions) {
+      await ctx.db.insert("session_blacklist", {
+        sessionId: session._id,
+        expiresAt: session.expiresAt,
+      });
+      sessionsRevoked++;
+    }
+
+    return { sessionsRevoked };
+  },
+});
+
+export const suspendUserGlobal = internalMutation({
+  args: {
+    actorId: v.id("users"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const actor = await ctx.db.get(args.actorId);
+    if (!actor?.isRoot) throw new Error("forbidden: root_required");
+
+    await ctx.db.patch(args.userId, { status: "suspended", updatedAt: Date.now() });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.actorId as string,
+      action: "user.suspend_global",
+      target: { type: "users", id: args.userId as string },
+      result: "allow",
+    });
+  },
+});
+
 // ── Fase 10.1: Transferência de usuário entre orgs ────────────────────────────
 
 export const transferUser = internalMutation({

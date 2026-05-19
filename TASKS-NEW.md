@@ -218,27 +218,27 @@
 
 ### 11.1 Gestão global de usuários — closes #26
 
-- [ ] Escrever teste unitário do componente `GlobalUsersList`: renderiza tabela com colunas nome, email, org, status, criado em
-- [ ] Escrever teste unitário: filtro por org filtra os itens exibidos
-- [ ] Escrever teste unitário: filtro por status (`active` / `suspended`) filtra os itens exibidos
-- [ ] Escrever teste unitário: clicar em "Suspender" abre modal de confirmação com nome do usuário
-- [ ] Escrever teste unitário: clicar em "Ver sessões" navega para view de sessões daquele usuário
-- [ ] Implementar endpoint `GET /v1/users` (global, sem filtro de org obrigatório) em `convex/http.ts` — acessível apenas pelo Root; aceita query params `?orgId=&status=&from=&to=&cursor=`; retorna lista paginada com cursor
-- [ ] Aplicar PEP em `GET /v1/users` exigindo role Root
-- [ ] Implementar endpoint `POST /v1/users/:id/suspend-global` em `convex/http.ts` — Root suspende usuário globalmente (todos os orgs/workspaces); retorna 200
-- [ ] Implementar endpoint `DELETE /v1/users/:id/sessions` em `convex/http.ts` — Root revoga todas as sessões de um usuário; insere todos os sessionIds na blacklist; retorna contagem de sessões revogadas
-- [ ] Aplicar PEP nos dois endpoints acima exigindo role Root
+- [x] Escrever teste unitário do componente `GlobalUsersList`: renderiza tabela com colunas nome, email, org, status, criado em
+- [x] Escrever teste unitário: filtro por org filtra os itens exibidos
+- [x] Escrever teste unitário: filtro por status (`active` / `suspended`) filtra os itens exibidos
+- [x] Escrever teste unitário: clicar em "Suspender" abre modal de confirmação com nome do usuário
+- [x] Escrever teste unitário: clicar em "Ver sessões" navega para view de sessões daquele usuário
+- [x] Implementar endpoint `GET /v1/users` (global, sem filtro de org obrigatório) em `convex/http.ts` — acessível apenas pelo Root; aceita query params `?orgId=&status=&from=&to=&cursor=`; retorna lista paginada com cursor
+- [x] Aplicar PEP em `GET /v1/users` exigindo role Root
+- [x] Implementar endpoint `POST /v1/users/:id/suspend-global` em `convex/http.ts` — Root suspende usuário globalmente (todos os orgs/workspaces); retorna 200
+- [x] Implementar endpoint `DELETE /v1/users/:id/sessions` em `convex/http.ts` — Root revoga todas as sessões de um usuário; insere todos os sessionIds na blacklist; retorna contagem de sessões revogadas
+- [x] Aplicar PEP nos dois endpoints acima exigindo role Root
 - [ ] Adicionar preflight CORS para os novos paths
-- [ ] Criar componente `GlobalUsersList` em `dashboard/src/components/root/global-users-list.tsx` — tabela paginada com colunas: nome, email, org, status (badge colorido), criado em
-- [ ] Implementar filtros no componente: seletor de org, seletor de status, date pickers para data de criação
+- [x] Criar componente `GlobalUsersList` em `dashboard/src/components/root/global-users-list.tsx` — tabela paginada com colunas: nome, email, org, status (badge colorido), criado em
+- [x] Implementar filtros no componente: seletor de org, seletor de status, date pickers para data de criação
 - [ ] Implementar paginação por cursor consumindo `GET /v1/users` com os filtros ativos
-- [ ] Implementar ação "Suspender globalmente" por linha — abre `ConfirmDialog` com nome do usuário, ao confirmar chama `POST /v1/users/:id/suspend-global`
-- [ ] Implementar ação "Revogar todas as sessões" por linha — abre `ConfirmDialog` mostrando quantas sessões serão revogadas, ao confirmar chama `DELETE /v1/users/:id/sessions`
+- [x] Implementar ação "Suspender globalmente" por linha — abre `ConfirmDialog` com nome do usuário, ao confirmar chama `POST /v1/users/:id/suspend-global`
+- [x] Implementar ação "Revogar todas as sessões" por linha — abre `ConfirmDialog` mostrando quantas sessões serão revogadas, ao confirmar chama `DELETE /v1/users/:id/sessions`
 - [ ] Implementar ação "Resetar senha" por linha — abre modal com campo de nova senha, ao confirmar chama `POST /v1/users/:id/reset-password` (endpoint já existente) e exibe a nova senha temporária
-- [ ] Implementar ação "Ver sessões ativas" por linha — navega para a tela de sessões do painel Root filtrando por aquele `userId`
-- [ ] Criar rota `/root/users` em `dashboard/src/routes/root/` e adicionar link de navegação no menu lateral do painel Root
-- [ ] Atualizar `dashboard/src/lib/root-api.ts` com as funções: `listAllUsers(filters)`, `suspendUserGlobal(userId)`, `revokeAllUserSessions(userId)`
-- [ ] Escrever teste de integração do componente: lista carrega com dados via mock da API, filtro de org atualiza resultados, ação de suspender chama endpoint correto
+- [x] Implementar ação "Ver sessões ativas" por linha — navega para a tela de sessões do painel Root filtrando por aquele `userId`
+- [x] Criar rota `/root/users` em `dashboard/src/routes/root/` e adicionar link de navegação no menu lateral do painel Root
+- [x] Atualizar `dashboard/src/lib/root-api.ts` com as funções: `listAllUsers(filters)`, `suspendUserGlobal(userId)`, `revokeAllUserSessions(userId)`
+- [x] Escrever teste de integração do componente: lista carrega com dados via mock da API, filtro de org atualiza resultados, ação de suspender chama endpoint correto
 
 ### 11.2 Reativar org + revogar sessões da org — closes #27
 

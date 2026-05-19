@@ -13,6 +13,7 @@ import { ColdStorageConfig } from '../../components/root/cold-storage-config'
 import { ColdStorageRootDownload } from '../../components/root/cold-storage-download'
 import { Rs256KeyRotation } from '../../components/root/rs256-key-rotation'
 import { GlobalRateLimits } from '../../components/root/global-rate-limits'
+import { GlobalUsersList } from '../../components/root/global-users-list'
 import { listOrgs, type OrgSummary } from '../../lib/root-api'
 import { LogOut, Copy, Check } from 'lucide-react'
 import { PageHeader } from '../../components/ui/page-header'
@@ -21,6 +22,10 @@ const SECTION_META: Record<RootSection, { number: string; title: string; module:
   orgs: {
     number: '01', title: 'Organizações', module: 'ORGS', submodule: 'LIST',
     description: 'Organizações cadastradas no sistema. Gerencie tenants, crie novas orgs e configure cotas.',
+  },
+  users: {
+    number: '02', title: 'Usuários Globais', module: 'USERS', submodule: 'GLOBAL',
+    description: 'Todos os usuários do sistema. Filtre por org ou status, suspenda globalmente ou revogue sessões.',
   },
   sessions: {
     number: '02', title: 'Sessões Ativas', module: 'SESSIONS', submodule: 'ACTIVE',
@@ -151,6 +156,8 @@ export function RootPage() {
             </div>
           </div>
         )
+      case 'users':
+        return <GlobalUsersList token={tok} onViewSessions={(userId) => { setSection('sessions'); void userId }} />
       case 'sessions':
         return <SessionsList token={tok} />
       case 'audit-log':

@@ -595,7 +595,7 @@ http.route({
   }),
 });
 
-// ── DELETE /v1/users/:id ────────────────────────────────────────────────────
+// ── DELETE /v1/users/:id and DELETE /v1/users/:id/sessions ──────────────────
 
 http.route({
   pathPrefix: "/v1/users/",
@@ -605,8 +605,28 @@ http.route({
     if (isResponse(caller)) return caller;
 
     const url = new URL(req.url);
-    const userId = url.pathname.replace(/^\/v1\/users\//, "").split("/")[0];
+    const segments = url.pathname.replace(/^\/v1\/users\//, "").split("/");
+    const userId = segments[0];
+    const subAction = segments[1];
+
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
+
+    if (subAction === "sessions") {
+      if (!(await requireRoot(ctx, caller))) {
+        return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+      }
+      try {
+        const result = await ctx.runMutation(internal.users.revokeAllUserSessions, {
+          actorId: caller.callerId as never,
+          userId: userId as never,
+        });
+        return jsonResponse(result);
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
+    }
 
     try {
       await ctx.runMutation(internal.users.deleteUser, {
@@ -639,10 +659,26 @@ http.route({
     const action = segments[1];
 
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
-    if (action !== "transfer") return jsonResponse({ error: "not_found" }, 404);
+    if (action !== "transfer" && action !== "suspend-global") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
 
     if (!(await requireRoot(ctx, caller))) {
       return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+
+    if (action === "suspend-global") {
+      try {
+        await ctx.runMutation(internal.users.suspendUserGlobal, {
+          actorId: caller.callerId as never,
+          userId: userId as never,
+        });
+        return jsonResponse({ success: true });
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
     }
 
     let body: { targetOrgId?: string };
@@ -2059,6 +2095,51 @@ http.route({
       checkBatchPerMin: body.checkBatchPerMin,
     });
     return jsonResponse({ success: true });
+  }),
+});
+
+// ── GET /v1/users/global (Root-only, lista global de usuários) ───────────────
+
+http.route({ path: "/v1/users/global", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/users/global",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) {
+      return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+    const url = new URL(req.url);
+    const orgId = url.searchParams.get("orgId") ?? undefined;
+    const status = url.searchParams.get("status") ?? undefined;
+    const from = url.searchParams.get("from")
+      ? Number(url.searchParams.get("from"))
+      : undefined;
+    const to = url.searchParams.get("to")
+      ? Number(url.searchParams.get("to"))
+      : undefined;
+    const cursor = url.searchParams.get("cursor") ?? undefined;
+    const limit = url.searchParams.get("limit")
+      ? Number(url.searchParams.get("limit"))
+      : undefined;
+    try {
+      const result = await ctx.runQuery(internal.users.listAllUsers, {
+        callerId: caller.callerId as never,
+        orgId: orgId as never,
+        status,
+        from,
+        to,
+        cursor,
+        limit,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
   }),
 });
 
