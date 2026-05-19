@@ -1974,12 +1974,16 @@ async function requireRoot(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   caller: CallerContext,
 ): Promise<boolean> {
-  const callerUser = await ctx.runQuery(internal.users.getUserById, {
-    callerId: caller.callerId as never,
-    userId: caller.callerId as never,
-    orgId: caller.orgId as never,
-  });
-  return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+  try {
+    const callerUser = await ctx.runQuery(internal.users.getUserById, {
+      callerId: caller.callerId as never,
+      userId: caller.callerId as never,
+      orgId: caller.orgId as never,
+    });
+    return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+  } catch {
+    return false;
+  }
 }
 
 http.route({

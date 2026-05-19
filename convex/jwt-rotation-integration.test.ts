@@ -6,6 +6,7 @@ import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
+import bcrypt from "bcryptjs";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -34,6 +35,40 @@ async function setupNonRootUser(t: ReturnType<typeof convexTest>) {
     }),
   );
   return userId;
+}
+
+async function setupNonRootWithToken(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const PASSWORD = "User@Secret123";
+  const hash = await bcrypt.hash(PASSWORD, 10);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Test Org", status: "active", updatedAt: Date.now() }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_settings", {
+      orgId,
+      loginMethods: ["email_password"],
+      mfaRequired: false,
+      jwtExpiryAccess: 3600,
+      jwtExpiryRefresh: 86400,
+      quotas: {},
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "nonroot@example.com",
+      passwordHash: hash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const login = await t.action(internal.auth.loginWithPassword, {
+    email: "nonroot@example.com",
+    password: PASSWORD,
+  });
+  if (!login.success) throw new Error("login failed");
+  return login.accessToken;
 }
 
 // Ciclo 5 — testes de integração para POST /v1/auth/rotate-key
@@ -84,6 +119,18 @@ test("JWKS retorna apenas 1 chave após keyRotationOverlapMs ter decorrido", asy
 
   const { keys } = await t.action(internal.jwt.getJwks, {});
   expect(keys).toHaveLength(1);
+});
+
+test("usuário não-Root recebe 403 ao chamar POST /v1/auth/rotate-key", async () => {
+  const t = convexTest(schema, modules);
+  const token = await setupNonRootWithToken(t);
+  const res = await t.fetch("/v1/auth/rotate-key", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  expect(res.status).toBe(403);
+  const body = await res.json() as { error: string; reason: string };
+  expect(body.reason).toBe("root_required");
 });
 
 test("audit log registra evento auth.key_rotated após rotateKeyPair com actorId", async () => {
