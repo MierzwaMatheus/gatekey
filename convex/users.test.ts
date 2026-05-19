@@ -1279,3 +1279,78 @@ test("removeUserFromOrg: não-OrgAdmin recebe erro forbidden", async () => {
     t.mutation(internal.users.removeUserFromOrg, { callerId: memberId, userId: targetId, orgId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 12.1-D: DELETE /v1/users/:id/org-membership (HTTP) ─────────────────
+
+test("DELETE /v1/users/:id/org-membership: OrgAdmin remove usuário — retorna 200 com contagens", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, token } = await setupHttpWithOrgAdmin(t);
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "toremove@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId, orgId, role: "member", status: "active" }),
+  );
+
+  const res = await t.fetch(`/v1/users/${userId}/org-membership`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(typeof body.workspacesAffected).toBe("number");
+  expect(typeof body.bindingsRevoked).toBe("number");
+});
+
+test("DELETE /v1/users/:id/org-membership: member sem role admin recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupHttpWithOrgAdmin(t);
+
+  const memberPassword = "Member-OrgDel-123!";
+  const memberHash = await bcrypt.hash(memberPassword, 10);
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member-del@acme.io",
+      passwordHash: memberHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: memberId, orgId, role: "member", status: "active" }),
+  );
+  const memberLogin = await t.action(internal.auth.loginWithPassword, {
+    email: "member-del@acme.io",
+    password: memberPassword,
+  });
+  if (!memberLogin.success) throw new Error("member login failed");
+
+  const targetId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "targetdel@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: targetId, orgId, role: "member", status: "active" }),
+  );
+
+  const res = await t.fetch(`/v1/users/${targetId}/org-membership`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+
+  expect(res.status).toBe(403);
+});

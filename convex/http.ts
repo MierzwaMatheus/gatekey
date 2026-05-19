@@ -642,6 +642,21 @@ http.route({
       }
     }
 
+    if (subAction === "org-membership") {
+      try {
+        const result = await ctx.runMutation(internal.users.removeUserFromOrg, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          orgId: caller.orgId as never,
+        });
+        return jsonResponse(result);
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
+    }
+
     try {
       await ctx.runMutation(internal.users.deleteUser, {
         callerId: caller.callerId as never,
