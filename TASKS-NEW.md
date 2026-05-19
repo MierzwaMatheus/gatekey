@@ -263,21 +263,21 @@
 
 ### 12.1 Reativar usuário suspenso + remover da org — closes #28
 
-- [ ] Escrever teste unitário do componente `UsersList` (Org Admin): botão "Reativar" visível para usuário com `status === "suspended"`
-- [ ] Escrever teste unitário: botão "Suspender" visível para usuário com `status === "active"`
-- [ ] Escrever teste unitário: ação "Remover da org" exibe modal com contagem de workspaces e bindings afetados
-- [ ] Escrever teste unitário: ação "Remover da org" é diferente da ação "Suspender" — exibidas separadamente na UI
-- [ ] Implementar endpoint `POST /v1/users/:id/reactivate` em `convex/http.ts` — Org Admin reativa usuário suspenso da própria org; muda status para `active`; preserva todos os bindings existentes (inclusive criados durante a suspensão — EC-13)
-- [ ] Implementar endpoint `DELETE /v1/users/:id/org-membership` em `convex/http.ts` — Org Admin remove usuário completamente da org; revoga todos os bindings e sessões; retorna `{workspacesAffected: N, bindingsRevoked: M}`
-- [ ] Aplicar PEP em ambos os endpoints: Org Admin da própria org ou Root
-- [ ] Registrar `writeAuditEvent` com action `user.reactivate` e `user.removed_from_org`
-- [ ] Adicionar preflight CORS para os novos paths
-- [ ] Alterar componente `users-list.tsx` no painel Org Admin — adicionar botão "Reativar" condicional ao status do usuário (em paralelo ao "Suspender")
-- [ ] Implementar modal de reativação: `ConfirmDialog` com "Reativar [nome]? O usuário recuperará acesso a todos os workspaces."
-- [ ] Adicionar ação "Remover da org" no menu de ações por usuário (separada de "Suspender") — abre `ConfirmDialog` mostrando: N workspaces afetados, M bindings a serem revogados
-- [ ] Atualizar `dashboard/src/lib/org-api.ts` com funções `reactivateUser(userId)` e `removeUserFromOrg(userId)`
-- [ ] Escrever teste de integração: suspender usuário → criar binding para esse usuário durante a suspensão → reativar → verificar que os bindings (incluindo o criado durante suspensão) estão presentes
-- [ ] Escrever teste de integração: remover usuário da org → usuário perde acesso a todos os workspaces → sessões são revogadas
+- [x] Escrever teste unitário do componente `UsersList` (Org Admin): botão "Reativar" visível para usuário com `status === "suspended"`
+- [x] Escrever teste unitário: botão "Suspender" visível para usuário com `status === "active"`
+- [x] Escrever teste unitário: ação "Remover da org" exibe modal com contagem de workspaces e bindings afetados
+- [x] Escrever teste unitário: ação "Remover da org" é diferente da ação "Suspender" — exibidas separadamente na UI
+- [x] Implementar endpoint `POST /v1/users/:id/reactivate` em `convex/http.ts` — Org Admin reativa usuário suspenso da própria org; muda status para `active`; preserva todos os bindings existentes (inclusive criados durante a suspensão — EC-13)
+- [x] Implementar endpoint `DELETE /v1/users/:id/org-membership` em `convex/http.ts` — Org Admin remove usuário completamente da org; revoga todos os bindings e sessões; retorna `{workspacesAffected: N, bindingsRevoked: M}`
+- [x] Aplicar PEP em ambos os endpoints: Org Admin da própria org ou Root
+- [x] Registrar `writeAuditEvent` com action `user.reactivate` e `user.removed_from_org`
+- [x] Adicionar preflight CORS para os novos paths
+- [x] Alterar componente `users-list.tsx` no painel Org Admin — adicionar botão "Reativar" condicional ao status do usuário (em paralelo ao "Suspender")
+- [x] Implementar modal de reativação: `ConfirmDialog` com "Reativar [nome]? O usuário recuperará acesso a todos os workspaces."
+- [x] Adicionar ação "Remover da org" no menu de ações por usuário (separada de "Suspender") — abre `ConfirmDialog` mostrando: N workspaces afetados, M bindings a serem revogados
+- [x] Atualizar `dashboard/src/lib/org-api.ts` com funções `reactivateUser(userId)` e `removeUserFromOrg(userId)`
+- [x] Escrever teste de integração: suspender usuário → criar binding para esse usuário durante a suspensão → reativar → verificar que os bindings (incluindo o criado durante suspensão) estão presentes
+- [x] Escrever teste de integração: remover usuário da org → usuário perde acesso a todos os workspaces → sessões são revogadas
 
 ### 12.2 Histórico de acesso por usuário — closes #29
 
