@@ -1156,3 +1156,126 @@ test("POST /v1/users/:id/reactivate: member sem role admin recebe 403", async ()
 
   expect(res.status).toBe(403);
 });
+
+// ── Ciclo 12.1-C: removeUserFromOrg ──────────────────────────────────────────
+
+test("removeUserFromOrg: marca org_members como removed, revoga bindings e sessões", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const wsId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId, name: "WS", status: "active" }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: true }),
+  );
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId, orgId, role: "member", status: "active" }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("workspace_members", { userId, workspaceId: wsId, status: "active" }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, workspaceId: wsId, resourceType: "workspace", type: "allow" }),
+  );
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", { userId, refreshTokenHash: "hash", expiresAt: Date.now() + 86400000 }),
+  );
+
+  const result = await t.mutation(internal.users.removeUserFromOrg, {
+    callerId: adminId,
+    userId,
+    orgId,
+  });
+
+  expect(result.bindingsRevoked).toBe(1);
+  expect(result.workspacesAffected).toBe(1);
+
+  const membership = await t.run((ctx) =>
+    ctx.db.query("org_members").filter((q) => q.eq(q.field("userId"), userId)).first(),
+  );
+  expect(membership?.status).toBe("removed");
+
+  const binding = await t.run((ctx) => ctx.db.get(bindingId));
+  expect(binding).toBeNull();
+
+  const blacklisted = await t.run((ctx) =>
+    ctx.db
+      .query("session_blacklist")
+      .filter((q) => q.eq(q.field("sessionId"), sessionId))
+      .first(),
+  );
+  expect(blacklisted).not.toBeNull();
+});
+
+test("removeUserFromOrg: retorna workspacesAffected e bindingsRevoked corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId } = await setupOrgWithAdmin(t);
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user2@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId, orgId, role: "member", status: "active" }),
+  );
+
+  const result = await t.mutation(internal.users.removeUserFromOrg, {
+    callerId: adminId,
+    userId,
+    orgId,
+  });
+
+  expect(typeof result.workspacesAffected).toBe("number");
+  expect(typeof result.bindingsRevoked).toBe("number");
+});
+
+test("removeUserFromOrg: não-OrgAdmin recebe erro forbidden", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupOrgWithAdmin(t);
+
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member2@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: memberId, orgId, role: "member", status: "active" }),
+  );
+
+  const targetId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target2@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: targetId, orgId, role: "member", status: "active" }),
+  );
+
+  await expect(
+    t.mutation(internal.users.removeUserFromOrg, { callerId: memberId, userId: targetId, orgId }),
+  ).rejects.toThrow("forbidden");
+});

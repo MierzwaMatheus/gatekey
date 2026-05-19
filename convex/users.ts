@@ -566,6 +566,121 @@ export const suspendUserGlobal = internalMutation({
   },
 });
 
+// ── Fase 12.1: removeUserFromOrg ─────────────────────────────────────────────
+
+export const removeUserFromOrg = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    userId: v.id("users"),
+    orgId: v.id("orgs"),
+  },
+  handler: async (ctx, args) => {
+    const caller = await ctx.db.get(args.callerId);
+    if (!caller) throw new Error("forbidden: caller_not_found");
+
+    if (!caller.isRoot) {
+      const callerMembership = await ctx.db
+        .query("org_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.callerId),
+            q.eq(q.field("orgId"), args.orgId),
+            q.eq(q.field("status"), "active"),
+          ),
+        )
+        .first();
+      if (!callerMembership || callerMembership.role !== "admin") {
+        throw new Error("forbidden: org_admin_required");
+      }
+    }
+
+    // Buscar todos os workspaces da org
+    const workspaces = await ctx.db
+      .query("workspaces")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+
+    let bindingsRevoked = 0;
+    let workspacesAffected = 0;
+
+    for (const ws of workspaces) {
+      // Remover workspace_members
+      const wsMember = await ctx.db
+        .query("workspace_members")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("userId"), args.userId),
+            q.eq(q.field("workspaceId"), ws._id),
+          ),
+        )
+        .first();
+      if (wsMember) {
+        await ctx.db.delete(wsMember._id);
+        workspacesAffected++;
+      }
+
+      // Revogar bindings no workspace
+      const bindings = await ctx.db
+        .query("bindings")
+        .withIndex("by_workspaceId_and_userId", (q) =>
+          q.eq("workspaceId", ws._id).eq("userId", args.userId),
+        )
+        .collect();
+      for (const b of bindings) {
+        await ctx.db.delete(b._id);
+        bindingsRevoked++;
+
+        await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+          actorType: "user",
+          actorId: args.callerId as string,
+          action: "binding.revoke",
+          target: { type: "bindings", id: b._id as string },
+          orgId: args.orgId,
+          result: "allow",
+          reason: "user_removed_from_org",
+        });
+      }
+    }
+
+    // Revogar sessões ativas
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .collect();
+    for (const session of sessions) {
+      await ctx.db.insert("session_blacklist", {
+        sessionId: session._id,
+        expiresAt: session.expiresAt,
+      });
+    }
+
+    // Marcar org_members como removed
+    const membership = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.eq(q.field("orgId"), args.orgId),
+        ),
+      )
+      .first();
+    if (membership) {
+      await ctx.db.patch(membership._id, { status: "removed" });
+    }
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "user.removed_from_org",
+      target: { type: "users", id: args.userId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+
+    return { workspacesAffected, bindingsRevoked };
+  },
+});
+
 // ── Fase 10.1: Transferência de usuário entre orgs ────────────────────────────
 
 export const transferUser = internalMutation({
