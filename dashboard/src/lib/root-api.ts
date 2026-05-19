@@ -224,3 +224,58 @@ export interface RotateKeyResult {
 export function rotateKey(token: string): Promise<RotateKeyResult> {
   return apiFetch<RotateKeyResult>('/v1/auth/rotate-key', token, { method: 'POST' })
 }
+
+// ── Fase 11.1: Gestão global de usuários ─────────────────────────────────────
+
+export interface GlobalUserSummary {
+  _id: string
+  email: string
+  status: 'active' | 'suspended'
+  orgId: string
+  orgRole: string
+  _creationTime: number
+  updatedAt: number
+  isRoot?: boolean
+}
+
+export interface GlobalUsersPage {
+  users: GlobalUserSummary[]
+  nextCursor: string | null
+  isDone: boolean
+}
+
+export interface GlobalUsersFilters {
+  orgId?: string
+  status?: string
+  from?: number
+  to?: number
+  cursor?: string
+  limit?: number
+}
+
+export function listAllUsers(token: string, filters?: GlobalUsersFilters): Promise<GlobalUsersPage> {
+  const params = new URLSearchParams()
+  if (filters?.orgId) params.set('orgId', filters.orgId)
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.from !== undefined) params.set('from', String(filters.from))
+  if (filters?.to !== undefined) params.set('to', String(filters.to))
+  if (filters?.cursor) params.set('cursor', filters.cursor)
+  if (filters?.limit !== undefined) params.set('limit', String(filters.limit))
+  const qs = params.toString() ? `?${params.toString()}` : ''
+  return apiFetch<GlobalUsersPage>(`/v1/users/global${qs}`, token)
+}
+
+export function suspendUserGlobal(token: string, userId: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/v1/users/${userId}/suspend-global`, token, {
+    method: 'POST',
+  })
+}
+
+export function revokeAllUserSessions(
+  token: string,
+  userId: string,
+): Promise<{ sessionsRevoked: number }> {
+  return apiFetch<{ sessionsRevoked: number }>(`/v1/users/${userId}/sessions`, token, {
+    method: 'DELETE',
+  })
+}
