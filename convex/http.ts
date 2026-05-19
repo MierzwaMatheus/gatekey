@@ -1974,12 +1974,16 @@ async function requireRoot(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   caller: CallerContext,
 ): Promise<boolean> {
-  const callerUser = await ctx.runQuery(internal.users.getUserById, {
-    callerId: caller.callerId as never,
-    userId: caller.callerId as never,
-    orgId: caller.orgId as never,
-  });
-  return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+  try {
+    const callerUser = await ctx.runQuery(internal.users.getUserById, {
+      callerId: caller.callerId as never,
+      userId: caller.callerId as never,
+      orgId: caller.orgId as never,
+    });
+    return (callerUser as { isRoot?: boolean } | null)?.isRoot === true;
+  } catch {
+    return false;
+  }
 }
 
 http.route({
@@ -2008,6 +2012,35 @@ http.route({
       checkBatchPerMin: body.checkBatchPerMin,
     });
     return jsonResponse({ success: true });
+  }),
+});
+
+// ── POST /v1/auth/rotate-key ──────────────────────────────────────────────────
+
+http.route({ path: "/v1/auth/rotate-key", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/auth/rotate-key",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) {
+      return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+    try {
+      const result = await ctx.runAction(internal.jwt.rotateKeyPairWithActor, {
+        actorId: caller.callerId,
+      });
+      return jsonResponse({
+        rotatedAt: result.rotatedAt,
+        newKeyId: result.newKeyId,
+        previousKeyId: result.previousKeyId,
+        previousKeyExpiresAt: result.previousKeyExpiresAt,
+      });
+    } catch (e) {
+      return jsonResponse({ error: "internal_error", message: (e as Error).message }, 500);
+    }
   }),
 });
 

@@ -213,3 +213,14 @@ export function updateGlobalRateLimits(
     body: JSON.stringify(data),
   })
 }
+
+export interface RotateKeyResult {
+  rotatedAt: number
+  newKeyId: string
+  previousKeyId?: string
+  previousKeyExpiresAt: number
+}
+
+export function rotateKey(token: string): Promise<RotateKeyResult> {
+  return apiFetch<RotateKeyResult>('/v1/auth/rotate-key', token, { method: 'POST' })
+}

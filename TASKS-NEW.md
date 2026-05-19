@@ -133,26 +133,26 @@
 
 ### 8.1 Rate limiting — closes #22
 
-- [ ] Escrever teste unitário: `getRateLimitKey("login", ip)` retorna string determinística `"rl:login:<ip>"`
-- [ ] Escrever teste unitário: `checkRateLimit({key, limit, windowMs})` retorna `{allowed: true, remaining: N}` dentro do limite
-- [ ] Escrever teste unitário: `checkRateLimit` retorna `{allowed: false, retryAfterMs: N}` quando limite atingido
-- [ ] Escrever teste unitário: após `windowMs` expirar, contador é zerado e `checkRateLimit` volta a retornar `allowed: true`
-- [ ] Adicionar tabela `rate_limit_counters` ao schema Convex com campos: key, count, windowStart, windowMs — com índice por `key`
-- [ ] Criar função `checkRateLimit({key, limit, windowMs})` em `convex/rateLimit.ts` — lê contador atual por `key`; se `Date.now() - windowStart > windowMs`, reseta contador; se `count >= limit`, retorna `{allowed: false, retryAfterMs: windowStart + windowMs - Date.now()}`; caso contrário incrementa contador e retorna `{allowed: true, remaining: limit - count - 1}`
-- [ ] Implementar `getRateLimitKey(endpoint, identifier)` — `identifier` é IP para endpoints públicos, `orgId` para endpoints autenticados
-- [ ] Aplicar `checkRateLimit` no handler de `POST /v1/auth/login`: limite de 10 req/min por IP; retornar 429 com header `Retry-After: <segundos>` e body `{"error": "RateLimitExceeded", "retryAfter": <segundos>}` quando excedido
-- [ ] Aplicar `checkRateLimit` no handler de `POST /v1/auth/refresh`: limite de 20 req/min por IP
-- [ ] Aplicar `checkRateLimit` no handler de `POST /v1/check`: limite configurável por org (padrão: 100 req/min por orgId)
-- [ ] Aplicar `checkRateLimit` no handler de `POST /v1/check/batch`: limite configurável por org (padrão: 20 req/min por orgId, batch conta como 1 requisição)
-- [ ] Ler limite customizado de `org_settings.rateLimits` (novo campo) antes de aplicar — se ausente, usar limite padrão global
-- [ ] Adicionar campo `rateLimits: {checkPerMin?, checkBatchPerMin?}` à tabela `org_settings` no schema — campos opcionais, null significa usar padrão global
-- [ ] Registrar evento de rate-limit excedido no audit log: action `ratelimit.exceeded`, com `endpoint`, `identifier`, `limit`
-- [ ] Adicionar campos de configuração de rate limit no painel Org Admin: campos numéricos para `checkPerMin` e `checkBatchPerMin` dentro da tela de org settings (`dashboard/src/components/org/org-settings.tsx`)
-- [ ] Adicionar configuração de limites globais padrão no painel Root
-- [ ] Escrever teste de integração: 11 chamadas consecutivas a `POST /v1/auth/login` do mesmo IP — a 11ª retorna 429 com header `Retry-After`
-- [ ] Escrever teste de integração: header `Retry-After` contém valor numérico positivo (segundos até reset)
-- [ ] Escrever teste de integração: org com `checkPerMin: 5` atinge limite em 5 chamadas ao `/check`; org diferente não é afetada
-- [ ] Escrever teste de integração: audit log registra evento `ratelimit.exceeded` com campos corretos
+- [x] Escrever teste unitário: `getRateLimitKey("login", ip)` retorna string determinística `"rl:login:<ip>"`
+- [x] Escrever teste unitário: `checkRateLimit({key, limit, windowMs})` retorna `{allowed: true, remaining: N}` dentro do limite
+- [x] Escrever teste unitário: `checkRateLimit` retorna `{allowed: false, retryAfterMs: N}` quando limite atingido
+- [x] Escrever teste unitário: após `windowMs` expirar, contador é zerado e `checkRateLimit` volta a retornar `allowed: true`
+- [x] Adicionar tabela `rate_limit_counters` ao schema Convex com campos: key, count, windowStart, windowMs — com índice por `key`
+- [x] Criar função `checkRateLimit({key, limit, windowMs})` em `convex/rateLimit.ts` — lê contador atual por `key`; se `Date.now() - windowStart > windowMs`, reseta contador; se `count >= limit`, retorna `{allowed: false, retryAfterMs: windowStart + windowMs - Date.now()}`; caso contrário incrementa contador e retorna `{allowed: true, remaining: limit - count - 1}`
+- [x] Implementar `getRateLimitKey(endpoint, identifier)` — `identifier` é IP para endpoints públicos, `orgId` para endpoints autenticados
+- [x] Aplicar `checkRateLimit` no handler de `POST /v1/auth/login`: limite de 10 req/min por IP; retornar 429 com header `Retry-After: <segundos>` e body `{"error": "RateLimitExceeded", "retryAfter": <segundos>}` quando excedido
+- [x] Aplicar `checkRateLimit` no handler de `POST /v1/auth/refresh`: limite de 20 req/min por IP
+- [x] Aplicar `checkRateLimit` no handler de `POST /v1/check`: limite configurável por org (padrão: 100 req/min por orgId)
+- [x] Aplicar `checkRateLimit` no handler de `POST /v1/check/batch`: limite configurável por org (padrão: 20 req/min por orgId, batch conta como 1 requisição)
+- [x] Ler limite customizado de `org_settings.rateLimits` (novo campo) antes de aplicar — se ausente, usar limite padrão global
+- [x] Adicionar campo `rateLimits: {checkPerMin?, checkBatchPerMin?}` à tabela `org_settings` no schema — campos opcionais, null significa usar padrão global
+- [x] Registrar evento de rate-limit excedido no audit log: action `ratelimit.exceeded`, com `endpoint`, `identifier`, `limit`
+- [x] Adicionar campos de configuração de rate limit no painel Org Admin: campos numéricos para `checkPerMin` e `checkBatchPerMin` dentro da tela de org settings (`dashboard/src/components/org/org-settings.tsx`)
+- [x] Adicionar configuração de limites globais padrão no painel Root
+- [x] Escrever teste de integração: 11 chamadas consecutivas a `POST /v1/auth/login` do mesmo IP — a 11ª retorna 429 com header `Retry-After`
+- [x] Escrever teste de integração: header `Retry-After` contém valor numérico positivo (segundos até reset)
+- [x] Escrever teste de integração: org com `checkPerMin: 5` atinge limite em 5 chamadas ao `/check`; org diferente não é afetada
+- [x] Escrever teste de integração: audit log registra evento `ratelimit.exceeded` com campos corretos
 
 ---
 
@@ -160,25 +160,25 @@
 
 ### 9.1 Rotação de chave RS256 — closes #23
 
-- [ ] Escrever teste unitário: após `rotateKeyPair()`, a função `getJwks()` retorna dois objetos `keys[]` — a nova chave e a anterior
-- [ ] Escrever teste unitário: `verifyJwt(token)` aceita token assinado com a chave anterior (durante período de overlap)
-- [ ] Escrever teste unitário: `verifyJwt(token)` rejeita token assinado com chave mais antiga (anterior à última rotação)
-- [ ] Escrever teste unitário: `verifyJwt(token)` aceita token assinado com a chave atual
-- [ ] Adicionar campos `previousPrivateKey`, `previousPublicKey`, `previousKeyId`, `previousKeyCreatedAt` à tabela de key pairs em `convex/jwtStore.ts` — para armazenar a chave anterior durante o período de overlap
-- [ ] Implementar função `rotateKeyPair()` em `convex/jwtStore.ts` — passo 1: lê par de chaves atual e armazena em `previousKey`; passo 2: gera novo par RS256 com `jose`; passo 3: persiste novo par como `currentKey` mantendo o par anterior em `previousKey`
-- [ ] Implementar campo `keyRotationOverlapMs` na configuração (padrão: 86400000 = 24h) — após esse período, a chave anterior é removida do JWKS
-- [ ] Alterar `getJwks()` em `convex/jwtStore.ts` — retornar `[currentPublicKey, previousPublicKey]` quando `previousPublicKey` existe E `Date.now() - previousKeyCreatedAt < keyRotationOverlapMs`; retornar apenas `[currentPublicKey]` quando previousKey expirou ou não existe
-- [ ] Alterar `verifyJwt(token)` — tentar verificar com `currentPrivateKey` primeiro; se falhar, tentar com `previousPrivateKey` (quando existir e ainda válida); se ambas falharem, rejeitar
-- [ ] Implementar endpoint `POST /v1/auth/rotate-key` em `convex/http.ts` — acessível apenas pelo Root; chama `rotateKeyPair()`; retorna `{rotatedAt, previousKeyExpiresAt, newKeyId}`
-- [ ] Aplicar PEP em `POST /v1/auth/rotate-key` exigindo role Root
-- [ ] Registrar evento no audit log: action `auth.key_rotated`, actor Root, campos `newKeyId` e `previousKeyId`
-- [ ] Adicionar preflight CORS para `/v1/auth/rotate-key`
-- [ ] Implementar Convex Scheduler que remove `previousKey` do storage após `keyRotationOverlapMs` (limpeza automática pós-overlap)
-- [ ] Adicionar botão "Rotacionar chave RS256" no painel Root com modal de confirmação — exibe `newKeyId` após sucesso e aviso sobre o período de overlap de 24h
-- [ ] Escrever teste de integração: Root chama `POST /v1/auth/rotate-key` → JWKS retorna 2 chaves → token antigo ainda é válido → aguardar overlap → token antigo é rejeitado
-- [ ] Escrever teste de integração: usuário não-Root chama `POST /v1/auth/rotate-key` → recebe 403
-- [ ] Escrever teste de integração: após rotação, novos tokens são assinados com a chave nova; `verifyJwt` os aceita
-- [ ] Escrever teste de integração: JWKS retorna apenas 1 chave após `keyRotationOverlapMs` ter decorrido
+- [x] Escrever teste unitário: após `rotateKeyPair()`, a função `getJwks()` retorna dois objetos `keys[]` — a nova chave e a anterior
+- [x] Escrever teste unitário: `verifyJwt(token)` aceita token assinado com a chave anterior (durante período de overlap)
+- [x] Escrever teste unitário: `verifyJwt(token)` rejeita token assinado com chave mais antiga (anterior à última rotação)
+- [x] Escrever teste unitário: `verifyJwt(token)` aceita token assinado com a chave atual
+- [x] Adicionar campos `previousPrivateKey`, `previousPublicKey`, `previousKeyId`, `previousKeyCreatedAt` à tabela de key pairs em `convex/jwtStore.ts` — para armazenar a chave anterior durante o período de overlap
+- [x] Implementar função `rotateKeyPair()` em `convex/jwtStore.ts` — passo 1: lê par de chaves atual e armazena em `previousKey`; passo 2: gera novo par RS256 com `jose`; passo 3: persiste novo par como `currentKey` mantendo o par anterior em `previousKey`
+- [x] Implementar campo `keyRotationOverlapMs` na configuração (padrão: 86400000 = 24h) — após esse período, a chave anterior é removida do JWKS
+- [x] Alterar `getJwks()` em `convex/jwtStore.ts` — retornar `[currentPublicKey, previousPublicKey]` quando `previousPublicKey` existe E `Date.now() - previousKeyCreatedAt < keyRotationOverlapMs`; retornar apenas `[currentPublicKey]` quando previousKey expirou ou não existe
+- [x] Alterar `verifyJwt(token)` — tentar verificar com `currentPrivateKey` primeiro; se falhar, tentar com `previousPrivateKey` (quando existir e ainda válida); se ambas falharem, rejeitar
+- [x] Implementar endpoint `POST /v1/auth/rotate-key` em `convex/http.ts` — acessível apenas pelo Root; chama `rotateKeyPair()`; retorna `{rotatedAt, previousKeyExpiresAt, newKeyId}`
+- [x] Aplicar PEP em `POST /v1/auth/rotate-key` exigindo role Root
+- [x] Registrar evento no audit log: action `auth.key_rotated`, actor Root, campos `newKeyId` e `previousKeyId`
+- [x] Adicionar preflight CORS para `/v1/auth/rotate-key`
+- [x] Implementar Convex Scheduler que remove `previousKey` do storage após `keyRotationOverlapMs` (limpeza automática pós-overlap)
+- [x] Adicionar botão "Rotacionar chave RS256" no painel Root com modal de confirmação — exibe `newKeyId` após sucesso e aviso sobre o período de overlap de 24h
+- [x] Escrever teste de integração: Root chama `POST /v1/auth/rotate-key` → JWKS retorna 2 chaves → token antigo ainda é válido → aguardar overlap → token antigo é rejeitado
+- [x] Escrever teste de integração: usuário não-Root chama `POST /v1/auth/rotate-key` → recebe 403
+- [x] Escrever teste de integração: após rotação, novos tokens são assinados com a chave nova; `verifyJwt` os aceita
+- [x] Escrever teste de integração: JWKS retorna apenas 1 chave após `keyRotationOverlapMs` ter decorrido
 
 ---
 

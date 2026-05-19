@@ -3,7 +3,7 @@
 
 "use node";
 
-import { internalAction } from "./_generated/server";
+import { internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
@@ -90,10 +90,28 @@ export const verifyJwt = internalAction({
   ),
   handler: async (ctx, { token }) => {
     try {
-      const activeKeys = (await ctx.runQuery(internal.jwtStore.getAllActivePublicKeys, {})) as Array<{
+      const activeKey = (await ctx.runQuery(internal.jwtStore.getActiveKeyPair, {})) as {
+        kid: string;
         publicKeyJwk: string;
-      }>;
-      const payload = await verifyJwtToken(token, activeKeys);
+        previousPublicKeyJwk?: string;
+        previousKeyCreatedAt?: number;
+        keyRotationOverlapMs?: number;
+      } | null;
+
+      if (!activeKey) return { valid: false as const, error: "no_active_key_pair" };
+
+      const keysToTry: Array<{ publicKeyJwk: string }> = [{ publicKeyJwk: activeKey.publicKeyJwk }];
+
+      const overlapMs = activeKey.keyRotationOverlapMs ?? 86400000;
+      if (
+        activeKey.previousPublicKeyJwk &&
+        activeKey.previousKeyCreatedAt !== undefined &&
+        Date.now() - activeKey.previousKeyCreatedAt < overlapMs
+      ) {
+        keysToTry.push({ publicKeyJwk: activeKey.previousPublicKeyJwk });
+      }
+
+      const payload = await verifyJwtToken(token, keysToTry);
       return { valid: true as const, payload };
     } catch (e) {
       return { valid: false as const, error: (e as Error).message };
@@ -101,14 +119,107 @@ export const verifyJwt = internalAction({
   },
 });
 
+const KEY_ROTATION_OVERLAP_MS = 86400000; // 24h
+
+type RotateKeyPairResult = {
+  newKeyId: string;
+  previousKeyId?: string;
+  rotatedAt: number;
+  previousKeyExpiresAt: number;
+  newKeyPairId: string;
+};
+
+async function performKeyRotation(ctx: ActionCtx): Promise<RotateKeyPairResult> {
+  const { privateKey, publicKey } = await generateKeyPair("RS256");
+  const privateKeyJwk = await exportJWK(privateKey);
+  const publicKeyJwk = await exportJWK(publicKey);
+  const newKid = randomBytes(16).toString("hex");
+  privateKeyJwk.kid = newKid;
+  publicKeyJwk.kid = newKid;
+  const newCreatedAt = Date.now();
+
+  const newKeyPairId: string = await ctx.runMutation(internal.jwtStore.rotateStoredKeyPair, {
+    newKid,
+    newPrivateKeyJwk: JSON.stringify(privateKeyJwk),
+    newPublicKeyJwk: JSON.stringify(publicKeyJwk),
+    newCreatedAt,
+  });
+
+  await ctx.scheduler.runAfter(KEY_ROTATION_OVERLAP_MS, internal.jwtStore.cleanupPreviousKey, {
+    keyPairId: newKeyPairId as never,
+  });
+
+  return {
+    newKeyId: newKid,
+    previousKeyId: undefined,
+    rotatedAt: newCreatedAt,
+    previousKeyExpiresAt: newCreatedAt + KEY_ROTATION_OVERLAP_MS,
+    newKeyPairId,
+  };
+}
+
+export const rotateKeyPair = internalAction({
+  args: {},
+  returns: v.object({
+    newKeyId: v.string(),
+    previousKeyId: v.optional(v.string()),
+    rotatedAt: v.number(),
+    previousKeyExpiresAt: v.number(),
+  }),
+  handler: async (ctx) => {
+    const { newKeyPairId: _unused, ...result } = await performKeyRotation(ctx);
+    return result;
+  },
+});
+
 export const getJwks = internalAction({
   args: {},
   returns: v.object({ keys: v.array(v.any()) }),
   handler: async (ctx) => {
-    const activeKeys = (await ctx.runQuery(internal.jwtStore.getAllActivePublicKeys, {})) as Array<{
+    const activeKey = (await ctx.runQuery(internal.jwtStore.getActiveKeyPair, {})) as {
+      kid: string;
       publicKeyJwk: string;
-    }>;
-    return { keys: activeKeys.map((k) => JSON.parse(k.publicKeyJwk) as JWK) };
+      previousPublicKeyJwk?: string;
+      previousKeyCreatedAt?: number;
+      keyRotationOverlapMs?: number;
+    } | null;
+
+    if (!activeKey) return { keys: [] };
+
+    const keys: JWK[] = [JSON.parse(activeKey.publicKeyJwk) as JWK];
+
+    const overlapMs = activeKey.keyRotationOverlapMs ?? 86400000;
+    if (
+      activeKey.previousPublicKeyJwk &&
+      activeKey.previousKeyCreatedAt !== undefined &&
+      Date.now() - activeKey.previousKeyCreatedAt < overlapMs
+    ) {
+      keys.push(JSON.parse(activeKey.previousPublicKeyJwk) as JWK);
+    }
+
+    return { keys };
+  },
+});
+
+export const rotateKeyPairWithActor = internalAction({
+  args: { actorId: v.string() },
+  returns: v.object({
+    newKeyId: v.string(),
+    previousKeyId: v.optional(v.string()),
+    rotatedAt: v.number(),
+    previousKeyExpiresAt: v.number(),
+  }),
+  handler: async (ctx, { actorId }) => {
+    const { newKeyPairId: _unused, ...result } = await performKeyRotation(ctx);
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId,
+      actorRole: "root",
+      action: "auth.key_rotated",
+      target: { type: "key_pair", id: result.newKeyId },
+      result: "allow",
+    });
+    return result;
   },
 });
 
