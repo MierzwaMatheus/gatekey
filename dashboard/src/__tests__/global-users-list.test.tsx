@@ -123,4 +123,14 @@ describe('GlobalUsersList', () => {
 
     expect(screen.getByTestId('confirm-revoke-sessions-modal')).toBeDefined()
   })
+
+  it('clicar em "Ver sessões" chama onViewSessions com userId', async () => {
+    const onViewSessions = vi.fn()
+    render(<GlobalUsersList token="tok" onViewSessions={onViewSessions} />)
+    await waitFor(() => expect(screen.queryByTestId('global-users-loading')).toBeNull())
+
+    fireEvent.click(screen.getAllByTestId('btn-view-sessions')[0])
+
+    expect(onViewSessions).toHaveBeenCalledWith('user1')
+  })
 })

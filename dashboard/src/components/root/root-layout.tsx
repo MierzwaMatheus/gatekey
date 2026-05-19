@@ -10,6 +10,7 @@ import { StatusBar } from '../ui/status-bar'
 
 export type RootSection =
   | 'orgs'
+  | 'users'
   | 'sessions'
   | 'audit-log'
   | 'capabilities'
@@ -27,6 +28,7 @@ interface NavDef {
 
 const NAV_DEFS = [
   { id: 'nav-orgs',         labelKey: 'nav.orgs',         icon: 'orgs',       section: 'orgs' as RootSection },
+  { id: 'nav-users',        labelKey: 'nav.users',        icon: 'users',      section: 'users' as RootSection },
   { id: 'nav-sessions',     labelKey: 'nav.sessions',     icon: 'sessions',   section: 'sessions' as RootSection },
   { id: 'nav-audit-log',    labelKey: 'nav.audit_log',    icon: 'audit',      section: 'audit-log' as RootSection },
   { id: 'nav-capabilities', labelKey: 'nav.capabilities', icon: 'zap',        section: 'capabilities' as RootSection },
