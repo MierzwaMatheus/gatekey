@@ -1194,6 +1194,66 @@ test("reactivateOrg: não-Root não pode reativar org", async () => {
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 17: revokeOrgSessions ──────────────────────────────────────────────
+
+test("revokeOrgSessions: Root revoga todas as sessões de todos os membros da org", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+  const user1 = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "u1@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  const user2 = await t.run((ctx) =>
+    ctx.db.insert("users", { email: "u2@acme.io", passwordHash: "h", status: "active", loginAttempts: 0, updatedAt: Date.now() }),
+  );
+  await t.run((ctx) => ctx.db.insert("org_members", { userId: user1, orgId, role: "member", status: "active" }));
+  await t.run((ctx) => ctx.db.insert("org_members", { userId: user2, orgId, role: "member", status: "active" }));
+  const sess1 = await t.run((ctx) =>
+    ctx.db.insert("sessions", { userId: user1, refreshTokenHash: "rth1", expiresAt: Date.now() + 60_000 }),
+  );
+  const sess2 = await t.run((ctx) =>
+    ctx.db.insert("sessions", { userId: user2, refreshTokenHash: "rth2", expiresAt: Date.now() + 60_000 }),
+  );
+
+  const result = await t.mutation(internal.hierarchy.revokeOrgSessions, { callerId: rootId, orgId });
+
+  expect(result.sessionsRevoked).toBe(2);
+  const bl1 = await t.run((ctx) =>
+    ctx.db.query("session_blacklist").withIndex("by_sessionId", (q) => q.eq("sessionId", sess1)).first(),
+  );
+  const bl2 = await t.run((ctx) =>
+    ctx.db.query("session_blacklist").withIndex("by_sessionId", (q) => q.eq("sessionId", sess2)).first(),
+  );
+  expect(bl1).not.toBeNull();
+  expect(bl2).not.toBeNull();
+});
+
+test("revokeOrgSessions: retorna zero quando org não tem membros com sessões", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+
+  const result = await t.mutation(internal.hierarchy.revokeOrgSessions, { callerId: rootId, orgId });
+
+  expect(result.sessionsRevoked).toBe(0);
+});
+
+test("revokeOrgSessions: não-Root não pode revogar sessões da org", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await createRegularUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "active", updatedAt: Date.now() }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.revokeOrgSessions, { callerId: userId, orgId }),
+  ).rejects.toThrow("forbidden");
+});
+
 // ── Ciclo 15: bootstrap de senha — createOrgWithBootstrap ────────────────────
 
 test("createOrgWithBootstrap: admin novo recebe tempPassword e mustChangePassword=true", async () => {

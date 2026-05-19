@@ -54,7 +54,7 @@ export default defineSchema({
     orgId: v.id("orgs"),
     role: v.string(),
     status: v.union(v.literal("active"), v.literal("suspended"), v.literal("removed")),
-  }),
+  }).index("by_orgId", ["orgId"]),
 
   workspace_members: defineTable({
     userId: v.id("users"),
