@@ -108,6 +108,66 @@ export const deleteOrg = internalMutation({
   },
 });
 
+export const reactivateOrg = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await assertRoot(ctx, args.callerId);
+    await ctx.db.patch(args.orgId, { status: "active", updatedAt: Date.now() });
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "org.reactivate",
+      target: { type: "orgs", id: args.orgId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+    return null;
+  },
+});
+
+export const revokeOrgSessions = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+  },
+  returns: v.object({ sessionsRevoked: v.number() }),
+  handler: async (ctx, args) => {
+    await assertRoot(ctx, args.callerId);
+    const members = await ctx.db
+      .query("org_members")
+      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+      .collect();
+    let sessionsRevoked = 0;
+    for (const member of members) {
+      const sessions = await ctx.db
+        .query("sessions")
+        .withIndex("by_userId", (q) => q.eq("userId", member.userId))
+        .collect();
+      for (const session of sessions) {
+        await ctx.db.insert("session_blacklist", {
+          sessionId: session._id,
+          expiresAt: session.expiresAt,
+        });
+        sessionsRevoked++;
+      }
+    }
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "org.sessions_revoked",
+      target: { type: "orgs", id: args.orgId as string },
+      orgId: args.orgId,
+      result: "allow",
+      reason: `sessionsRevoked: ${sessionsRevoked}`,
+    });
+    return { sessionsRevoked };
+  },
+});
+
 export const createWorkspace = internalMutation({
   args: {
     callerId: v.id("users"),

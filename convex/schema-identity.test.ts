@@ -27,6 +27,8 @@ const EXPECTED_TABLES = [
   "ip_rate_limits",
   "key_pairs",
   "impersonation_sessions",
+  "global_settings",
+  "rate_limit_counters",
 ];
 
 test("schema: todas as tabelas esperadas estão definidas na mesma fonte de verdade", () => {

@@ -242,20 +242,20 @@
 
 ### 11.2 Reativar org + revogar sessões da org — closes #27
 
-- [ ] Escrever teste unitário do componente `OrgActions`: botão "Reativar" é exibido quando `org.status === "suspended"`
-- [ ] Escrever teste unitário: botão "Suspender" é exibido quando `org.status === "active"`
-- [ ] Escrever teste unitário: clicar em "Revogar todas as sessões" abre modal exibindo contagem de sessões ativas
-- [ ] Implementar endpoint `POST /v1/orgs/:id/reactivate` em `convex/http.ts` — Root reativa org suspensa; muda status para `active`; retorna 200
-- [ ] Implementar endpoint `DELETE /v1/orgs/:id/sessions` em `convex/http.ts` — Root revoga todas as sessões de todos os usuários da org; retorna `{sessionsRevoked: N}`
-- [ ] Aplicar PEP em ambos os endpoints exigindo role Root
-- [ ] Registrar `writeAuditEvent` com action `org.reactivate` e `org.sessions_revoked` respectivamente
-- [ ] Adicionar preflight CORS para os novos paths
-- [ ] Alterar componente `OrgActions` em `dashboard/src/components/root/org-actions.tsx` — exibir botão "Reativar" quando `org.status === "suspended"` e "Suspender" quando `org.status === "active"`
-- [ ] Implementar confirmação de reativação: `ConfirmDialog` com mensagem "Reativar a org [nome]? Todos os usuários recuperarão acesso imediatamente."
-- [ ] Adicionar botão "Revogar todas as sessões" no menu de ações da org — abre `ConfirmDialog` mostrando "Isso encerrará N sessões ativas de todos os membros desta org."
-- [ ] Atualizar `dashboard/src/lib/root-api.ts` com funções `reactivateOrg(orgId)` e `revokeOrgSessions(orgId)`
-- [ ] Escrever teste de integração: suspender org → botão "Reativar" aparece → clicar → org fica ativa → botão "Suspender" aparece novamente
-- [ ] Escrever teste de integração: clicar em "Revogar todas as sessões" → sessões são revogadas → usuários com sessão ativa recebem 401 na próxima request
+- [x] Escrever teste unitário do componente `OrgActions`: botão "Reativar" é exibido quando `org.status === "suspended"`
+- [x] Escrever teste unitário: botão "Suspender" é exibido quando `org.status === "active"`
+- [x] Escrever teste unitário: clicar em "Revogar todas as sessões" abre modal exibindo contagem de sessões ativas
+- [x] Implementar endpoint `POST /v1/orgs/:id/reactivate` em `convex/http.ts` — Root reativa org suspensa; muda status para `active`; retorna 200
+- [x] Implementar endpoint `DELETE /v1/orgs/:id/sessions` em `convex/http.ts` — Root revoga todas as sessões de todos os usuários da org; retorna `{sessionsRevoked: N}`
+- [x] Aplicar PEP em ambos os endpoints exigindo role Root
+- [x] Registrar `writeAuditEvent` com action `org.reactivate` e `org.sessions_revoked` respectivamente
+- [x] Adicionar preflight CORS para os novos paths
+- [x] Alterar componente `OrgActions` em `dashboard/src/components/root/org-actions.tsx` — exibir botão "Reativar" quando `org.status === "suspended"` e "Suspender" quando `org.status === "active"`
+- [x] Implementar confirmação de reativação: `ConfirmDialog` com mensagem "Reativar a org [nome]? Todos os usuários recuperarão acesso imediatamente."
+- [x] Adicionar botão "Revogar todas as sessões" no menu de ações da org — abre `ConfirmDialog` mostrando "Isso encerrará N sessões ativas de todos os membros desta org."
+- [x] Atualizar `dashboard/src/lib/root-api.ts` com funções `reactivateOrg(orgId)` e `revokeOrgSessions(orgId)`
+- [x] Escrever teste de integração: suspender org → botão "Reativar" aparece → clicar → org fica ativa → botão "Suspender" aparece novamente
+- [x] Escrever teste de integração: clicar em "Revogar todas as sessões" → sessões são revogadas → usuários com sessão ativa recebem 401 na próxima request
 
 ---
 
