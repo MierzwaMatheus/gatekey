@@ -2011,4 +2011,33 @@ http.route({
   }),
 });
 
+// ── POST /v1/auth/rotate-key ──────────────────────────────────────────────────
+
+http.route({ path: "/v1/auth/rotate-key", method: "OPTIONS", handler: preflight });
+
+http.route({
+  path: "/v1/auth/rotate-key",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+    if (!(await requireRoot(ctx, caller))) {
+      return jsonResponse({ error: "forbidden", reason: "root_required" }, 403);
+    }
+    try {
+      const result = await ctx.runAction(internal.jwt.rotateKeyPairWithActor, {
+        actorId: caller.callerId,
+      });
+      return jsonResponse({
+        rotatedAt: result.rotatedAt,
+        newKeyId: result.newKeyId,
+        previousKeyId: result.previousKeyId,
+        previousKeyExpiresAt: result.previousKeyExpiresAt,
+      });
+    } catch (e) {
+      return jsonResponse({ error: "internal_error", message: (e as Error).message }, 500);
+    }
+  }),
+});
+
 export default http;
