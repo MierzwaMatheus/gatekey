@@ -640,3 +640,89 @@ test("POST /v1/users/:id/transfer: body sem targetOrgId retorna 400", async () =
 
   expect(res.status).toBe(400);
 });
+
+// ── Ciclo 9: integração completa ─────────────────────────────────────────────
+
+test("transferUser integração: 2 bindings preservados, 1 revogado, sessões revogadas", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId } =
+    await setupTransferContext(t);
+
+  // workspace extra em org_B
+  const wsBId2 = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgBId, name: "WS B2", status: "active" }),
+  );
+
+  // 3 bindings: 2 em org_B, 1 em org_A
+  const bindingToRevoke = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsAId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsBId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsBId2 }),
+  );
+
+  // sessão ativa
+  await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.preservedBindings).toBe(2);
+  expect(result.revokedBindings).toBe(1);
+  expect(result.sessionsRevoked).toBe(1);
+
+  // binding da org_A deve ter sido removido
+  const revokedBinding = await t.run((ctx) => ctx.db.get(bindingToRevoke));
+  expect(revokedBinding).toBeNull();
+
+  // novo org_members deve ser org_B
+  const membership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgBId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(membership).not.toBeNull();
+});
+
+test("transferUser integração: audit log contém user.transfer + binding.revoke com reason user_transfer_cleanup", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsAId, roleId } = await setupTransferContext(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId: wsAId }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+
+  const transferEvent = auditEvents.find((e) => e.action === "user.transfer");
+  expect(transferEvent).toBeDefined();
+
+  const revokeEvent = auditEvents.find((e) => e.action === "binding.revoke");
+  expect(revokeEvent).toBeDefined();
+  expect(revokeEvent?.reason).toBe("user_transfer_cleanup");
+});
