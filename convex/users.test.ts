@@ -986,3 +986,173 @@ test("reactivateUser: não-OrgAdmin recebe erro forbidden", async () => {
     t.mutation(internal.users.reactivateUser, { callerId: memberId, userId: targetId, orgId }),
   ).rejects.toThrow("forbidden");
 });
+
+// ── Ciclo 12.1-B: POST /v1/users/:id/reactivate (HTTP) ───────────────────────
+
+import bcrypt from "bcryptjs";
+
+async function setupHttpWithOrgAdmin(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const PASSWORD = "Test-Pass-123!";
+  const passwordHash = await bcrypt.hash(PASSWORD, 10);
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "admin@acme.io"))
+      .first(),
+  );
+  await t.run((ctx) => ctx.db.patch(adminUser!._id, { passwordHash }));
+
+  const adminLogin = await t.action(internal.auth.loginWithPassword, {
+    email: "admin@acme.io",
+    password: PASSWORD,
+  });
+  if (!adminLogin.success) throw new Error("admin login failed");
+
+  // Root token via signJwt com sessão real
+  const rootSessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: rootId,
+      refreshTokenHash: "root-refresh-hash",
+      expiresAt: Date.now() + 86400000,
+    }),
+  );
+  const rootToken = await t.action(internal.jwt.signJwt, {
+    sub: rootId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: rootSessionId as string,
+    expiresInSeconds: 3600,
+  });
+
+  return {
+    rootId,
+    orgId,
+    adminId: adminUser!._id,
+    token: adminLogin.accessToken,
+    rootToken,
+    PASSWORD,
+  };
+}
+
+test("POST /v1/users/:id/reactivate: OrgAdmin reativa usuário suspenso — retorna 200", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, adminId, token } = await setupHttpWithOrgAdmin(t);
+
+  const suspendedId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "suspended@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: suspendedId, orgId, role: "member", status: "active" }),
+  );
+
+  const res = await t.fetch(`/v1/users/${suspendedId}/reactivate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  expect(res.status).toBe(200);
+  const body = await res.json();
+  expect(body.success).toBe(true);
+
+  const updated = await t.run((ctx) => ctx.db.get(suspendedId));
+  expect(updated?.status).toBe("active");
+});
+
+test("POST /v1/users/:id/reactivate: Root também pode reativar — retorna 200", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, rootToken } = await setupHttpWithOrgAdmin(t);
+
+  const suspendedId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "suspended2@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: suspendedId, orgId, role: "member", status: "active" }),
+  );
+
+  const res = await t.fetch(`/v1/users/${suspendedId}/reactivate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${rootToken}` },
+  });
+
+  expect(res.status).toBe(200);
+});
+
+test("POST /v1/users/:id/reactivate: member sem role admin recebe 403", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupHttpWithOrgAdmin(t);
+
+  const memberPassword = "Member-Pass-789!";
+  const memberHash = await bcrypt.hash(memberPassword, 10);
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: memberHash,
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: memberId, orgId, role: "member", status: "active" }),
+  );
+  const memberLogin = await t.action(internal.auth.loginWithPassword, {
+    email: "member@acme.io",
+    password: memberPassword,
+  });
+  if (!memberLogin.success) throw new Error("member login failed");
+
+  const targetId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "target@acme.io",
+      passwordHash: "hash",
+      status: "suspended",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", { userId: targetId, orgId, role: "member", status: "active" }),
+  );
+
+  const res = await t.fetch(`/v1/users/${targetId}/reactivate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${memberLogin.accessToken}` },
+  });
+
+  expect(res.status).toBe(403);
+});
