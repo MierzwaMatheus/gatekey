@@ -11,6 +11,8 @@ import { CapabilitiesList } from '../../components/root/capabilities-list'
 import { ApiKeysBrowser } from '../../components/root/api-keys-browser'
 import { ColdStorageConfig } from '../../components/root/cold-storage-config'
 import { ColdStorageRootDownload } from '../../components/root/cold-storage-download'
+import { Rs256KeyRotation } from '../../components/root/rs256-key-rotation'
+import { GlobalRateLimits } from '../../components/root/global-rate-limits'
 import { listOrgs, type OrgSummary } from '../../lib/root-api'
 import { LogOut, Copy, Check } from 'lucide-react'
 import { PageHeader } from '../../components/ui/page-header'
@@ -43,6 +45,10 @@ const SECTION_META: Record<RootSection, { number: string; title: string; module:
   'cold-storage': {
     number: '07', title: 'Cold Storage', module: 'STORAGE', submodule: 'COLD',
     description: 'Configuração de armazenamento frio para audit logs e dados históricos.',
+  },
+  security: {
+    number: '08', title: 'Segurança', module: 'SECURITY', submodule: 'KEYS',
+    description: 'Gerenciamento de chaves criptográficas e configurações de segurança da instância.',
   },
 }
 
@@ -176,6 +182,23 @@ export function RootPage() {
                 orgs={orgsList.map((o) => ({ id: o._id, name: o.name }))}
                 isConfigured
               />
+            </div>
+          </div>
+        )
+      case 'security':
+        return (
+          <div className="space-y-8 max-w-2xl">
+            <div>
+              <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
+                Rotação de Chave RS256
+              </p>
+              <Rs256KeyRotation token={tok} />
+            </div>
+            <div className="border-t border-border-default pt-6">
+              <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
+                Rate Limits Globais
+              </p>
+              <GlobalRateLimits token={tok} />
             </div>
           </div>
         )

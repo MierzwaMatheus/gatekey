@@ -16,6 +16,7 @@ export type RootSection =
   | 'api-keys'
   | 'quotas'
   | 'cold-storage'
+  | 'security'
 
 interface NavDef {
   id: string
@@ -32,6 +33,7 @@ const NAV_DEFS = [
   { id: 'nav-api-keys',     labelKey: 'nav.api_keys',     icon: 'key',        section: 'api-keys' as RootSection },
   { id: 'nav-quotas',       labelKey: 'nav.quotas',       icon: 'sliders',    section: 'quotas' as RootSection },
   { id: 'nav-cold-storage', labelKey: 'nav.cold_storage', icon: 'hard-drive', section: 'cold-storage' as RootSection },
+  { id: 'nav-security',     labelKey: 'nav.security',     icon: 'shield',     section: 'security' as RootSection },
 ]
 
 interface RootLayoutProps {
@@ -117,7 +119,7 @@ export function RootLayout({ children, activeSection = 'orgs', onSectionChange }
       <div data-testid="circuit-texture" className="circuit-texture" />
 
       <main className="main">
-        <TopBar scope="root" context="global" section={t(`nav.${activeSection.replace('-', '_')}`)} />
+        <TopBar scope="root" context="global" section={t(`nav.${activeSection.replace(/-/g, '_')}`)} />
         {coldStorageAlert?.shouldAlert && (
           <div
             data-testid="cold-storage-alert"
