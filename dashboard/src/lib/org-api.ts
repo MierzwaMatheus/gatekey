@@ -44,6 +44,21 @@ export function suspendUser(token: string, userId: string): Promise<void> {
   return apiFetch<void>(`/v1/users/${userId}`, token, { method: 'DELETE' })
 }
 
+export function reactivateUser(token: string, userId: string): Promise<void> {
+  return apiFetch<void>(`/v1/users/${userId}/reactivate`, token, { method: 'POST' })
+}
+
+export function removeUserFromOrg(
+  token: string,
+  userId: string,
+): Promise<{ workspacesAffected: number; bindingsRevoked: number }> {
+  return apiFetch<{ workspacesAffected: number; bindingsRevoked: number }>(
+    `/v1/users/${userId}/org-membership`,
+    token,
+    { method: 'DELETE' },
+  )
+}
+
 export function resetUserPassword(token: string, userId: string, newPassword: string): Promise<void> {
   return apiFetch<void>(`/v1/users/${userId}`, token, {
     method: 'PATCH',

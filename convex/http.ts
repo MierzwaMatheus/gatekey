@@ -642,6 +642,21 @@ http.route({
       }
     }
 
+    if (subAction === "org-membership") {
+      try {
+        const result = await ctx.runMutation(internal.users.removeUserFromOrg, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          orgId: caller.orgId as never,
+        });
+        return jsonResponse(result);
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
+    }
+
     try {
       await ctx.runMutation(internal.users.deleteUser, {
         callerId: caller.callerId as never,
@@ -673,8 +688,24 @@ http.route({
     const action = segments[1];
 
     if (!userId) return jsonResponse({ error: "missing_user_id" }, 400);
-    if (action !== "transfer" && action !== "suspend-global") {
+    if (action !== "transfer" && action !== "suspend-global" && action !== "reactivate") {
       return jsonResponse({ error: "not_found" }, 404);
+    }
+
+    if (action === "reactivate") {
+      try {
+        await ctx.runMutation(internal.users.reactivateUser, {
+          callerId: caller.callerId as never,
+          userId: userId as never,
+          orgId: caller.orgId as never,
+        });
+        return jsonResponse({ success: true });
+      } catch (e) {
+        const msg = (e as Error).message ?? "";
+        if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+        if (msg.includes("not_in_org")) return jsonResponse({ error: "not_found" }, 404);
+        return jsonResponse({ error: "internal_error" }, 500);
+      }
     }
 
     if (!(await requireRoot(ctx, caller))) {
