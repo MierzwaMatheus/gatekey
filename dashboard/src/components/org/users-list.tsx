@@ -4,7 +4,7 @@ import { useQuery } from 'convex/react'
 import { Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
-import { suspendUser, resetUserPassword, type UserSummary } from '../../lib/org-api'
+import { suspendUser, resetUserPassword, reactivateUser, removeUserFromOrg, type UserSummary } from '../../lib/org-api'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -172,6 +172,98 @@ function ResetPasswordModal({
   )
 }
 
+function ReactivateModal({
+  user,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  user: UserSummary
+  onConfirm: () => void
+  onCancel: () => void
+  loading: boolean
+}) {
+  const { t } = useTranslation('users')
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCancel} data-testid="modal-reactivate">
+      <div
+        className="bg-surface-card border border-border-default rounded-card shadow-float p-6 w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-[15px] font-medium text-text-primary mb-2">{t('reactivate_title')}</h2>
+        <p className="text-[13px] text-text-secondary mb-5">
+          {t('reactivate_message')}{' '}
+          <span className="font-mono text-status-allow">{user.email}</span>?
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            data-testid="btn-cancel-reactivate"
+            className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
+          >
+            {t('common:cancel', { ns: 'common' })}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            data-testid="btn-confirm-reactivate"
+            className="px-3 py-1.5 text-[13px] text-black bg-status-allow rounded-button hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
+          >
+            {loading ? t('reactivate_confirm_loading') : t('reactivate_confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RemoveFromOrgModal({
+  user,
+  onConfirm,
+  onCancel,
+  loading,
+}: {
+  user: UserSummary
+  onConfirm: () => void
+  onCancel: () => void
+  loading: boolean
+}) {
+  const { t } = useTranslation('users')
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onCancel} data-testid="modal-remove-org">
+      <div
+        className="bg-surface-card border border-border-default rounded-card shadow-float p-6 w-full max-w-sm"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-[15px] font-medium text-text-primary mb-2">{t('remove_org_title')}</h2>
+        <p className="text-[13px] text-text-secondary mb-5">
+          {t('remove_org_message')}{' '}
+          <span className="font-mono text-status-deny">{user.email}</span>
+        </p>
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            data-testid="btn-cancel-remove-org"
+            className="px-3 py-1.5 text-[13px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer disabled:opacity-60"
+          >
+            {t('common:cancel', { ns: 'common' })}
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            data-testid="btn-confirm-remove-org"
+            className="px-3 py-1.5 text-[13px] text-black bg-status-deny rounded-button hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-60"
+          >
+            {loading ? t('remove_org_confirm_loading') : t('remove_org_confirm')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface UsersListProps {
   token: string
   orgId: string
@@ -182,6 +274,8 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
   const { t } = useTranslation('users')
   const [suspendTarget, setSuspendTarget] = useState<UserSummary | null>(null)
   const [resetTarget, setResetTarget] = useState<UserSummary | null>(null)
+  const [reactivateTarget, setReactivateTarget] = useState<UserSummary | null>(null)
+  const [removeOrgTarget, setRemoveOrgTarget] = useState<UserSummary | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const queryResult = useQuery(
@@ -197,6 +291,32 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
     try {
       await suspendUser(token, suspendTarget._id)
       setSuspendTarget(null)
+    } catch {
+      // noop
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function handleReactivate() {
+    if (!reactivateTarget) return
+    setActionLoading(true)
+    try {
+      await reactivateUser(token, reactivateTarget._id)
+      setReactivateTarget(null)
+    } catch {
+      // noop
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  async function handleRemoveFromOrg() {
+    if (!removeOrgTarget) return
+    setActionLoading(true)
+    try {
+      await removeUserFromOrg(token, removeOrgTarget._id)
+      setRemoveOrgTarget(null)
     } catch {
       // noop
     } finally {
@@ -263,10 +383,29 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
                 </DenseGridCell>
                 <DenseGridActionsCell>
                   {user.status === 'active' && (
-                    <DenseGridActionBtn variant="danger" onClick={() => setSuspendTarget(user)}>
+                    <DenseGridActionBtn
+                      variant="danger"
+                      onClick={() => setSuspendTarget(user)}
+                      testId={`btn-suspend-${user._id}`}
+                    >
                       {t('action_suspend')}
                     </DenseGridActionBtn>
                   )}
+                  {user.status === 'suspended' && (
+                    <DenseGridActionBtn
+                      onClick={() => setReactivateTarget(user)}
+                      testId={`btn-reactivate-${user._id}`}
+                    >
+                      {t('action_reactivate')}
+                    </DenseGridActionBtn>
+                  )}
+                  <DenseGridActionBtn
+                    variant="danger"
+                    onClick={() => setRemoveOrgTarget(user)}
+                    testId={`btn-remove-org-${user._id}`}
+                  >
+                    {t('action_remove_org')}
+                  </DenseGridActionBtn>
                   <DenseGridActionBtn onClick={() => setResetTarget(user)}>
                     {t('action_reset_password')}
                   </DenseGridActionBtn>
@@ -283,6 +422,24 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
           user={suspendTarget}
           onConfirm={handleSuspend}
           onCancel={() => setSuspendTarget(null)}
+          loading={actionLoading}
+        />
+      )}
+
+      {reactivateTarget && (
+        <ReactivateModal
+          user={reactivateTarget}
+          onConfirm={handleReactivate}
+          onCancel={() => setReactivateTarget(null)}
+          loading={actionLoading}
+        />
+      )}
+
+      {removeOrgTarget && (
+        <RemoveFromOrgModal
+          user={removeOrgTarget}
+          onConfirm={handleRemoveFromOrg}
+          onCancel={() => setRemoveOrgTarget(null)}
           loading={actionLoading}
         />
       )}
