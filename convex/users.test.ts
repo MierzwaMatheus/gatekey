@@ -264,3 +264,98 @@ test("getUserPermissions: retorna bindings do usuário com capabilities resolvid
   expect(binding).toBeDefined();
   expect(Array.isArray(binding?.capabilities)).toBe(true);
 });
+
+// ── Fase 10.1: transferUser ───────────────────────────────────────────────────
+
+async function setupTransferContext(t: ReturnType<typeof convexTest>) {
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gatekey.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+
+  // org_A e org_B
+  const orgAId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Org A", status: "active", updatedAt: Date.now() }),
+  );
+  const orgBId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Org B", status: "active", updatedAt: Date.now() }),
+  );
+
+  // usuário alvo na org_A
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("org_members", {
+      userId,
+      orgId: orgAId,
+      role: "member",
+      status: "active",
+    }),
+  );
+
+  // workspace na org_A e workspace na org_B
+  const wsAId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgAId, name: "WS A", status: "active" }),
+  );
+  const wsBId = await t.run((ctx) =>
+    ctx.db.insert("workspaces", { orgId: orgBId, name: "WS B", status: "active" }),
+  );
+
+  // role base necessário
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "member", isBase: true }),
+  );
+
+  return { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId };
+}
+
+// Ciclo 1
+test("transferUser: retorna preservedBindings + revokedBindings corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId, wsAId, wsBId, roleId } =
+    await setupTransferContext(t);
+
+  // binding em wsA (org_A) → deve ser revogado
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsAId,
+    }),
+  );
+  // binding em wsB (org_B) → deve ser preservado
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsBId,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.preservedBindings).toBe(1);
+  expect(result.revokedBindings).toBe(1);
+  expect(result.fromOrgId).toBe(orgAId);
+  expect(result.toOrgId).toBe(orgBId);
+});
