@@ -359,3 +359,145 @@ test("transferUser: retorna preservedBindings + revokedBindings corretos", async
   expect(result.fromOrgId).toBe(orgAId);
   expect(result.toOrgId).toBe(orgBId);
 });
+
+// Ciclo 2
+test("transferUser: binding em workspace da targetOrgId é preservado no banco", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsBId, roleId } = await setupTransferContext(t);
+
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsBId,
+    }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const binding = await t.run((ctx) => ctx.db.get(bindingId));
+  expect(binding).not.toBeNull();
+});
+
+// Ciclo 3
+test("transferUser: binding revogado gera audit binding.revoke com reason user_transfer_cleanup", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId, wsAId, roleId } = await setupTransferContext(t);
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId,
+      roleId,
+      resourceType: "workspace",
+      workspaceId: wsAId,
+    }),
+  );
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) =>
+    ctx.db.query("audit_log").collect(),
+  );
+  const revokeEvent = auditEvents.find((e) => e.action === "binding.revoke");
+  expect(revokeEvent).toBeDefined();
+  expect(revokeEvent?.reason).toBe("user_transfer_cleanup");
+});
+
+// Ciclo 4
+test("transferUser: atualiza org_members — remove orgId original, cria targetOrgId", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId } = await setupTransferContext(t);
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const oldMembership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgAId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(oldMembership).toBeNull();
+
+  const newMembership = await t.run((ctx) =>
+    ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), userId),
+          q.eq(q.field("orgId"), orgBId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first(),
+  );
+  expect(newMembership).not.toBeNull();
+});
+
+// Ciclo 5
+test("transferUser: revoga todas as sessões ativas do usuário", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgBId, userId } = await setupTransferContext(t);
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+
+  const result = await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  expect(result.sessionsRevoked).toBe(1);
+
+  const blacklistEntry = await t.run((ctx) =>
+    ctx.db
+      .query("session_blacklist")
+      .filter((q) => q.eq(q.field("sessionId"), sessionId))
+      .first(),
+  );
+  expect(blacklistEntry).not.toBeNull();
+});
+
+// Ciclo 6
+test("transferUser: grava audit event user.transfer com campos corretos", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgAId, orgBId, userId } = await setupTransferContext(t);
+
+  await t.mutation(internal.users.transferUser, {
+    actorId: rootId,
+    userId,
+    targetOrgId: orgBId,
+  });
+
+  const auditEvents = await t.run((ctx) => ctx.db.query("audit_log").collect());
+  const transferEvent = auditEvents.find((e) => e.action === "user.transfer");
+  expect(transferEvent).toBeDefined();
+  expect(transferEvent?.target.type).toBe("users");
+  expect(transferEvent?.target.id).toBe(userId as string);
+  expect(transferEvent?.reason).toContain(`fromOrgId:${orgAId}`);
+  expect(transferEvent?.reason).toContain(`toOrgId:${orgBId}`);
+});
