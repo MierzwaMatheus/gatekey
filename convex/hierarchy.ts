@@ -108,6 +108,27 @@ export const deleteOrg = internalMutation({
   },
 });
 
+export const reactivateOrg = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await assertRoot(ctx, args.callerId);
+    await ctx.db.patch(args.orgId, { status: "active", updatedAt: Date.now() });
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "org.reactivate",
+      target: { type: "orgs", id: args.orgId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+    return null;
+  },
+});
+
 export const createWorkspace = internalMutation({
   args: {
     callerId: v.id("users"),

@@ -1167,6 +1167,33 @@ test("createUser: org em cota máxima retorna erro quota_exceeded", async () => 
   ).rejects.toThrow("quota_exceeded");
 });
 
+// ── Ciclo 16: reactivateOrg ──────────────────────────────────────────────────
+
+test("reactivateOrg: Root reativa org suspensa e status volta para active", async () => {
+  const t = convexTest(schema, modules);
+  const rootId = await createRootUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "suspended", updatedAt: Date.now() }),
+  );
+
+  await t.mutation(internal.hierarchy.reactivateOrg, { callerId: rootId, orgId });
+
+  const org = await t.run((ctx) => ctx.db.get(orgId));
+  expect(org?.status).toBe("active");
+});
+
+test("reactivateOrg: não-Root não pode reativar org", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await createRegularUser(t);
+  const orgId = await t.run((ctx) =>
+    ctx.db.insert("orgs", { name: "Acme", status: "suspended", updatedAt: Date.now() }),
+  );
+
+  await expect(
+    t.mutation(internal.hierarchy.reactivateOrg, { callerId: userId, orgId }),
+  ).rejects.toThrow("forbidden");
+});
+
 // ── Ciclo 15: bootstrap de senha — createOrgWithBootstrap ────────────────────
 
 test("createOrgWithBootstrap: admin novo recebe tempPassword e mustChangePassword=true", async () => {
