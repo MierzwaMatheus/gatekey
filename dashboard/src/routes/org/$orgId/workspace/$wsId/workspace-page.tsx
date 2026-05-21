@@ -13,6 +13,7 @@ import { ResourceTypesList } from '../../../../../components/workspace/resource-
 import { CreateResourceTypeForm } from '../../../../../components/workspace/create-resource-type-form'
 import { AuditLogWorkspace } from '../../../../../components/workspace/audit-log-workspace'
 import { PlaygroundPanel } from '../../../../../components/workspace/playground-panel'
+import { EffectiveAccessView } from '../../../../../components/workspace/effective-access-view'
 import { LogOut, Plus } from 'lucide-react'
 import { PageHeader } from '../../../../../components/ui/page-header'
 
@@ -40,6 +41,10 @@ const SECTION_META: Record<WorkspaceSection, { number: string; title: string; mo
   playground: {
     number: '06', title: 'Playground', module: 'PLAYGROUND', submodule: 'REPL',
     description: 'Ambiente de teste para avaliação de políticas de acesso em tempo real.',
+  },
+  'effective-access': {
+    number: '07', title: 'Acesso Efetivo', module: 'ACCESS', submodule: 'EFFECTIVE',
+    description: 'Visão consolidada do acesso efetivo de um usuário: workspace, recursos diretos e herdados.',
   },
 }
 
@@ -137,6 +142,9 @@ export function WorkspacePage() {
 
       case 'playground':
         return <PlaygroundPanel token={tok} wsId={wsId} orgId={orgId ?? ''} />
+
+      case 'effective-access':
+        return <EffectiveAccessView token={tok} wsId={wsId} />
 
       default:
         return null

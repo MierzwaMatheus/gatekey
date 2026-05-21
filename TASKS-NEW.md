@@ -323,22 +323,22 @@
 
 > **Depende de:** #20 (seção 6.2 deve estar completa)
 
-- [ ] Escrever teste unitário do componente `EffectiveAccessView`: renderiza seção de workspace access quando `workspaceAccess !== null`
-- [ ] Escrever teste unitário: renderiza mensagem "Sem acesso ao workspace" quando `workspaceAccess === null`
-- [ ] Escrever teste unitário: recursos com `effectiveRole: null` são renderizados com badge vermelho "Acesso negado"
-- [ ] Escrever teste unitário: recursos com `source: "inherited-from-folder:<id>"` exibem badge "Herdado" com link/tooltip mostrando o container pai
-- [ ] Escrever teste unitário: seletor de usuário exibe apenas membros do workspace atual
-- [ ] Escrever teste unitário: clicar em "Atualizar" recarrega os dados do endpoint
-- [ ] Criar componente `EffectiveAccessView` em `dashboard/src/components/workspace/effective-access-view.tsx` — recebe `workspaceId` como prop; exibe seletor de usuário no topo
-- [ ] Implementar seção "Acesso ao workspace inteiro": exibe role e source quando `workspaceAccess !== null`, ou "Sem binding de workspace" quando null
-- [ ] Implementar tabela de recursos com colunas: tipo de recurso, ID do recurso, role efetivo, fonte da permissão, expira em
-- [ ] Implementar badge de fonte: "Direto" (cinza), "Herdado de [container]" (azul), "Do workspace" (verde), "Negado explicitamente" (vermelho)
-- [ ] Implementar filtro de `resourceType` acima da tabela
-- [ ] Implementar tooltip/expandir ao clicar em "Herdado de [container]" mostrando a cadeia de herança
-- [ ] Criar rota ou aba "Acesso Efetivo" dentro do painel Workspace Admin
-- [ ] Consumir `GET /v1/users/:id/effective-access?workspaceId=...` ao selecionar um usuário
-- [ ] Atualizar `dashboard/src/lib/workspace-api.ts` com função `getEffectiveAccess(userId, workspaceId)`
-- [ ] Escrever teste de integração do componente: mock retorna dados com allow direto + deny + herdado → tabela exibe as 3 linhas com estilos corretos
+- [x] Escrever teste unitário do componente `EffectiveAccessView`: renderiza seção de workspace access quando `workspaceAccess !== null`
+- [x] Escrever teste unitário: renderiza mensagem "Sem acesso ao workspace" quando `workspaceAccess === null`
+- [x] Escrever teste unitário: recursos com `effectiveRole: null` são renderizados com badge vermelho "Acesso negado"
+- [x] Escrever teste unitário: recursos com `source: "inherited-from-folder:<id>"` exibem badge "Herdado" com link/tooltip mostrando o container pai
+- [x] Escrever teste unitário: seletor de usuário exibe apenas membros do workspace atual
+- [x] Escrever teste unitário: clicar em "Atualizar" recarrega os dados do endpoint
+- [x] Criar componente `EffectiveAccessView` em `dashboard/src/components/workspace/effective-access-view.tsx` — recebe `workspaceId` como prop; exibe seletor de usuário no topo
+- [x] Implementar seção "Acesso ao workspace inteiro": exibe role e source quando `workspaceAccess !== null`, ou "Sem binding de workspace" quando null
+- [x] Implementar tabela de recursos com colunas: tipo de recurso, ID do recurso, role efetivo, fonte da permissão, expira em
+- [x] Implementar badge de fonte: "Direto" (cinza), "Herdado de [container]" (azul), "Do workspace" (verde), "Negado explicitamente" (vermelho)
+- [x] Implementar filtro de `resourceType` acima da tabela
+- [x] Implementar tooltip/expandir ao clicar em "Herdado de [container]" mostrando a cadeia de herança
+- [x] Criar rota ou aba "Acesso Efetivo" dentro do painel Workspace Admin
+- [x] Consumir `GET /v1/users/:id/effective-access?workspaceId=...` ao selecionar um usuário
+- [x] Atualizar `dashboard/src/lib/workspace-api.ts` com função `getEffectiveAccess(userId, workspaceId)`
+- [x] Escrever teste de integração do componente: mock retorna dados com allow direto + deny + herdado → tabela exibe as 3 linhas com estilos corretos
 
 ### 13.3 Duplicar role — closes #32
 
