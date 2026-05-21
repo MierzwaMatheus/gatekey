@@ -245,6 +245,45 @@ export const getCapabilityUsage = internalQuery({
   },
 });
 
+// ── deleteCapability ──────────────────────────────────────────────────────────
+
+export const deleteCapability = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.optional(v.id("orgs")),
+    capabilityId: v.id("capabilities"),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const cap = await ctx.db.get(args.capabilityId);
+    if (!cap) throw new Error("not_found: capability");
+    if (cap.isBase) throw new Error("forbidden: cannot_delete_base_capability");
+
+    const usage = await ctx.runQuery(internal.roles.getCapabilityUsage, {
+      capabilityId: args.capabilityId,
+    });
+    if (usage.roles.length > 0) {
+      throw new Error(
+        `capability_in_use: ${JSON.stringify(usage.roles.map((r) => ({ roleId: r.roleId, roleName: r.roleName })))}`,
+      );
+    }
+
+    await ctx.db.delete(args.capabilityId);
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "capability.delete",
+      target: { type: "capabilities", id: args.capabilityId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+
+    return null;
+  },
+});
+
 // ── listCapabilities ──────────────────────────────────────────────────────────
 
 export const listCapabilities = internalQuery({

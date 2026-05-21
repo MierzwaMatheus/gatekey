@@ -738,6 +738,54 @@ test("getCapabilityUsage: retorna array vazio quando capability não está em us
   expect(result.roles).toHaveLength(0);
 });
 
+// ── Ciclo 10: deleteCapability ────────────────────────────────────────────────
+
+test("deleteCapability: deleta capability que não está em uso", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:delete", description: "Delete", isBase: false, orgId }),
+  );
+
+  await t.mutation(internal.roles.deleteCapability, { callerId: adminId, orgId, capabilityId: capId });
+
+  const deleted = await t.run((ctx) => ctx.db.get(capId));
+  expect(deleted).toBeNull();
+});
+
+test("deleteCapability: throws capability_in_use quando capability está em uso por um role", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read", isBase: false, orgId }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reader", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("role_capabilities", { roleId, capabilityId: capId }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteCapability, { callerId: adminId, orgId, capabilityId: capId }),
+  ).rejects.toThrow("capability_in_use");
+});
+
+test("deleteCapability: throws forbidden ao tentar deletar capability base", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const baseCapId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read", isBase: true }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteCapability, { callerId: adminId, orgId, capabilityId: baseCapId }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);

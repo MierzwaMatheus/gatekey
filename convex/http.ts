@@ -985,6 +985,55 @@ http.route({
   }),
 });
 
+// ── DELETE /v1/capabilities/:id ──────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/capabilities/",
+  method: "DELETE",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const capabilityId = url.pathname.replace("/v1/capabilities/", "");
+    if (!capabilityId) return jsonResponse({ error: "missing_id" }, 400);
+
+    try {
+      await ctx.runMutation(internal.roles.deleteCapability, {
+        callerId: caller.callerId as never,
+        orgId: (caller.orgId || undefined) as never,
+        capabilityId: capabilityId as never,
+      });
+      return jsonResponse(null, 200);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("capability_in_use")) {
+        let usedBy: Array<{ roleId: string; roleName: string }> = [];
+        try {
+          const jsonMatch = msg.match(/capability_in_use: (\[.*\])/);
+          if (jsonMatch) usedBy = JSON.parse(jsonMatch[1]);
+        } catch {}
+        return jsonResponse({ error: "CapabilityInUse", usedBy }, 409);
+      }
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// preflight CORS para DELETE /v1/capabilities/:id
+http.route({
+  pathPrefix: "/v1/capabilities/",
+  method: "OPTIONS",
+  handler: httpAction(async (_ctx, req) => {
+    return new Response(null, {
+      status: 204,
+      headers: CORS_HEADERS,
+    });
+  }),
+});
+
 // ── POST /v1/bindings ─────────────────────────────────────────────────────────
 
 http.route({
