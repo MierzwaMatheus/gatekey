@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import { api } from '@convex/_generated/api'
 import type { Id } from '@convex/_generated/dataModel'
 import { suspendUser, resetUserPassword, reactivateUser, removeUserFromOrg, type UserSummary } from '../../lib/org-api'
+import { UserAccessHistory } from './user-access-history'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -276,6 +277,7 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
   const [resetTarget, setResetTarget] = useState<UserSummary | null>(null)
   const [reactivateTarget, setReactivateTarget] = useState<UserSummary | null>(null)
   const [removeOrgTarget, setRemoveOrgTarget] = useState<UserSummary | null>(null)
+  const [historyTarget, setHistoryTarget] = useState<UserSummary | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const queryResult = useQuery(
@@ -409,6 +411,12 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
                   <DenseGridActionBtn onClick={() => setResetTarget(user)}>
                     {t('action_reset_password')}
                   </DenseGridActionBtn>
+                  <DenseGridActionBtn
+                    onClick={() => setHistoryTarget(user)}
+                    testId={`btn-history-${user._id}`}
+                  >
+                    {t('action_view_history', 'Ver histórico')}
+                  </DenseGridActionBtn>
                 </DenseGridActionsCell>
               </DenseGridRow>
             ))}
@@ -450,6 +458,15 @@ export function UsersList({ token, orgId, onAddUser }: UsersListProps) {
           onConfirm={handleResetPassword}
           onCancel={() => setResetTarget(null)}
           loading={actionLoading}
+        />
+      )}
+
+      {historyTarget && (
+        <UserAccessHistory
+          userId={historyTarget._id}
+          userName={historyTarget.email}
+          token={token}
+          onClose={() => setHistoryTarget(null)}
         />
       )}
     </>
