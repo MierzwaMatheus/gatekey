@@ -107,6 +107,26 @@ export function createCapability(
   })
 }
 
+export interface CapabilityUsageRole {
+  roleId: string
+  roleName: string
+  workspaceId?: string
+}
+
+export function getCapabilityUsage(
+  token: string,
+  capabilityId: string,
+): Promise<{ roles: CapabilityUsageRole[] }> {
+  return apiFetch<{ roles: CapabilityUsageRole[] }>(
+    `/v1/capabilities/${capabilityId}/usage`,
+    token,
+  )
+}
+
+export function deleteCapability(token: string, capabilityId: string): Promise<void> {
+  return apiFetch<void>(`/v1/capabilities/${capabilityId}`, token, { method: 'DELETE' })
+}
+
 export interface ApiKeySummary {
   _id: string
   publicId: string
