@@ -89,6 +89,9 @@ export interface WorkspaceBinding {
   resourceType: string
   resourceId?: string
   workspaceId: string
+  type?: 'allow' | 'deny'
+  reason?: string
+  deniedBy?: string
 }
 
 export function listBindings(token: string, wsId: string, filters?: { userId?: string; resourceType?: string }): Promise<WorkspaceBinding[]> {

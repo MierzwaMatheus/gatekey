@@ -10,8 +10,13 @@ vi.mock('../lib/workspace-api')
 vi.mock('../lib/org-api')
 
 const mockBindings = [
-  { _id: 'bind1', userId: 'user1', roleId: 'role1', roleName: 'viewer', resourceType: 'workspace', resourceId: undefined, workspaceId: 'ws1' },
-  { _id: 'bind2', userId: 'user2', roleId: 'role2', roleName: 'editor', resourceType: 'document', resourceId: 'doc-123', workspaceId: 'ws1' },
+  { _id: 'bind1', userId: 'user1', roleId: 'role1', roleName: 'viewer', resourceType: 'workspace', resourceId: undefined, workspaceId: 'ws1', type: 'allow' },
+  { _id: 'bind2', userId: 'user2', roleId: 'role2', roleName: 'editor', resourceType: 'document', resourceId: 'doc-123', workspaceId: 'ws1', type: 'allow' },
+]
+
+const mockMixedBindings = [
+  { _id: 'bind1', userId: 'user1', roleId: 'role1', roleName: 'viewer', resourceType: 'workspace', resourceId: undefined, workspaceId: 'ws1', type: 'allow' },
+  { _id: 'deny1', userId: 'user2', roleId: 'role2', roleName: 'editor', resourceType: 'document', resourceId: 'doc-secret', workspaceId: 'ws1', type: 'deny', reason: 'Confidential doc' },
 ]
 
 const mockRoles = [
@@ -59,6 +64,41 @@ describe('BindingsList', () => {
     vi.mocked(workspaceApi.listBindings).mockResolvedValue([])
     render(<BindingsList token="tok" wsId="ws1" />)
     await waitFor(() => expect(screen.getByTestId('bindings-empty')).toBeDefined())
+  })
+
+  it('renders deny bindings with DENY badge in a separate section', async () => {
+    vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('binding-row-deny1'))
+    expect(screen.getByTestId('deny-badge')).toBeDefined()
+    expect(screen.getByTestId('deny-section')).toBeDefined()
+    expect(screen.getByTestId('allow-section')).toBeDefined()
+  })
+
+  it('deny bindings always show explicit badge, never appear as no-binding', async () => {
+    vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('binding-row-deny1'))
+    expect(screen.getByTestId('deny-badge')).toBeDefined()
+  })
+
+  it('deny binding row shows reason when provided', async () => {
+    vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('binding-row-deny1'))
+    expect(screen.getByText('Confidential doc')).toBeDefined()
+  })
+
+  it('deny binding row has revoke-deny button that triggers revoke', async () => {
+    vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
+    vi.mocked(workspaceApi.deleteBinding).mockResolvedValue(undefined)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('binding-row-deny1'))
+    expect(screen.getByTestId('btn-revoke-deny-deny1')).toBeDefined()
+    fireEvent.click(screen.getByTestId('btn-revoke-deny-deny1'))
+    await waitFor(() => screen.getByTestId('revoke-binding-modal'))
+    fireEvent.click(screen.getByTestId('btn-confirm-revoke'))
+    await waitFor(() => expect(workspaceApi.deleteBinding).toHaveBeenCalledWith('tok', 'deny1'))
   })
 
   it('shows revoke confirmation modal and calls deleteBinding', async () => {

@@ -57,6 +57,9 @@ export function BindingsList({ token, orgId: _orgId, wsId }: BindingsListProps) 
     )
   }
 
+  const allowBindings = bindings.filter((b) => (b.type ?? 'allow') === 'allow')
+  const denyBindings = bindings.filter((b) => b.type === 'deny')
+
   if (bindings.length === 0) {
     return (
       <div data-testid="bindings-empty" className="text-center py-12">
@@ -65,48 +68,99 @@ export function BindingsList({ token, orgId: _orgId, wsId }: BindingsListProps) 
     )
   }
 
+  function renderBindingRow(b: typeof bindings[0], i: number, isDeny: boolean) {
+    return (
+      <DenseGridRow key={b._id} testId={`binding-row-${b._id}`}>
+        <DenseGridRowNum index={i} />
+        <DenseGridCellStack primary={b.userId} />
+        <DenseGridCellStack
+          primary={
+            isDeny
+              ? <span data-testid="deny-badge" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-900/60 text-red-300 border border-red-700">DENY</span>
+              : <DenseGridStatusBadge value={b.roleName ?? b.roleId} type="neutral" />
+          }
+        />
+        <DenseGridCellStack primary={b.resourceType} />
+        <DenseGridCellStack
+          primary={
+            <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? t('resource_id_workspace')}</span>
+          }
+          secondary={b.reason ? <span className="text-[11px] text-red-400">{b.reason}</span> : undefined}
+        />
+        <DenseGridActionsCell>
+          <DenseGridActionBtn
+            variant="danger"
+            testId={isDeny ? `btn-revoke-deny-${b._id}` : `btn-revoke-${b._id}`}
+            onClick={() => setRevokeTarget(b)}
+          >
+            {isDeny ? 'Revogar deny' : t('action_revoke')}
+          </DenseGridActionBtn>
+        </DenseGridActionsCell>
+      </DenseGridRow>
+    )
+  }
+
   return (
     <>
-      <DenseGridContainer testId="bindings-list">
-        <DenseGridHeader label={t('header')} stats={[{ label: 'total', value: bindings.length }]} />
-        <DenseGridTable>
-          <DenseGridThead>
-            <DenseGridThNum />
-            <DenseGridTh>{t('col_user')}</DenseGridTh>
-            <DenseGridTh>{t('col_role')}</DenseGridTh>
-            <DenseGridTh>{t('col_resource_type')}</DenseGridTh>
-            <DenseGridTh>{t('col_resource_id')}</DenseGridTh>
-            <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
-          </DenseGridThead>
-          <tbody>
-            {bindings.map((b, i) => (
-              <DenseGridRow key={b._id} testId={`binding-row-${b._id}`}>
-                <DenseGridRowNum index={i} />
-                <DenseGridCellStack primary={b.userId} />
-                <DenseGridCellStack
-                  primary={<DenseGridStatusBadge value={b.roleName ?? b.roleId} type="neutral" />}
-                />
-                <DenseGridCellStack primary={b.resourceType} />
-                <DenseGridCellStack
-                  primary={
-                    <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? t('resource_id_workspace')}</span>
-                  }
-                />
-                <DenseGridActionsCell>
-                  <DenseGridActionBtn
-                    variant="danger"
-                    testId={`btn-revoke-${b._id}`}
-                    onClick={() => setRevokeTarget(b)}
-                  >
-                    {t('action_revoke')}
-                  </DenseGridActionBtn>
-                </DenseGridActionsCell>
-              </DenseGridRow>
-            ))}
-          </tbody>
-        </DenseGridTable>
-        <DenseGridFooter showing={bindings.length} />
-      </DenseGridContainer>
+      {allowBindings.length > 0 && (
+        <DenseGridContainer testId="allow-section">
+          <DenseGridHeader label="Permissões (allow)" stats={[{ label: 'total', value: allowBindings.length }]} />
+          <DenseGridTable>
+            <DenseGridThead>
+              <DenseGridThNum />
+              <DenseGridTh>{t('col_user')}</DenseGridTh>
+              <DenseGridTh>{t('col_role')}</DenseGridTh>
+              <DenseGridTh>{t('col_resource_type')}</DenseGridTh>
+              <DenseGridTh>{t('col_resource_id')}</DenseGridTh>
+              <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
+            </DenseGridThead>
+            <tbody>
+              {allowBindings.map((b, i) => renderBindingRow(b, i, false))}
+            </tbody>
+          </DenseGridTable>
+          <DenseGridFooter showing={allowBindings.length} />
+        </DenseGridContainer>
+      )}
+
+      {denyBindings.length > 0 && (
+        <DenseGridContainer testId="deny-section">
+          <DenseGridHeader label="Exceções de acesso negado (deny)" stats={[{ label: 'total', value: denyBindings.length }]} />
+          <DenseGridTable>
+            <DenseGridThead>
+              <DenseGridThNum />
+              <DenseGridTh>{t('col_user')}</DenseGridTh>
+              <DenseGridTh>Tipo</DenseGridTh>
+              <DenseGridTh>{t('col_resource_type')}</DenseGridTh>
+              <DenseGridTh>Recurso / Motivo</DenseGridTh>
+              <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
+            </DenseGridThead>
+            <tbody>
+              {denyBindings.map((b, i) => renderBindingRow(b, i, true))}
+            </tbody>
+          </DenseGridTable>
+          <DenseGridFooter showing={denyBindings.length} />
+        </DenseGridContainer>
+      )}
+
+      {bindings.length > 0 && allowBindings.length === 0 && denyBindings.length === 0 && (
+        <DenseGridContainer testId="bindings-list">
+          <DenseGridHeader label={t('header')} stats={[{ label: 'total', value: bindings.length }]} />
+          <DenseGridTable>
+            <DenseGridThead>
+              <DenseGridThNum />
+              <DenseGridTh>{t('col_user')}</DenseGridTh>
+              <DenseGridTh>{t('col_role')}</DenseGridTh>
+              <DenseGridTh>{t('col_resource_type')}</DenseGridTh>
+              <DenseGridTh>{t('col_resource_id')}</DenseGridTh>
+              <DenseGridTh align="right">{t('col_actions')}</DenseGridTh>
+            </DenseGridThead>
+            <tbody>
+              {bindings.map((b, i) => renderBindingRow(b, i, false))}
+            </tbody>
+          </DenseGridTable>
+          <DenseGridFooter showing={bindings.length} />
+        </DenseGridContainer>
+      )}
 
       {revokeTarget && (
         <div
