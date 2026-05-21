@@ -950,6 +950,7 @@ http.route({
       resourceId?: string;
       parentResourceId?: string;
       workspaceId?: string;
+      type?: "allow" | "deny";
     };
     try {
       body = await req.json();
@@ -958,6 +959,9 @@ http.route({
     }
     if (!body.userId || !body.roleId || !body.resourceType || !body.workspaceId) {
       return jsonResponse({ error: "missing_fields" }, 400);
+    }
+    if (body.type && body.type !== "allow" && body.type !== "deny") {
+      return jsonResponse({ error: "invalid_type", message: "type must be 'allow' or 'deny'" }, 400);
     }
 
     try {
@@ -970,6 +974,7 @@ http.route({
         resourceType: body.resourceType,
         resourceId: body.resourceId,
         parentResourceId: body.parentResourceId,
+        type: body.type,
       });
       return jsonResponse(result, 201);
     } catch (e) {
@@ -999,6 +1004,8 @@ http.route({
 
     const userId = url.searchParams.get("userId") ?? undefined;
     const resourceType = url.searchParams.get("resourceType") ?? undefined;
+    const typeParam = url.searchParams.get("type") ?? undefined;
+    const bindingType = typeParam === "allow" || typeParam === "deny" ? typeParam : undefined;
 
     try {
       const bindings = await ctx.runQuery(internal.bindings.listBindings, {
@@ -1007,6 +1014,7 @@ http.route({
         workspaceId: workspaceId as never,
         userId: userId as never,
         resourceType,
+        type: bindingType,
       });
       return jsonResponse({ bindings });
     } catch (e) {
