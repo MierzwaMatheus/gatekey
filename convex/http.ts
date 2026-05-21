@@ -1693,12 +1693,14 @@ http.route({
     const to = toParam ? Number(toParam) : undefined;
     const cursor = url.searchParams.get("cursor") ?? null;
     const numItems = Math.min(Number(url.searchParams.get("numItems") ?? "50"), 200);
+    const userIdParam = url.searchParams.get("userId") ?? undefined;
 
     try {
       const result = await ctx.runQuery(internal.auditLog.listAuditLog, {
         callerId: caller.callerId as never,
         orgId,
         workspaceId,
+        userId: userIdParam,
         action,
         result: resultFilter,
         from,

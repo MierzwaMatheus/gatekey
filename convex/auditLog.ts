@@ -143,6 +143,7 @@ export const listAuditLog = internalQuery({
     callerId: v.id("users"),
     orgId: v.optional(v.id("orgs")),
     workspaceId: v.optional(v.id("workspaces")),
+    userId: v.optional(v.string()),
     action: v.optional(v.string()),
     result: v.optional(v.union(v.literal("allow"), v.literal("deny"))),
     from: v.optional(v.number()),
@@ -209,6 +210,11 @@ export const listAuditLog = internalQuery({
     } else {
       // Root sem org: listar todos os eventos
       query = ctx.db.query("audit_log").order("desc");
+    }
+
+    if (args.userId) {
+      const userIdFilter = args.userId;
+      query = query.filter((q) => q.eq(q.field("actorId"), userIdFilter));
     }
 
     if (args.action && args.result) {

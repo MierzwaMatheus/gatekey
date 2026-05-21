@@ -440,3 +440,52 @@ test("listAuditLogQuery: retorna página vazia com token inválido", async () =>
   expect(result.page).toEqual([]);
   expect(result.isDone).toBe(true);
 });
+
+// ── Ciclo 12.2: filtro userId no listAuditLog ────────────────────────────────
+
+test("listAuditLog: filtro userId retorna apenas eventos do actor especificado", async () => {
+  const t = convexTest(schema, modules);
+  const { rootId, orgId, adminId, workspaceId } = await setupBase(t);
+
+  const otherUserId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "other@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  // Evento do admin
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "user",
+    actorId: adminId as string,
+    action: "permission.check",
+    target: { type: "document", id: "doc1" },
+    orgId,
+    result: "allow",
+  });
+
+  // Evento do outro usuário
+  await t.mutation(internal.auditLog.writeAuditEvent, {
+    actorType: "user",
+    actorId: otherUserId as string,
+    action: "permission.check",
+    target: { type: "document", id: "doc2" },
+    orgId,
+    result: "deny",
+  });
+
+  // Filtrar apenas eventos do admin
+  const result = await t.query(internal.auditLog.listAuditLog, {
+    callerId: rootId,
+    orgId,
+    userId: adminId as string,
+    paginationOpts: { numItems: 50, cursor: null },
+  });
+
+  expect(result.page.length).toBe(1);
+  expect(result.page[0].actorId).toBe(adminId as string);
+  expect(result.page[0].target.id).toBe("doc1");
+});

@@ -147,7 +147,8 @@ export default defineSchema({
     reason: v.optional(v.string()),
   })
     .index("by_orgId_and_timestamp", ["orgId", "timestamp"])
-    .index("by_workspaceId_and_timestamp", ["workspaceId", "timestamp"]),
+    .index("by_workspaceId_and_timestamp", ["workspaceId", "timestamp"])
+    .index("by_actorId_and_timestamp", ["actorId", "timestamp"]),
 
   audit_exports: defineTable({
     orgId: v.id("orgs"),
