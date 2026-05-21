@@ -8,6 +8,8 @@
   "type_base": "base",
   "type_custom": "custom",
   "action_delete": "Deletar",
+  "action_duplicate": "Duplicar",
+  "duplicate_quota_error": "Limite de roles do workspace atingido. Remova um role antes de duplicar.",
   "create_name_placeholder": "ex: editor-docs",
   "create_submit": "Criar Role",
   "create_submit_loading": "Criando…",

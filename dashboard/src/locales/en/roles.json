@@ -8,6 +8,8 @@
   "type_base": "base",
   "type_custom": "custom",
   "action_delete": "Delete",
+  "action_duplicate": "Duplicate",
+  "duplicate_quota_error": "Workspace role limit reached. Remove a role before duplicating.",
   "create_name_placeholder": "e.g. editor-docs",
   "create_submit": "Create Role",
   "create_submit_loading": "Creating…",

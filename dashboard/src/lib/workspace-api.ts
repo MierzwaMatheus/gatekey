@@ -70,6 +70,14 @@ export function deleteRole(token: string, roleId: string): Promise<void> {
   return apiFetch<void>(`/v1/roles/${roleId}`, token, { method: 'DELETE' })
 }
 
+export function duplicateRole(
+  token: string,
+  roleId: string,
+  workspaceId: string,
+): Promise<{ id: string; name: string; isBase: boolean; capabilities: string[] }> {
+  return apiFetch(`/v1/roles/${roleId}/duplicate?workspaceId=${workspaceId}`, token, { method: 'POST' })
+}
+
 export interface WorkspaceCapability {
   _id: string
   name: string

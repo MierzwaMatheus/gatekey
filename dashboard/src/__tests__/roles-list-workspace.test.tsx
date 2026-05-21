@@ -59,6 +59,35 @@ describe('RolesList', () => {
     expect(screen.queryByTestId('btn-delete-role1')).toBeNull()
   })
 
+  it('shows duplicate button only for non-base roles', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByText('custom-role'))
+    expect(screen.queryByTestId('btn-duplicate-role2')).toBeDefined()
+    expect(screen.queryByTestId('btn-duplicate-role1')).toBeNull()
+  })
+
+  it('does not show duplicate button for base roles', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByText('viewer'))
+    expect(screen.queryByTestId('btn-duplicate-role1')).toBeNull()
+  })
+
+  it('calls duplicateRole with correct roleId when Duplicar is clicked', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    vi.mocked(workspaceApi.duplicateRole).mockResolvedValue({
+      id: 'role3',
+      name: 'Cópia de custom-role',
+      isBase: false,
+      capabilities: ['cap1'],
+    })
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('btn-duplicate-role2'))
+    fireEvent.click(screen.getByTestId('btn-duplicate-role2'))
+    await waitFor(() => expect(workspaceApi.duplicateRole).toHaveBeenCalledWith('tok', 'role2', 'ws1'))
+  })
+
   it('shows blocked message when delete returns 409', async () => {
     vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
     vi.mocked(workspaceApi.deleteRole).mockRejectedValue(new Error('active_bindings'))

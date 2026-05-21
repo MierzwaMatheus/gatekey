@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { listRoles, deleteRole, listCapabilities, type WorkspaceRole } from '../../lib/workspace-api'
+import { listRoles, deleteRole, duplicateRole, listCapabilities, type WorkspaceRole } from '../../lib/workspace-api'
 import {
   DenseGridContainer,
   DenseGridHeader,
@@ -31,6 +31,7 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceRole | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [duplicateError, setDuplicateError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -52,6 +53,16 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
 
     return () => ac.abort()
   }, [token, wsId, refreshKey])
+
+  async function handleDuplicate(role: WorkspaceRole) {
+    setDuplicateError(null)
+    try {
+      const newRole = await duplicateRole(token, role._id, wsId)
+      setRoles((prev) => prev ? [...prev, { _id: newRole.id, name: newRole.name, isBase: newRole.isBase, capabilities: newRole.capabilities }] : prev)
+    } catch (err) {
+      setDuplicateError((err as Error).message)
+    }
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -113,13 +124,22 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
                 </DenseGridCell>
                 <DenseGridActionsCell>
                   {!r.isBase && (
-                    <DenseGridActionBtn
-                      variant="danger"
-                      testId={`btn-delete-${r._id}`}
-                      onClick={() => { setDeleteTarget(r); setDeleteError(null) }}
-                    >
-                      {t('action_delete')}
-                    </DenseGridActionBtn>
+                    <>
+                      <DenseGridActionBtn
+                        variant="neutral"
+                        testId={`btn-duplicate-${r._id}`}
+                        onClick={() => handleDuplicate(r)}
+                      >
+                        {t('action_duplicate')}
+                      </DenseGridActionBtn>
+                      <DenseGridActionBtn
+                        variant="danger"
+                        testId={`btn-delete-${r._id}`}
+                        onClick={() => { setDeleteTarget(r); setDeleteError(null) }}
+                      >
+                        {t('action_delete')}
+                      </DenseGridActionBtn>
+                    </>
                   )}
                 </DenseGridActionsCell>
               </DenseGridRow>
@@ -128,6 +148,17 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
         </DenseGridTable>
         <DenseGridFooter showing={roles.length} />
       </DenseGridContainer>
+
+      {duplicateError && (
+        <div
+          data-testid="duplicate-role-error"
+          className="mt-2 text-status-deny text-xs"
+        >
+          {duplicateError.includes('QuotaExceeded')
+            ? t('duplicate_quota_error')
+            : duplicateError}
+        </div>
+      )}
 
       {deleteTarget && (
         <div
