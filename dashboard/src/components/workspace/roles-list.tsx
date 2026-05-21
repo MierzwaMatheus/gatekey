@@ -32,6 +32,8 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [duplicateError, setDuplicateError] = useState<string | null>(null)
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null)
+  const [editingName, setEditingName] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
     try {
       const newRole = await duplicateRole(token, role._id, wsId)
       setRoles((prev) => prev ? [...prev, { _id: newRole.id, name: newRole.name, isBase: newRole.isBase, capabilities: newRole.capabilities }] : prev)
+      setEditingRoleId(newRole.id)
+      setEditingName(newRole.name)
     } catch (err) {
       setDuplicateError((err as Error).message)
     }
@@ -113,7 +117,29 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
             {roles.map((r, i) => (
               <DenseGridRow key={r._id} testId={`role-row-${r._id}`}>
                 <DenseGridRowNum index={i} />
-                <DenseGridCellStack primary={r.name} />
+                <DenseGridCellStack
+                  primary={
+                    editingRoleId === r._id ? (
+                      <input
+                        data-testid={`inline-rename-${r._id}`}
+                        className="bg-transparent border-b border-border-default text-text-primary text-sm focus:outline-none"
+                        value={editingName}
+                        autoFocus
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onBlur={() => {
+                          setRoles((prev) => prev?.map((role) =>
+                            role._id === r._id ? { ...role, name: editingName || role.name } : role
+                          ) ?? null)
+                          setEditingRoleId(null)
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                          if (e.key === 'Escape') { setEditingName(r.name); setEditingRoleId(null) }
+                        }}
+                      />
+                    ) : r.name
+                  }
+                />
                 <DenseGridCell>
                   <DenseGridStatusBadge value={r.isBase ? 'base' : 'custom'} type="neutral" />
                 </DenseGridCell>

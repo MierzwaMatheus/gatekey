@@ -88,6 +88,47 @@ describe('RolesList', () => {
     await waitFor(() => expect(workspaceApi.duplicateRole).toHaveBeenCalledWith('tok', 'role2', 'ws1'))
   })
 
+  it('shows new duplicated role in list after duplication', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    vi.mocked(workspaceApi.duplicateRole).mockResolvedValue({
+      id: 'role3',
+      name: 'Cópia de custom-role',
+      isBase: false,
+      capabilities: ['cap1'],
+    })
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('btn-duplicate-role2'))
+    fireEvent.click(screen.getByTestId('btn-duplicate-role2'))
+    await waitFor(() => {
+      const input = screen.queryByTestId('inline-rename-role3') as HTMLInputElement | null
+      const text = screen.queryByText('Cópia de custom-role')
+      expect(input?.value === 'Cópia de custom-role' || !!text).toBe(true)
+    })
+  })
+
+  it('new duplicated role name is immediately editable inline', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    vi.mocked(workspaceApi.duplicateRole).mockResolvedValue({
+      id: 'role3',
+      name: 'Cópia de custom-role',
+      isBase: false,
+      capabilities: ['cap1'],
+    })
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('btn-duplicate-role2'))
+    fireEvent.click(screen.getByTestId('btn-duplicate-role2'))
+    await waitFor(() => expect(screen.getByTestId('inline-rename-role3')).toBeDefined())
+  })
+
+  it('shows quota error when duplication exceeds workspace limit', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    vi.mocked(workspaceApi.duplicateRole).mockRejectedValue(new Error('QuotaExceeded'))
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('btn-duplicate-role2'))
+    fireEvent.click(screen.getByTestId('btn-duplicate-role2'))
+    await waitFor(() => expect(screen.getByTestId('duplicate-role-error')).toBeDefined())
+  })
+
   it('shows blocked message when delete returns 409', async () => {
     vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
     vi.mocked(workspaceApi.deleteRole).mockRejectedValue(new Error('active_bindings'))
