@@ -303,20 +303,20 @@
 - [x] Escrever teste unitário do componente `CreateBindingForm`: seletor de tipo exibe opções "Permitir" e "Negar"
 - [x] Escrever teste unitário: selecionar tipo "Negar" altera a cor do formulário para `--gate-danger`
 - [x] Escrever teste unitário: selecionar tipo "Negar" exibe aviso "Deny bindings têm precedência absoluta sobre qualquer allow."
-- [ ] Escrever teste unitário do componente `BindingsList`: deny bindings são renderizados com badge vermelho "DENY" e em seção separada ou com estilo visual distinto dos allow bindings
-- [ ] Escrever teste unitário: deny bindings nunca aparecem como "sem binding" — sempre com badge explícito
-- [ ] Escrever teste unitário do componente `DenyBindingRow`: botão "Revogar deny" chama callback correto com o bindingId
+- [x] Escrever teste unitário do componente `BindingsList`: deny bindings são renderizados com badge vermelho "DENY" e em seção separada ou com estilo visual distinto dos allow bindings
+- [x] Escrever teste unitário: deny bindings nunca aparecem como "sem binding" — sempre com badge explícito
+- [x] Escrever teste unitário do componente `DenyBindingRow`: botão "Revogar deny" chama callback correto com o bindingId
 - [x] Alterar componente `create-binding-form.tsx` em `dashboard/src/components/workspace/` — adicionar campo `tipo` com RadioGroup/Select contendo opções "Permitir (allow)" e "Negar (deny)"; padrão: "Permitir"
 - [x] Aplicar estilo visual de perigo (`border-red`, `bg-gate-danger/10`) ao formulário quando tipo "Negar" está selecionado
 - [x] Exibir texto de aviso de precedência quando tipo "Negar" está selecionado
-- [ ] Alterar componente `bindings-list.tsx` — separar listagem em duas seções: "Permissões (allow)" e "Exceções de acesso negado (deny)"; cada seção com seu próprio título e estilo
-- [ ] Aplicar estilo de danger na linha/row de deny bindings: fundo vermelho suave, badge "DENY" em vermelho
-- [ ] Garantir que deny bindings exibem o campo `reason` quando preenchido
+- [x] Alterar componente `bindings-list.tsx` — separar listagem em duas seções: "Permissões (allow)" e "Exceções de acesso negado (deny)"; cada seção com seu próprio título e estilo
+- [x] Aplicar estilo de danger na linha/row de deny bindings: fundo vermelho suave, badge "DENY" em vermelho
+- [x] Garantir que deny bindings exibem o campo `reason` quando preenchido
 - [ ] Garantir que deny bindings exibem `createdBy` (nome do admin) e data de criação
-- [ ] Implementar botão "Revogar deny" nas linhas de deny bindings — abre `ConfirmDialog`; ao confirmar chama `DELETE /v1/bindings/:id`
+- [x] Implementar botão "Revogar deny" nas linhas de deny bindings — abre `ConfirmDialog`; ao confirmar chama `DELETE /v1/bindings/:id`
 - [x] Confirmar que o endpoint `POST /v1/bindings` já aceita `type: "deny"` — se não, adicionar ao schema de validação Zod
 - [x] Confirmar que `GET /v1/bindings` já suporta filtro `?type=deny` — se não, adicionar suporte
-- [ ] Atualizar `dashboard/src/lib/workspace-api.ts` com funções: `createDenyBinding(data)`, `listDenyBindings(filters)`, `revokeDenyBinding(id)`
+- [x] Atualizar `dashboard/src/lib/workspace-api.ts` com funções: `createDenyBinding(data)`, `listDenyBindings(filters)`, `revokeDenyBinding(id)`
 - [ ] Escrever teste de integração: criar deny binding via formulário → aparece na seção "Exceções" com estilo vermelho → revogar → desaparece
 
 ### 13.2 Tela de acesso efetivo — closes #31

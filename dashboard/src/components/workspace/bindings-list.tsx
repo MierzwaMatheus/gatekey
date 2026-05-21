@@ -85,7 +85,11 @@ export function BindingsList({ token, orgId: _orgId, wsId }: BindingsListProps) 
           primary={
             <span className="text-[11px] text-[#6E7681]">{b.resourceId ?? t('resource_id_workspace')}</span>
           }
-          secondary={b.reason ? <span className="text-[11px] text-red-400">{b.reason}</span> : undefined}
+          secondary={
+            isDeny && (b.reason || b.deniedBy)
+              ? <span className="text-[11px] text-red-400">{[b.reason, b.deniedBy].filter(Boolean).join(' · ')}</span>
+              : undefined
+          }
         />
         <DenseGridActionsCell>
           <DenseGridActionBtn

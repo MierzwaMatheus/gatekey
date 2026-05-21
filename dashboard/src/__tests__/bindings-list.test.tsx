@@ -16,7 +16,7 @@ const mockBindings = [
 
 const mockMixedBindings = [
   { _id: 'bind1', userId: 'user1', roleId: 'role1', roleName: 'viewer', resourceType: 'workspace', resourceId: undefined, workspaceId: 'ws1', type: 'allow' },
-  { _id: 'deny1', userId: 'user2', roleId: 'role2', roleName: 'editor', resourceType: 'document', resourceId: 'doc-secret', workspaceId: 'ws1', type: 'deny', reason: 'Confidential doc' },
+  { _id: 'deny1', userId: 'user2', roleId: 'role2', roleName: 'editor', resourceType: 'document', resourceId: 'doc-secret', workspaceId: 'ws1', type: 'deny', reason: 'Confidential doc', deniedBy: 'admin@acme.com' },
 ]
 
 const mockRoles = [
@@ -86,7 +86,29 @@ describe('BindingsList', () => {
     vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
     render(<BindingsList token="tok" wsId="ws1" />)
     await waitFor(() => screen.getByTestId('binding-row-deny1'))
-    expect(screen.getByText('Confidential doc')).toBeDefined()
+    expect(screen.getByText(/Confidential doc/)).toBeDefined()
+  })
+
+  it('deny binding row shows deniedBy when provided', async () => {
+    vi.mocked(workspaceApi.listBindings).mockResolvedValue(mockMixedBindings)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('binding-row-deny1'))
+    expect(screen.getByText(/admin@acme\.com/)).toBeDefined()
+  })
+
+  it('integration: deny binding appears in deny section, revoke removes it', async () => {
+    vi.mocked(workspaceApi.listBindings)
+      .mockResolvedValueOnce(mockMixedBindings)
+      .mockResolvedValueOnce([mockMixedBindings[0]])
+    vi.mocked(workspaceApi.deleteBinding).mockResolvedValue(undefined)
+    render(<BindingsList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('deny-section'))
+    expect(screen.getByTestId('binding-row-deny1')).toBeDefined()
+    fireEvent.click(screen.getByTestId('btn-revoke-deny-deny1'))
+    await waitFor(() => screen.getByTestId('revoke-binding-modal'))
+    fireEvent.click(screen.getByTestId('btn-confirm-revoke'))
+    await waitFor(() => expect(workspaceApi.deleteBinding).toHaveBeenCalledWith('tok', 'deny1'))
+    await waitFor(() => expect(screen.queryByTestId('deny-section')).toBeNull())
   })
 
   it('deny binding row has revoke-deny button that triggers revoke', async () => {
