@@ -281,18 +281,18 @@
 
 ### 12.2 Histórico de acesso por usuário — closes #29
 
-- [ ] Escrever teste unitário do componente `UserAccessHistory`: renderiza lista de eventos de audit filtrados por userId
-- [ ] Escrever teste unitário: cada linha mostra timestamp, action, resultado (ALLOW/DENY), IP
-- [ ] Escrever teste unitário: filtro de data range filtra os eventos exibidos
-- [ ] Escrever teste unitário: filtro de action type filtra os eventos exibidos
-- [ ] Criar componente `UserAccessHistory` em `dashboard/src/components/org/user-access-history.tsx` — drawer ou modal que recebe `userId` e `orgId` como props; exibe audit log filtrado por `userId` com paginação
-- [ ] Implementar colunas da tabela: data/hora, ação (badge), recurso acessado (resourceType + resourceId quando disponível), resultado (ALLOW badge verde / DENY badge vermelho), IP
-- [ ] Implementar filtros dentro do componente: date pickers (início e fim), seletor de tipo de ação
-- [ ] Implementar paginação via cursor reutilizando a função `listAuditLog` existente com parâmetro `userId`
-- [ ] Confirmar que `GET /v1/audit-log` já suporta filtro `?userId=` — se não, adicionar suporte ao filtro na query
-- [ ] Adicionar botão "Ver histórico" por linha na tabela de usuários do painel Org Admin — abre drawer `UserAccessHistory` com o userId da linha
-- [ ] Atualizar `dashboard/src/lib/org-api.ts` com função `getUserAccessHistory(userId, filters)`
-- [ ] Escrever teste de integração do componente: mock retorna 5 eventos, tabela renderiza 5 linhas, filtro de data atualiza dados
+- [x] Escrever teste unitário do componente `UserAccessHistory`: renderiza lista de eventos de audit filtrados por userId
+- [x] Escrever teste unitário: cada linha mostra timestamp, action, resultado (ALLOW/DENY), IP
+- [x] Escrever teste unitário: filtro de data range filtra os eventos exibidos
+- [x] Escrever teste unitário: filtro de action type filtra os eventos exibidos
+- [x] Criar componente `UserAccessHistory` em `dashboard/src/components/org/user-access-history.tsx` — drawer ou modal que recebe `userId` e `orgId` como props; exibe audit log filtrado por `userId` com paginação
+- [x] Implementar colunas da tabela: data/hora, ação (badge), recurso acessado (resourceType + resourceId quando disponível), resultado (ALLOW badge verde / DENY badge vermelho), IP
+- [x] Implementar filtros dentro do componente: date pickers (início e fim), seletor de tipo de ação
+- [x] Implementar paginação via cursor reutilizando a função `listAuditLog` existente com parâmetro `userId`
+- [x] Confirmar que `GET /v1/audit-log` já suporta filtro `?userId=` — se não, adicionar suporte ao filtro na query
+- [x] Adicionar botão "Ver histórico" por linha na tabela de usuários do painel Org Admin — abre drawer `UserAccessHistory` com o userId da linha
+- [x] Atualizar `dashboard/src/lib/org-api.ts` com função `getUserAccessHistory(userId, filters)`
+- [x] Escrever teste de integração do componente: mock retorna 5 eventos, tabela renderiza 5 linhas, filtro de data atualiza dados
 
 ---
 
