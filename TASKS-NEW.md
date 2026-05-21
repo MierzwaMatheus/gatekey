@@ -364,18 +364,18 @@
 
 ### 14.1 Guard: bloquear remoção de capability em uso — closes #33
 
-- [ ] Escrever teste unitário: `getCapabilityUsage(capabilityId)` retorna lista de roles que usam a capability
-- [ ] Escrever teste unitário: `getCapabilityUsage` retorna array vazio se capability não está em uso
-- [ ] Escrever teste unitário do componente `CapabilityRow`: botão "Remover" está desabilitado quando `usedByRoles.length > 0`
-- [ ] Escrever teste unitário: tooltip no botão desabilitado exibe "Usada pelos roles: [lista]"
-- [ ] Escrever teste unitário: quando `usedByRoles.length === 0`, clique em "Remover" abre `ConfirmDialog` normalmente
-- [ ] Implementar query Convex `getCapabilityUsage(capabilityId)` em `convex/capabilities.ts` — retorna `{roles: [{roleId, roleName, workspaceId}]}` via join `role_capabilities → roles`
-- [ ] Alterar `DELETE /v1/capabilities/:id` em `convex/http.ts` — verificar `getCapabilityUsage` antes de deletar; se `roles.length > 0`, retornar 409 `{"error": "CapabilityInUse", "usedBy": [{roleId, roleName}]}`
-- [ ] Alterar componente `capabilities-list-org.tsx` em `dashboard/src/components/org/` — ao carregar lista, buscar usage de cada capability e exibir contador "Usada por N roles" na linha
-- [ ] Desabilitar botão "Remover" quando capability está em uso — exibir tooltip com lista dos roles
+- [x] Escrever teste unitário: `getCapabilityUsage(capabilityId)` retorna lista de roles que usam a capability
+- [x] Escrever teste unitário: `getCapabilityUsage` retorna array vazio se capability não está em uso
+- [x] Escrever teste unitário do componente `CapabilityRow`: botão "Remover" está desabilitado quando `usedByRoles.length > 0`
+- [x] Escrever teste unitário: tooltip no botão desabilitado exibe "Usada pelos roles: [lista]"
+- [x] Escrever teste unitário: quando `usedByRoles.length === 0`, clique em "Remover" abre `ConfirmDialog` normalmente
+- [x] Implementar query Convex `getCapabilityUsage(capabilityId)` em `convex/capabilities.ts` — retorna `{roles: [{roleId, roleName, workspaceId}]}` via join `role_capabilities → roles`
+- [x] Alterar `DELETE /v1/capabilities/:id` em `convex/http.ts` — verificar `getCapabilityUsage` antes de deletar; se `roles.length > 0`, retornar 409 `{"error": "CapabilityInUse", "usedBy": [{roleId, roleName}]}`
+- [x] Alterar componente `capabilities-list-org.tsx` em `dashboard/src/components/org/` — ao carregar lista, buscar usage de cada capability e exibir contador "Usada por N roles" na linha
+- [x] Desabilitar botão "Remover" quando capability está em uso — exibir tooltip com lista dos roles
 - [ ] Exibir links para os roles na tooltip para facilitar navegação e atualização
-- [ ] Atualizar `dashboard/src/lib/org-api.ts` com função `getCapabilityUsage(capabilityId)`
-- [ ] Escrever teste de integração: criar capability → atribuir a role → tentar deletar capability → recebe 409 com lista dos roles → remover de todos os roles → tentar deletar novamente → sucesso
+- [x] Atualizar `dashboard/src/lib/org-api.ts` com função `getCapabilityUsage(capabilityId)`
+- [x] Escrever teste de integração: criar capability → atribuir a role → tentar deletar capability → recebe 409 com lista dos roles → remover de todos os roles → tentar deletar novamente → sucesso
 
 ### 14.2 Guard: bloquear remoção de role em uso — closes #34
 
