@@ -346,9 +346,9 @@
 - [ ] Escrever teste unitário: clicar em "Duplicar" chama `onDuplicate(roleId)` com o id correto
 - [ ] Escrever teste unitário: após duplicação bem-sucedida, o novo role aparece na lista com nome "Cópia de [original]"
 - [ ] Escrever teste unitário: duplicação respeitando cota — quando workspace está no limite de roles, exibe erro de quota
-- [ ] Implementar função `duplicateRole({sourceRoleId, workspaceId})` em `convex/roles.ts` — lê capabilities do role fonte, cria novo role com nome `"Cópia de [originalName]"` e as mesmas capabilities; verifica cota `roles_per_workspace` antes de criar
-- [ ] Registrar novo role com `isBase: false` e `scope: "workspace"`
-- [ ] Chamar `writeAuditEvent` com action `role.duplicate`, target `{sourceRoleId, newRoleId}`, reason `"duplicated_from: <sourceRoleId>"`
+- [x] Implementar função `duplicateRole({sourceRoleId, workspaceId})` em `convex/roles.ts` — lê capabilities do role fonte, cria novo role com nome `"Cópia de [originalName]"` e as mesmas capabilities; verifica cota `roles_per_workspace` antes de criar
+- [x] Registrar novo role com `isBase: false` e `scope: "workspace"`
+- [x] Chamar `writeAuditEvent` com action `role.duplicate`, target `{sourceRoleId, newRoleId}`, reason `"duplicated_from: <sourceRoleId>"`
 - [ ] Implementar endpoint `POST /v1/roles/:id/duplicate` em `convex/http.ts` — chama `duplicateRole`; retorna o novo role criado
 - [ ] Aplicar PEP exigindo role workspace_admin
 - [ ] Adicionar preflight CORS para `/v1/roles/:id/duplicate`

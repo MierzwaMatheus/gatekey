@@ -863,6 +863,57 @@ http.route({
   }),
 });
 
+// ── POST /v1/roles/:id/duplicate ──────────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/roles/",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const segments = url.pathname.replace(/^\/v1\/roles\//, "").split("/");
+    const roleId = segments[0];
+    const action = segments[1];
+
+    if (!roleId || action !== "duplicate") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+
+    const workspaceId = url.searchParams.get("workspaceId");
+    if (!workspaceId) return jsonResponse({ error: "missing_fields", detail: "workspaceId required" }, 400);
+
+    try {
+      const result = await ctx.runMutation(internal.roles.duplicateRole, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        workspaceId: workspaceId as never,
+        sourceRoleId: roleId as never,
+      });
+      return jsonResponse(result);
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("quota_exceeded")) {
+        const match = msg.match(/limit=(\d+), current=(\d+)/);
+        return jsonResponse(
+          {
+            error: "QuotaExceeded",
+            message: "Workspace has reached the maximum number of roles.",
+            quota: "roles_per_workspace",
+            limit: match ? Number(match[1]) : null,
+            current: match ? Number(match[2]) : null,
+          },
+          429,
+        );
+      }
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── GET /v1/capabilities ──────────────────────────────────────────────────────
 
 http.route({
