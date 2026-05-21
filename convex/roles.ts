@@ -221,6 +221,30 @@ export const duplicateRole = internalMutation({
   },
 });
 
+// ── getCapabilityUsage ────────────────────────────────────────────────────────
+
+export const getCapabilityUsage = internalQuery({
+  args: { capabilityId: v.id("capabilities") },
+  handler: async (ctx, { capabilityId }) => {
+    const roleCaps = await ctx.db
+      .query("role_capabilities")
+      .filter((q) => q.eq(q.field("capabilityId"), capabilityId))
+      .collect();
+
+    const roles = (
+      await Promise.all(
+        roleCaps.map(async (rc) => {
+          const role = await ctx.db.get(rc.roleId);
+          if (!role) return null;
+          return { roleId: rc.roleId as string, roleName: role.name, workspaceId: role.workspaceId as string | undefined };
+        }),
+      )
+    ).filter((r): r is NonNullable<typeof r> => r !== null);
+
+    return { roles };
+  },
+});
+
 // ── listCapabilities ──────────────────────────────────────────────────────────
 
 export const listCapabilities = internalQuery({

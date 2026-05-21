@@ -702,6 +702,42 @@ test("duplicateRole: throws quota_exceeded quando workspace está no limite de r
   ).rejects.toThrow("quota_exceeded");
 });
 
+// ── Ciclo 9: getCapabilityUsage ───────────────────────────────────────────────
+
+test("getCapabilityUsage: retorna roles que usam a capability", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read docs", isBase: false, orgId }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reader", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("role_capabilities", { roleId, capabilityId: capId }),
+  );
+
+  const result = await t.query(internal.roles.getCapabilityUsage, { capabilityId: capId });
+
+  expect(result.roles).toHaveLength(1);
+  expect(result.roles[0].roleId).toBe(roleId);
+  expect(result.roles[0].roleName).toBe("reader");
+});
+
+test("getCapabilityUsage: retorna array vazio quando capability não está em uso", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "unused:cap", description: "Unused", isBase: false, orgId }),
+  );
+
+  const result = await t.query(internal.roles.getCapabilityUsage, { capabilityId: capId });
+
+  expect(result.roles).toHaveLength(0);
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
