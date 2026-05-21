@@ -182,6 +182,25 @@ export function listAuditLog(
   return apiFetch<AuditLogPage>(`/v1/audit-log${query}`, token)
 }
 
+export function getUserAccessHistory(
+  token: string,
+  userId: string,
+  params: {
+    action?: string
+    result?: 'allow' | 'deny'
+    from?: number
+    to?: number
+    cursor?: string
+    numItems?: number
+  } = {},
+): Promise<AuditLogPage> {
+  const qs = new URLSearchParams({ userId })
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined) qs.set(k, String(v))
+  })
+  return apiFetch<AuditLogPage>(`/v1/audit-log?${qs}`, token)
+}
+
 export interface OrgSettings {
   quotas: Record<string, number>
   loginMethods: string[]
