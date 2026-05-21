@@ -623,6 +623,85 @@ test("DELETE /v1/roles/:id com bindings ativos retorna error role_has_active_bin
   ).rejects.toThrow("role_has_active_bindings");
 });
 
+// ── Ciclo 8: duplicateRole ────────────────────────────────────────────────────
+
+test("duplicateRole: cria novo role com nome 'Cópia de [original]' e mesmas capabilities", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+  const cap1 = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read", isBase: true }),
+  );
+  const cap2 = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:write", description: "Write", isBase: true }),
+  );
+  await t.run((ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: cap1 }));
+  await t.run((ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: cap2 }));
+
+  const result = await t.mutation(internal.roles.duplicateRole, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    sourceRoleId: roleId,
+  });
+
+  expect(result.name).toBe("Cópia de reviewer");
+  expect(result.isBase).toBe(false);
+  expect(result.capabilities).toHaveLength(2);
+  expect(result.capabilities).toContain(cap1 as string);
+  expect(result.capabilities).toContain(cap2 as string);
+});
+
+test("duplicateRole: novo role tem workspaceId correto", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "devops", isBase: false, workspaceId }),
+  );
+
+  const result = await t.mutation(internal.roles.duplicateRole, {
+    callerId: adminId,
+    orgId,
+    workspaceId,
+    sourceRoleId: roleId,
+  });
+
+  const newRole = await t.run((ctx) => ctx.db.get(result.id as never));
+  expect(newRole?.workspaceId).toBe(workspaceId);
+  expect(newRole?.isBase).toBe(false);
+});
+
+test("duplicateRole: throws quota_exceeded quando workspace está no limite de roles", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  await t.run(async (ctx) => {
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), orgId))
+      .first();
+    if (settings) {
+      await ctx.db.patch(settings._id, { quotas: { ...settings.quotas, roles_per_workspace: 1 } });
+    }
+  });
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "existing", isBase: false, workspaceId }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.duplicateRole, {
+      callerId: adminId,
+      orgId,
+      workspaceId,
+      sourceRoleId: roleId,
+    }),
+  ).rejects.toThrow("quota_exceeded");
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);

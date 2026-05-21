@@ -144,6 +144,83 @@ export const deleteRole = internalMutation({
   },
 });
 
+// ── duplicateRole ─────────────────────────────────────────────────────────────
+
+export const duplicateRole = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    workspaceId: v.id("workspaces"),
+    sourceRoleId: v.id("roles"),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const source = await ctx.db.get(args.sourceRoleId);
+    if (!source) throw new Error("not_found: role");
+
+    const settings = await ctx.db
+      .query("org_settings")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .first();
+    const quota: number =
+      (settings?.quotas?.["roles_per_workspace"] as number | undefined) ??
+      DEFAULT_ROLES_PER_WORKSPACE;
+
+    const existing = await ctx.db
+      .query("roles")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("workspaceId"), args.workspaceId),
+          q.eq(q.field("isBase"), false),
+        ),
+      )
+      .collect();
+    if (existing.length >= quota) {
+      throw new Error(
+        `quota_exceeded: roles_per_workspace, limit=${quota}, current=${existing.length}`,
+      );
+    }
+
+    const newName = `Cópia de ${source.name}`;
+    const newRoleId = await ctx.db.insert("roles", {
+      workspaceId: args.workspaceId,
+      name: newName,
+      isBase: false,
+    });
+
+    const sourceCaps = await ctx.db
+      .query("role_capabilities")
+      .filter((q) => q.eq(q.field("roleId"), args.sourceRoleId))
+      .collect();
+
+    for (const rc of sourceCaps) {
+      await ctx.db.insert("role_capabilities", {
+        roleId: newRoleId,
+        capabilityId: rc.capabilityId,
+      });
+    }
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "role.duplicate",
+      target: { type: "roles", id: newRoleId as string },
+      orgId: args.orgId,
+      workspaceId: args.workspaceId,
+      result: "allow",
+      reason: `duplicated_from: ${args.sourceRoleId}`,
+    });
+
+    return {
+      id: newRoleId,
+      name: newName,
+      isBase: false as const,
+      capabilities: sourceCaps.map((rc) => rc.capabilityId as string),
+    };
+  },
+});
+
 // ── listCapabilities ──────────────────────────────────────────────────────────
 
 export const listCapabilities = internalQuery({
