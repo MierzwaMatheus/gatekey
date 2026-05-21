@@ -18,6 +18,7 @@ export function CreateBindingForm({ token, wsId, onSuccess, onCancel }: CreateBi
   const [roleId, setRoleId] = useState('')
   const [resourceType, setResourceType] = useState('')
   const [resourceId, setResourceId] = useState('')
+  const [bindingType, setBindingType] = useState<'allow' | 'deny'>('allow')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,6 +40,7 @@ export function CreateBindingForm({ token, wsId, onSuccess, onCancel }: CreateBi
         resourceType: resourceType.trim(),
         resourceId: resourceId.trim() || undefined,
         workspaceId: wsId,
+        type: bindingType,
       })
       onSuccess()
     } catch (err) {
@@ -52,8 +54,33 @@ export function CreateBindingForm({ token, wsId, onSuccess, onCancel }: CreateBi
     return <div className="text-text-muted text-sm py-2">Carregando…</div>
   }
 
+  const isDeny = bindingType === 'deny'
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+    <form
+      data-testid="binding-form"
+      onSubmit={handleSubmit}
+      className={`space-y-4 max-w-sm${isDeny ? ' border border-red-500 bg-[color:var(--gate-danger,#F85149)]/10 rounded p-3' : ''}`}
+    >
+      <div>
+        <label className="block text-xs text-text-secondary mb-1">Tipo de Binding</label>
+        <select
+          data-testid="select-binding-type"
+          value={bindingType}
+          onChange={(e) => setBindingType(e.target.value as 'allow' | 'deny')}
+          className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
+        >
+          <option value="allow">Permitir (allow)</option>
+          <option value="deny">Negar (deny)</option>
+        </select>
+      </div>
+
+      {isDeny && (
+        <p data-testid="deny-warning" className="text-xs text-red-400 bg-red-950/30 border border-red-800 rounded px-2 py-1.5">
+          Deny bindings têm precedência absoluta sobre qualquer allow.
+        </p>
+      )}
+
       <div>
         <label className="block text-xs text-text-secondary mb-1">Usuário</label>
         <select

@@ -96,6 +96,7 @@ export const listBindings = internalQuery({
     workspaceId: v.id("workspaces"),
     userId: v.optional(v.id("users")),
     resourceType: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("allow"), v.literal("deny"))),
   },
   handler: async (ctx, args) => {
     await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
@@ -119,6 +120,10 @@ export const listBindings = internalQuery({
 
     if (args.resourceType) {
       bindings = bindings.filter((b) => b.resourceType === args.resourceType);
+    }
+
+    if (args.type) {
+      bindings = bindings.filter((b) => (b.type ?? "allow") === args.type);
     }
 
     return bindings;
@@ -171,6 +176,7 @@ export const createBinding = internalMutation({
     resourceType: v.string(),
     resourceId: v.optional(v.string()),
     parentResourceId: v.optional(v.string()),
+    type: v.optional(v.union(v.literal("allow"), v.literal("deny"))),
   },
   handler: async (ctx, args) => {
     await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
@@ -188,6 +194,7 @@ export const createBinding = internalMutation({
       resourceId: args.resourceId,
       parentResourceId: args.parentResourceId,
       workspaceId: args.workspaceId,
+      type: args.type ?? "allow",
     });
 
     await ctx.runMutation(internal.auditLog.writeAuditEvent, {
