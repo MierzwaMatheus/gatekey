@@ -342,21 +342,21 @@
 
 ### 13.3 Duplicar role — closes #32
 
-- [ ] Escrever teste unitário do componente `RolesList`: botão "Duplicar" visível apenas em roles customizados (não nos roles base: owner, admin, editor, viewer)
-- [ ] Escrever teste unitário: clicar em "Duplicar" chama `onDuplicate(roleId)` com o id correto
-- [ ] Escrever teste unitário: após duplicação bem-sucedida, o novo role aparece na lista com nome "Cópia de [original]"
-- [ ] Escrever teste unitário: duplicação respeitando cota — quando workspace está no limite de roles, exibe erro de quota
+- [x] Escrever teste unitário do componente `RolesList`: botão "Duplicar" visível apenas em roles customizados (não nos roles base: owner, admin, editor, viewer)
+- [x] Escrever teste unitário: clicar em "Duplicar" chama `onDuplicate(roleId)` com o id correto
+- [x] Escrever teste unitário: após duplicação bem-sucedida, o novo role aparece na lista com nome "Cópia de [original]"
+- [x] Escrever teste unitário: duplicação respeitando cota — quando workspace está no limite de roles, exibe erro de quota
 - [x] Implementar função `duplicateRole({sourceRoleId, workspaceId})` em `convex/roles.ts` — lê capabilities do role fonte, cria novo role com nome `"Cópia de [originalName]"` e as mesmas capabilities; verifica cota `roles_per_workspace` antes de criar
 - [x] Registrar novo role com `isBase: false` e `scope: "workspace"`
 - [x] Chamar `writeAuditEvent` com action `role.duplicate`, target `{sourceRoleId, newRoleId}`, reason `"duplicated_from: <sourceRoleId>"`
-- [ ] Implementar endpoint `POST /v1/roles/:id/duplicate` em `convex/http.ts` — chama `duplicateRole`; retorna o novo role criado
-- [ ] Aplicar PEP exigindo role workspace_admin
-- [ ] Adicionar preflight CORS para `/v1/roles/:id/duplicate`
-- [ ] Adicionar botão "Duplicar" no componente `roles-list.tsx` — visível apenas para roles com `isBase: false`; ao clicar chama `POST /v1/roles/:id/duplicate`
-- [ ] Após duplicação bem-sucedida, o novo role aparece na lista; nome editável inline imediatamente
-- [ ] Atualizar `dashboard/src/lib/workspace-api.ts` com função `duplicateRole(roleId)`
-- [ ] Escrever teste de integração: duplicar role com 3 capabilities → novo role criado com as 3 mesmas capabilities e nome "Cópia de [original]" → renomear inline
-- [ ] Escrever teste de integração: tentativa de duplicar role em workspace com cota máxima retorna QuotaExceeded
+- [x] Implementar endpoint `POST /v1/roles/:id/duplicate` em `convex/http.ts` — chama `duplicateRole`; retorna o novo role criado
+- [x] Aplicar PEP exigindo role workspace_admin
+- [x] Adicionar preflight CORS para `/v1/roles/:id/duplicate`
+- [x] Adicionar botão "Duplicar" no componente `roles-list.tsx` — visível apenas para roles com `isBase: false`; ao clicar chama `POST /v1/roles/:id/duplicate`
+- [x] Após duplicação bem-sucedida, o novo role aparece na lista; nome editável inline imediatamente
+- [x] Atualizar `dashboard/src/lib/workspace-api.ts` com função `duplicateRole(roleId)`
+- [x] Escrever teste de integração: duplicar role com 3 capabilities → novo role criado com as 3 mesmas capabilities e nome "Cópia de [original]" → renomear inline
+- [x] Escrever teste de integração: tentativa de duplicar role em workspace com cota máxima retorna QuotaExceeded
 
 ---
 
