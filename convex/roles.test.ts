@@ -786,6 +786,36 @@ test("deleteCapability: throws forbidden ao tentar deletar capability base", asy
   ).rejects.toThrow("forbidden");
 });
 
+// ── Ciclo 11: integração deleteCapability ─────────────────────────────────────
+
+test("integração: criar capability → atribuir a role → tentar deletar → capability_in_use → remover role_capability → deletar com sucesso", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const capId = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:sign", description: "Sign docs", isBase: false, orgId }),
+  );
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "signer", isBase: false, workspaceId }),
+  );
+  const rcId = await t.run((ctx) =>
+    ctx.db.insert("role_capabilities", { roleId, capabilityId: capId }),
+  );
+
+  // Deve falhar enquanto capability está em uso
+  await expect(
+    t.mutation(internal.roles.deleteCapability, { callerId: adminId, orgId, capabilityId: capId }),
+  ).rejects.toThrow("capability_in_use");
+
+  // Remover associação com o role
+  await t.run((ctx) => ctx.db.delete(rcId));
+
+  // Agora deve deletar com sucesso
+  await t.mutation(internal.roles.deleteCapability, { callerId: adminId, orgId, capabilityId: capId });
+  const deleted = await t.run((ctx) => ctx.db.get(capId));
+  expect(deleted).toBeNull();
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
