@@ -12,6 +12,7 @@ export type WorkspaceSection =
   | 'resource-types'
   | 'audit-log'
   | 'playground'
+  | 'effective-access'
 
 interface NavDef {
   id: string
@@ -26,7 +27,8 @@ const NAV_ITEMS: NavDef[] = [
   { id: 'nav-bindings',       label: 'Bindings',        icon: 'link2',    section: 'bindings' },
   { id: 'nav-resource-types', label: 'Resource Types',  icon: 'layers',   section: 'resource-types' },
   { id: 'nav-audit-log',      label: 'Audit Log',       icon: 'audit',    section: 'audit-log' },
-  { id: 'nav-playground',     label: 'Playground',      icon: 'terminal', section: 'playground' },
+  { id: 'nav-playground',       label: 'Playground',      icon: 'terminal', section: 'playground' },
+  { id: 'nav-effective-access', label: 'Acesso Efetivo',  icon: 'audit',    section: 'effective-access' },
 ]
 
 const SECTION_LABELS: Record<WorkspaceSection, string> = {
@@ -35,7 +37,8 @@ const SECTION_LABELS: Record<WorkspaceSection, string> = {
   'bindings':       'bindings',
   'resource-types': 'resource.types',
   'audit-log':      'audit.log',
-  'playground':     'playground',
+  'playground':       'playground',
+  'effective-access': 'acesso.efetivo',
 }
 
 const ALLOWED_ROLES = new Set(['root', 'org_admin', 'workspace_admin'])

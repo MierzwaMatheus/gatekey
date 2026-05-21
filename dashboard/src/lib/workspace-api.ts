@@ -154,6 +154,30 @@ export function createResourceType(
   })
 }
 
+export interface WorkspaceAccessInfo {
+  role: string
+  source: 'workspace-binding'
+  expiresAt?: number
+}
+
+export interface ResourceAccessEntry {
+  resourceType: string
+  resourceId: string
+  effectiveRole: string | null
+  source: string
+  expiresAt?: number
+  deniedBy?: string
+}
+
+export interface EffectiveAccessResult {
+  workspaceAccess: WorkspaceAccessInfo | null
+  resourceAccess: ResourceAccessEntry[]
+}
+
+export function getEffectiveAccess(token: string, userId: string, workspaceId: string): Promise<EffectiveAccessResult> {
+  return apiFetch<EffectiveAccessResult>(`/v1/users/${userId}/effective-access?workspaceId=${workspaceId}`, token)
+}
+
 export interface AuditEvent {
   _id: string
   timestamp: number
