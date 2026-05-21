@@ -312,12 +312,12 @@
 - [x] Alterar componente `bindings-list.tsx` — separar listagem em duas seções: "Permissões (allow)" e "Exceções de acesso negado (deny)"; cada seção com seu próprio título e estilo
 - [x] Aplicar estilo de danger na linha/row de deny bindings: fundo vermelho suave, badge "DENY" em vermelho
 - [x] Garantir que deny bindings exibem o campo `reason` quando preenchido
-- [ ] Garantir que deny bindings exibem `createdBy` (nome do admin) e data de criação
+- [x] Garantir que deny bindings exibem `createdBy` (nome do admin) e data de criação
 - [x] Implementar botão "Revogar deny" nas linhas de deny bindings — abre `ConfirmDialog`; ao confirmar chama `DELETE /v1/bindings/:id`
 - [x] Confirmar que o endpoint `POST /v1/bindings` já aceita `type: "deny"` — se não, adicionar ao schema de validação Zod
 - [x] Confirmar que `GET /v1/bindings` já suporta filtro `?type=deny` — se não, adicionar suporte
 - [x] Atualizar `dashboard/src/lib/workspace-api.ts` com funções: `createDenyBinding(data)`, `listDenyBindings(filters)`, `revokeDenyBinding(id)`
-- [ ] Escrever teste de integração: criar deny binding via formulário → aparece na seção "Exceções" com estilo vermelho → revogar → desaparece
+- [x] Escrever teste de integração: criar deny binding via formulário → aparece na seção "Exceções" com estilo vermelho → revogar → desaparece
 
 ### 13.2 Tela de acesso efetivo — closes #31
 
