@@ -88,6 +88,37 @@ describe('CreateBindingForm', () => {
     expect(screen.getByTestId('input-resource-id')).toBeDefined()
   })
 
+  it('renders type selector with "Permitir" and "Negar" options', async () => {
+    render(<CreateBindingForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-binding-user'))
+    const typeSelect = screen.getByTestId('select-binding-type')
+    expect(typeSelect).toBeDefined()
+    expect(screen.getByText('Permitir (allow)')).toBeDefined()
+    expect(screen.getByText('Negar (deny)')).toBeDefined()
+  })
+
+  it('applies danger style when "Negar" is selected', async () => {
+    render(<CreateBindingForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-binding-user'))
+    fireEvent.change(screen.getByTestId('select-binding-type'), { target: { value: 'deny' } })
+    const form = screen.getByTestId('binding-form')
+    expect(form.className).toContain('border-red')
+  })
+
+  it('shows precedence warning when "Negar" is selected', async () => {
+    render(<CreateBindingForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-binding-user'))
+    fireEvent.change(screen.getByTestId('select-binding-type'), { target: { value: 'deny' } })
+    expect(screen.getByTestId('deny-warning')).toBeDefined()
+    expect(screen.getByText(/precedência absoluta/)).toBeDefined()
+  })
+
+  it('does not show warning when "Permitir" is selected', async () => {
+    render(<CreateBindingForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-binding-user'))
+    expect(screen.queryByTestId('deny-warning')).toBeNull()
+  })
+
   it('submits binding data when form is submitted', async () => {
     vi.mocked(workspaceApi.createBinding).mockResolvedValue({ id: 'new-bind' })
     const onSuccess = vi.fn()
@@ -102,6 +133,23 @@ describe('CreateBindingForm', () => {
     await waitFor(() => expect(workspaceApi.createBinding).toHaveBeenCalledWith(
       'tok',
       expect.objectContaining({ userId: 'user1', roleId: 'role1', resourceType: 'workspace', workspaceId: 'ws1' })
+    ))
+  })
+
+  it('submits with type "deny" when deny is selected', async () => {
+    vi.mocked(workspaceApi.createBinding).mockResolvedValue({ id: 'new-bind' })
+    render(<CreateBindingForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-binding-user'))
+
+    fireEvent.change(screen.getByTestId('select-binding-type'), { target: { value: 'deny' } })
+    fireEvent.change(screen.getByTestId('select-binding-user'), { target: { value: 'user1' } })
+    fireEvent.change(screen.getByTestId('select-binding-role'), { target: { value: 'role1' } })
+    fireEvent.change(screen.getByTestId('input-resource-type'), { target: { value: 'document' } })
+    fireEvent.click(screen.getByTestId('btn-create-binding'))
+
+    await waitFor(() => expect(workspaceApi.createBinding).toHaveBeenCalledWith(
+      'tok',
+      expect.objectContaining({ type: 'deny' })
     ))
   })
 })

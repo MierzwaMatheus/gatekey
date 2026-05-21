@@ -100,12 +100,30 @@ export function listBindings(token: string, wsId: string, filters?: { userId?: s
 
 export function createBinding(
   token: string,
-  data: { userId: string; roleId: string; resourceType: string; resourceId?: string; workspaceId: string },
+  data: { userId: string; roleId: string; resourceType: string; resourceId?: string; workspaceId: string; type?: 'allow' | 'deny' },
 ): Promise<{ id: string }> {
   return apiFetch<{ id: string }>('/v1/bindings', token, {
     method: 'POST',
     body: JSON.stringify(data),
   })
+}
+
+export function createDenyBinding(
+  token: string,
+  data: { userId: string; roleId: string; resourceType: string; resourceId?: string; workspaceId: string },
+): Promise<{ id: string }> {
+  return createBinding(token, { ...data, type: 'deny' })
+}
+
+export function listDenyBindings(token: string, wsId: string, filters?: { userId?: string; resourceType?: string }): Promise<WorkspaceBinding[]> {
+  const qs = new URLSearchParams({ workspaceId: wsId, type: 'deny' })
+  if (filters?.userId) qs.set('userId', filters.userId)
+  if (filters?.resourceType) qs.set('resourceType', filters.resourceType)
+  return apiFetch<WorkspaceBinding[]>(`/v1/bindings?${qs}`, token)
+}
+
+export function revokeDenyBinding(token: string, bindingId: string): Promise<void> {
+  return deleteBinding(token, bindingId)
 }
 
 export function deleteBinding(token: string, bindingId: string): Promise<void> {
