@@ -1826,6 +1826,7 @@ http.route({
     } catch (e) {
       const msg = (e as Error).message ?? "";
       if (msg.includes("quota_exceeded")) return jsonResponse({ error: "QuotaExceeded", quota: "users_per_workspace" }, 429);
+      if (msg.includes("user_not_org_member")) return jsonResponse({ error: "user_not_org_member" }, 400);
       if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
       if (msg.includes("forbidden")) return jsonResponse({ error: "forbidden" }, 403);
       return jsonResponse({ error: "internal_error" }, 500);

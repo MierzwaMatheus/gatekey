@@ -710,6 +710,80 @@ test("addWorkspaceMember: workspace em cota máxima retorna erro quota_exceeded"
   ).rejects.toThrow("quota_exceeded");
 });
 
+// ── Ciclo 9b: HTTP guard user_not_org_member ─────────────────────────────────
+
+test("POST /v1/workspaces/:wsId/members: retorna 400 quando user não é membro da org", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const rootId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "root@gk.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+      isRoot: true,
+    }),
+  );
+  await t.run((ctx) => ctx.db.insert("roles", { name: "admin", isBase: true }));
+
+  const { orgId } = await t.mutation(internal.hierarchy.createOrg, {
+    callerId: rootId,
+    name: "Acme Corp",
+    adminEmail: "admin@acme.io",
+  });
+
+  const wsId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: rootId,
+    orgId,
+    name: "Dev WS",
+  });
+
+  const adminUser = await t.run((ctx) =>
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", "admin@acme.io")).first(),
+  );
+  const adminId = adminUser!._id;
+
+  // Usuário de fora da org
+  const outsiderId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "outsider@other.io",
+      passwordHash: "h",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3_600_000,
+    }),
+  );
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionId as string,
+    expiresInSeconds: 3600,
+  });
+
+  const resp = await t.fetch(`/v1/workspaces/${wsId as string}/members`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ userId: outsiderId as string }),
+  });
+
+  expect(resp.status).toBe(400);
+  const body = await resp.json();
+  expect(body.error).toBe("user_not_org_member");
+});
+
 // ── Ciclo 7: suspendUser ─────────────────────────────────────────────────────
 
 test("suspendUser: Org Admin suspende usuário da própria org", async () => {
