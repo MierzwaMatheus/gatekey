@@ -850,11 +850,13 @@ http.route({
       return jsonResponse({ success: true });
     } catch (e) {
       const msg = (e as Error).message ?? "";
-      if (msg.includes("role_has_active_bindings")) {
-        return jsonResponse(
-          { error: "RoleHasActiveBindings", message: "Role cannot be deleted while active bindings exist." },
-          409,
-        );
+      if (msg.includes("role_in_use")) {
+        let usedBy: Array<{ userId: string; userEmail: string }> = [];
+        try {
+          const jsonMatch = msg.match(/role_in_use: (\[.*\])/);
+          if (jsonMatch) usedBy = JSON.parse(jsonMatch[1]);
+        } catch {}
+        return jsonResponse({ error: "RoleInUse", usedBy }, 409);
       }
       if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
       if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
