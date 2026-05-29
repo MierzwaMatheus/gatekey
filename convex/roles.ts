@@ -221,6 +221,19 @@ export const duplicateRole = internalMutation({
   },
 });
 
+// ── getActiveUserCountForRole ─────────────────────────────────────────────────
+
+export const getActiveUserCountForRole = internalQuery({
+  args: { roleId: v.id("roles") },
+  handler: async (ctx, { roleId }) => {
+    const bindings = await ctx.db
+      .query("bindings")
+      .filter((q) => q.eq(q.field("roleId"), roleId))
+      .collect();
+    return { count: bindings.length };
+  },
+});
+
 // ── getCapabilityUsage ────────────────────────────────────────────────────────
 
 export const getCapabilityUsage = internalQuery({

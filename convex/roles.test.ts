@@ -816,6 +816,73 @@ test("integração: criar capability → atribuir a role → tentar deletar → 
   expect(deleted).toBeNull();
 });
 
+// ── Ciclo 12: getActiveUserCountForRole ──────────────────────────────────────
+
+test("getActiveUserCountForRole: retorna count de bindings ativos para o role", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "user1@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.query(internal.roles.getActiveUserCountForRole, { roleId });
+  expect(result.count).toBe(1);
+});
+
+test("getActiveUserCountForRole: retorna 0 quando não há bindings para o role", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+
+  const result = await t.query(internal.roles.getActiveUserCountForRole, { roleId });
+  expect(result.count).toBe(0);
+});
+
+test("getActiveUserCountForRole: conta múltiplos usuários com o mesmo role", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+
+  for (let i = 0; i < 3; i++) {
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", {
+        email: `user${i}@acme.io`,
+        passwordHash: "hash",
+        status: "active",
+        loginAttempts: 0,
+        updatedAt: Date.now(),
+      }),
+    );
+    await t.run((ctx) =>
+      ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId }),
+    );
+  }
+
+  const result = await t.query(internal.roles.getActiveUserCountForRole, { roleId });
+  expect(result.count).toBe(3);
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);
