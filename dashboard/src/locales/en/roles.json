@@ -15,6 +15,7 @@
   "create_submit_loading": "Creating…",
   "delete_title": "Delete role {{name}}?",
   "delete_warning": "This role has active bindings and cannot be deleted.",
+  "delete_warning_users": "This role is assigned to the following users. Reassign them to another role before deleting:",
   "delete_confirm": "Delete",
   "delete_confirm_loading": "Deleting…"
 }

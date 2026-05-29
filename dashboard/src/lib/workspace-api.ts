@@ -66,8 +66,19 @@ export function createRole(token: string, data: { name: string; workspaceId: str
   })
 }
 
-export function deleteRole(token: string, roleId: string): Promise<void> {
-  return apiFetch<void>(`/v1/roles/${roleId}`, token, { method: 'DELETE' })
+export async function deleteRole(token: string, roleId: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/v1/roles/${roleId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: 'unknown' }))
+    if (err.error === 'RoleInUse' && Array.isArray(err.usedBy)) {
+      const emails = (err.usedBy as Array<{ userEmail: string }>).map((u) => u.userEmail)
+      throw new Error(`RoleInUse:${emails.join(',')}`)
+    }
+    throw new Error(err.error ?? `HTTP ${res.status}`)
+  }
 }
 
 export function duplicateRole(

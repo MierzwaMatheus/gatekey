@@ -139,6 +139,23 @@ describe('RolesList', () => {
     fireEvent.click(screen.getByTestId('btn-confirm-delete-role'))
     await waitFor(() => expect(screen.getByTestId('delete-role-error')).toBeDefined())
   })
+
+  it('shows affected user emails when delete returns RoleInUse', async () => {
+    vi.mocked(workspaceApi.listRoles).mockResolvedValue(mockRoles)
+    vi.mocked(workspaceApi.deleteRole).mockRejectedValue(
+      new Error('RoleInUse:alice@acme.io,bob@acme.io')
+    )
+    render(<RolesList token="tok" wsId="ws1" />)
+    await waitFor(() => screen.getByTestId('btn-delete-role2'))
+    fireEvent.click(screen.getByTestId('btn-delete-role2'))
+    await waitFor(() => screen.getByTestId('delete-role-modal'))
+    fireEvent.click(screen.getByTestId('btn-confirm-delete-role'))
+    await waitFor(() => {
+      expect(screen.getByTestId('delete-role-error')).toBeDefined()
+      expect(screen.getByText('alice@acme.io')).toBeDefined()
+      expect(screen.getByText('bob@acme.io')).toBeDefined()
+    })
+  })
 })
 
 describe('CreateRoleForm', () => {

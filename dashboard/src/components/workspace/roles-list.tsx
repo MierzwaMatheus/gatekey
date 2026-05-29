@@ -200,11 +200,22 @@ export function RolesList({ token, wsId, refreshKey }: RolesListProps) {
               {t('delete_title', { name: deleteTarget.name })}
             </p>
             {deleteError && (
-              <p data-testid="delete-role-error" className="text-status-deny text-xs mb-3">
-                {deleteError.includes('active_bindings')
-                  ? t('delete_warning')
-                  : deleteError}
-              </p>
+              <div data-testid="delete-role-error" className="text-status-deny text-xs mb-3">
+                {deleteError.startsWith('RoleInUse:')
+                  ? (
+                    <>
+                      <p>{t('delete_warning_users')}</p>
+                      <ul className="mt-1 list-disc list-inside">
+                        {deleteError.replace('RoleInUse:', '').split(',').map((email) => (
+                          <li key={email}>{email}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )
+                  : deleteError.includes('active_bindings')
+                    ? t('delete_warning')
+                    : deleteError}
+              </div>
             )}
             <div className="flex gap-2">
               <button
