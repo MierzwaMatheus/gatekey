@@ -586,6 +586,74 @@ test("getAffectedInheritanceUsers: retorna contagem de usuários distintos com p
   expect(count).toBe(1);
 });
 
+// ── Ciclo 7: updateResourceTypeInheritance ────────────────────────────────────
+
+test("updateResourceTypeInheritance: desativa inheritanceMode com sucesso", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  await t.mutation(internal.resourceTypes.updateResourceTypeInheritance, {
+    callerId: adminId,
+    orgId,
+    resourceTypeName: "document",
+    inheritanceMode: undefined,
+  });
+
+  const updated = await t.run((ctx) =>
+    ctx.db
+      .query("resource_types")
+      .withIndex("by_orgId", (q) => q.eq("orgId", orgId))
+      .filter((q) => q.eq(q.field("name"), "document"))
+      .first(),
+  );
+  expect(updated!.inheritanceMode).toBeUndefined();
+});
+
+test("updateResourceTypeInheritance: rejeita se caller não é admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId } = await setupOrgWithAdmin(t);
+
+  const nonAdminId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "nonadmin@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.resourceTypes.updateResourceTypeInheritance, {
+      callerId: nonAdminId,
+      orgId,
+      resourceTypeName: "document",
+      inheritanceMode: undefined,
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("updateResourceTypeInheritance: rejeita se resource type não existe", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  await expect(
+    t.mutation(internal.resourceTypes.updateResourceTypeInheritance, {
+      callerId: adminId,
+      orgId,
+      resourceTypeName: "nonexistent",
+      inheritanceMode: undefined,
+    }),
+  ).rejects.toThrow("not_found");
+});
+
 test("createResourceType: registra evento no audit_log", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId } = await setupOrgWithAdmin(t);

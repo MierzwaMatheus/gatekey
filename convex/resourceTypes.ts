@@ -108,6 +108,38 @@ export const getAffectedInheritanceUsers = internalQuery({
   },
 });
 
+// ── updateResourceTypeInheritance ─────────────────────────────────────────────
+
+export const updateResourceTypeInheritance = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    resourceTypeName: v.string(),
+    inheritanceMode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const rt = await ctx.db
+      .query("resource_types")
+      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+      .filter((q) => q.eq(q.field("name"), args.resourceTypeName))
+      .first();
+    if (!rt) throw new Error("not_found: resource_type");
+
+    await ctx.db.patch(rt._id, { inheritanceMode: args.inheritanceMode });
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "resource_type.update",
+      target: { type: "resource_types", id: rt._id as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+  },
+});
+
 // ── listResourceTypes ─────────────────────────────────────────────────────────
 
 export const listResourceTypes = internalQuery({
