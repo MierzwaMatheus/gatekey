@@ -4,6 +4,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { ResourceTypesList } from '../components/workspace/resource-types-list'
 import { CreateResourceTypeForm } from '../components/workspace/create-resource-type-form'
 import * as workspaceApi from '../lib/workspace-api'
+import { checkResourceTypeInheritance, updateResourceTypeInheritance } from '../lib/workspace-api'
 
 vi.mock('../lib/workspace-api')
 
@@ -94,4 +95,19 @@ describe('CreateResourceTypeForm', () => {
       expect.objectContaining({ name: 'report' })
     ))
   })
+})
+
+describe('workspace-api: checkResourceTypeInheritance e updateResourceTypeInheritance', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('checkResourceTypeInheritance é uma função exportada', () => {
+    expect(typeof checkResourceTypeInheritance).toBe('function')
+  })
+
+  it('updateResourceTypeInheritance é uma função exportada', () => {
+    expect(typeof updateResourceTypeInheritance).toBe('function')
+  })
+
 })

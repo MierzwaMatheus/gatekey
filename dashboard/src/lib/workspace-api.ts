@@ -188,6 +188,27 @@ export function createResourceType(
   })
 }
 
+export function checkResourceTypeInheritance(
+  token: string,
+  name: string,
+): Promise<{ affectedCount: number }> {
+  return apiFetch<{ affectedCount: number }>(
+    `/v1/resource-types/${encodeURIComponent(name)}/inheritance-check`,
+    token,
+  )
+}
+
+export function updateResourceTypeInheritance(
+  token: string,
+  name: string,
+  inheritanceMode: string | null,
+): Promise<void> {
+  return apiFetch<void>(`/v1/resource-types/${encodeURIComponent(name)}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({ inheritanceMode }),
+  })
+}
+
 export interface WorkspaceAccessInfo {
   role: string
   source: 'workspace-binding'
