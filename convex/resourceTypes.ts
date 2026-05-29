@@ -73,6 +73,41 @@ export const createResourceType = internalMutation({
   },
 });
 
+// ── getAffectedInheritanceUsers ───────────────────────────────────────────────
+
+export const getAffectedInheritanceUsers = internalQuery({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    resourceTypeName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const orgWorkspaces = await ctx.db
+      .query("workspaces")
+      .filter((q) => q.eq(q.field("orgId"), args.orgId))
+      .collect();
+    const workspaceIds = new Set(orgWorkspaces.map((w) => w._id as string));
+
+    const bindings = await ctx.db
+      .query("bindings")
+      .withIndex("by_resourceType_and_resourceId", (q) =>
+        q.eq("resourceType", args.resourceTypeName),
+      )
+      .collect();
+
+    const affectedUsers = new Set<string>();
+    for (const b of bindings) {
+      if (b.parentResourceId !== undefined && workspaceIds.has(b.workspaceId as string)) {
+        affectedUsers.add(b.userId as string);
+      }
+    }
+
+    return affectedUsers.size;
+  },
+});
+
 // ── listResourceTypes ─────────────────────────────────────────────────────────
 
 export const listResourceTypes = internalQuery({

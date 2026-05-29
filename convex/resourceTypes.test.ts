@@ -506,6 +506,86 @@ test("herança: binding no folder permite acesso ao document via pdpDecide", asy
   void folderBindingId;
 });
 
+// ── Ciclo 6: getAffectedInheritanceUsers ─────────────────────────────────────
+
+test("getAffectedInheritanceUsers: retorna 0 quando não há bindings herdados", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  const count = await t.run((ctx) =>
+    ctx.runQuery(internal.resourceTypes.getAffectedInheritanceUsers, {
+      callerId: adminId,
+      orgId,
+      resourceTypeName: "document",
+    }),
+  );
+
+  expect(count).toBe(0);
+});
+
+test("getAffectedInheritanceUsers: retorna contagem de usuários distintos com parent bindings", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+
+  const workspaceId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: adminId,
+    orgId,
+    name: "WS Principal",
+  });
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+
+  // Usuário 1: binding herdado em document via folder_1
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_1",
+      parentResourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  // Segundo binding do mesmo usuário (deve contar como 1 único)
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_2",
+      parentResourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  const count = await t.run((ctx) =>
+    ctx.runQuery(internal.resourceTypes.getAffectedInheritanceUsers, {
+      callerId: adminId,
+      orgId,
+      resourceTypeName: "document",
+    }),
+  );
+
+  expect(count).toBe(1);
+});
+
 test("createResourceType: registra evento no audit_log", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId } = await setupOrgWithAdmin(t);
