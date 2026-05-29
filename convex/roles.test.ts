@@ -215,7 +215,7 @@ test("deleteRole: org_admin deleta role customizado sem bindings ativos", async 
   expect(deleted).toBeNull();
 });
 
-test("deleteRole: throws role_has_active_bindings quando existem bindings", async () => {
+test("deleteRole: throws role_in_use quando existem bindings", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
 
@@ -233,7 +233,7 @@ test("deleteRole: throws role_has_active_bindings quando existem bindings", asyn
 
   await expect(
     t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId }),
-  ).rejects.toThrow("role_has_active_bindings");
+  ).rejects.toThrow("role_in_use");
 });
 
 test("deleteRole: throws forbidden quando caller não é org_admin", async () => {
@@ -535,7 +535,7 @@ test("HTTP capabilities: quota_exceeded mapeia para QuotaExceeded (capabilities_
   ).rejects.toThrow("quota_exceeded: capabilities_per_org");
 });
 
-test("HTTP roles: role_has_active_bindings mapeia para 409 RoleHasActiveBindings", async () => {
+test("HTTP roles: role_in_use mapeia para 409 com detalhes dos usuários", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
 
@@ -548,7 +548,7 @@ test("HTTP roles: role_has_active_bindings mapeia para 409 RoleHasActiveBindings
 
   await expect(
     t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId }),
-  ).rejects.toThrow("role_has_active_bindings");
+  ).rejects.toThrow("role_in_use");
 });
 
 test("HTTP roles: GET listRoles retorna roles base e customizados do workspace", async () => {
@@ -596,7 +596,7 @@ test("capability criada em org_A não aparece em listCapabilities da org_B", asy
   expect(capsB.some((c) => c.name === "orga:exclusive")).toBe(false);
 });
 
-test("DELETE /v1/roles/:id com bindings ativos retorna error role_has_active_bindings", async () => {
+test("DELETE /v1/roles/:id com bindings ativos retorna error role_in_use", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
 
@@ -620,7 +620,7 @@ test("DELETE /v1/roles/:id com bindings ativos retorna error role_has_active_bin
   // Tentar deletar o role com binding ativo deve falhar com mensagem clara
   await expect(
     t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId: roleId as never }),
-  ).rejects.toThrow("role_has_active_bindings");
+  ).rejects.toThrow("role_in_use");
 });
 
 // ── Ciclo 8: duplicateRole ────────────────────────────────────────────────────
@@ -1049,4 +1049,62 @@ test("getRoleUsage: retorna array vazio quando role não está em uso", async ()
   const result = await t.query(internal.roles.getRoleUsage, { roleId });
 
   expect(result.users).toHaveLength(0);
+});
+
+// ── Ciclo 17: deleteRole com detalhes de usuários ─────────────────────────────
+
+test("deleteRole: throws role_in_use com email do usuário quando role está em uso", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "bob@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId }),
+  ).rejects.toThrow("role_in_use");
+});
+
+test("integração: criar role → atribuir usuário → tentar deletar → role_in_use → remover binding → deletar com sucesso", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "reviewer", isBase: false, workspaceId }),
+  );
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "carol@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  const bindingId = await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId }),
+  ).rejects.toThrow("role_in_use");
+
+  await t.run((ctx) => ctx.db.delete(bindingId));
+
+  await t.mutation(internal.roles.deleteRole, { callerId: adminId, orgId, roleId });
+  const deleted = await t.run((ctx) => ctx.db.get(roleId));
+  expect(deleted).toBeNull();
 });

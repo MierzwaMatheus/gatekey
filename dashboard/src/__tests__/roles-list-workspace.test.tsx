@@ -171,6 +171,110 @@ describe('CreateRoleForm', () => {
   })
 })
 
+describe('CreateRoleForm — modo de edição com guard EC-07', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(workspaceApi.listCapabilities).mockResolvedValue(mockCapabilities)
+  })
+
+  it('exibe diálogo de confirmação quando role tem usuários ativos', async () => {
+    vi.mocked(workspaceApi.getRoleActiveUserCount).mockResolvedValue({ count: 3 })
+    vi.mocked(workspaceApi.updateRoleCapabilities).mockResolvedValue({ success: true })
+
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('btn-save-role'))
+    fireEvent.click(screen.getByTestId('btn-save-role'))
+
+    await waitFor(() => screen.getByTestId('role-edit-confirm-dialog'))
+    expect(screen.getByText(/3 usuário/)).toBeDefined()
+  })
+
+  it('chama updateRoleCapabilities e onSuccess ao confirmar o diálogo', async () => {
+    vi.mocked(workspaceApi.getRoleActiveUserCount).mockResolvedValue({ count: 2 })
+    vi.mocked(workspaceApi.updateRoleCapabilities).mockResolvedValue({ success: true })
+    const onSuccess = vi.fn()
+
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={onSuccess}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('btn-save-role'))
+    fireEvent.click(screen.getByTestId('btn-save-role'))
+
+    await waitFor(() => screen.getByTestId('btn-confirm-edit'))
+    fireEvent.click(screen.getByTestId('btn-confirm-edit'))
+
+    await waitFor(() => {
+      expect(workspaceApi.updateRoleCapabilities).toHaveBeenCalledWith('tok', 'role2', { capabilityIds: ['cap1'], workspaceId: 'ws1' })
+      expect(onSuccess).toHaveBeenCalled()
+    })
+  })
+
+  it('fecha o diálogo e não salva ao cancelar', async () => {
+    vi.mocked(workspaceApi.getRoleActiveUserCount).mockResolvedValue({ count: 1 })
+    vi.mocked(workspaceApi.updateRoleCapabilities).mockResolvedValue({ success: true })
+
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('btn-save-role'))
+    fireEvent.click(screen.getByTestId('btn-save-role'))
+
+    await waitFor(() => screen.getByTestId('btn-cancel-edit'))
+    fireEvent.click(screen.getByTestId('btn-cancel-edit'))
+
+    await waitFor(() => expect(screen.queryByTestId('role-edit-confirm-dialog')).toBeNull())
+    expect(workspaceApi.updateRoleCapabilities).not.toHaveBeenCalled()
+  })
+
+  it('salva diretamente sem diálogo quando não há usuários ativos', async () => {
+    vi.mocked(workspaceApi.getRoleActiveUserCount).mockResolvedValue({ count: 0 })
+    vi.mocked(workspaceApi.updateRoleCapabilities).mockResolvedValue({ success: true })
+    const onSuccess = vi.fn()
+
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={onSuccess}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('btn-save-role'))
+    fireEvent.click(screen.getByTestId('btn-save-role'))
+
+    await waitFor(() => {
+      expect(workspaceApi.updateRoleCapabilities).toHaveBeenCalled()
+      expect(onSuccess).toHaveBeenCalled()
+    })
+    expect(screen.queryByTestId('role-edit-confirm-dialog')).toBeNull()
+  })
+})
+
 describe('CreateRoleForm — modo de edição', () => {
   beforeEach(() => {
     vi.clearAllMocks()

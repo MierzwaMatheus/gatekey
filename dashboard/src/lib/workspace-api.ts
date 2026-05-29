@@ -137,6 +137,21 @@ export function revokeDenyBinding(token: string, bindingId: string): Promise<voi
   return deleteBinding(token, bindingId)
 }
 
+export function getRoleActiveUserCount(token: string, roleId: string): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>(`/v1/roles/${roleId}/active-user-count`, token)
+}
+
+export function updateRoleCapabilities(
+  token: string,
+  roleId: string,
+  data: { capabilityIds: string[]; workspaceId: string },
+): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/v1/roles/${roleId}/capabilities`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
 export function deleteBinding(token: string, bindingId: string): Promise<void> {
   return apiFetch<void>(`/v1/bindings/${bindingId}`, token, { method: 'DELETE' })
 }

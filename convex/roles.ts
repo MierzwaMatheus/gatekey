@@ -123,11 +123,10 @@ export const deleteRole = internalMutation({
     if (!role) throw new Error("not_found: role");
     if (role.isBase) throw new Error("forbidden: cannot_delete_base_role");
 
-    const binding = await ctx.db
-      .query("bindings")
-      .filter((q) => q.eq(q.field("roleId"), args.roleId))
-      .first();
-    if (binding) throw new Error("role_has_active_bindings");
+    const usage = await ctx.runQuery(internal.roles.getRoleUsage, { roleId: args.roleId });
+    if (usage.users.length > 0) {
+      throw new Error(`role_in_use: ${JSON.stringify(usage.users)}`);
+    }
 
     await ctx.db.delete(args.roleId);
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { createRole, listCapabilities } from '../../lib/workspace-api'
+import { createRole, listCapabilities, getRoleActiveUserCount, updateRoleCapabilities } from '../../lib/workspace-api'
 import type { WorkspaceCapability } from '../../lib/workspace-api'
 
 interface CreateRoleFormProps {
@@ -20,6 +20,7 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel, roleId, initi
   const [selectedCaps, setSelectedCaps] = useState<Set<string>>(new Set(initialCapabilities ?? []))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ affectedCount: number } | null>(null)
 
   useEffect(() => {
     listCapabilities(token)
@@ -38,12 +39,47 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel, roleId, initi
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (isEditMode) {
+      setLoading(true)
+      setError(null)
+      try {
+        const { count } = await getRoleActiveUserCount(token, roleId!)
+        if (count > 0) {
+          setConfirmDialog({ affectedCount: count })
+        } else {
+          await saveCapabilities()
+        }
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
     if (!name.trim()) return
     setLoading(true)
     setError(null)
     try {
       await createRole(token, { name: name.trim(), workspaceId: wsId })
       onSuccess()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function saveCapabilities() {
+    await updateRoleCapabilities(token, roleId!, { capabilityIds: Array.from(selectedCaps), workspaceId: wsId })
+    onSuccess()
+  }
+
+  async function handleConfirmEdit() {
+    setLoading(true)
+    setError(null)
+    try {
+      await saveCapabilities()
+      setConfirmDialog(null)
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -92,6 +128,33 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel, roleId, initi
       </div>
 
       {error && <p className="text-status-deny text-xs">{error}</p>}
+
+      {confirmDialog && (
+        <div data-testid="role-edit-confirm-dialog" className="p-3 bg-surface-elevated border border-border-default rounded-input space-y-3">
+          <p className="text-sm text-text-primary">
+            Esta alteração afeta {confirmDialog.affectedCount} usuário(s) imediatamente. Deseja continuar?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              data-testid="btn-confirm-edit"
+              onClick={handleConfirmEdit}
+              disabled={loading}
+              className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
+            >
+              Confirmar
+            </button>
+            <button
+              type="button"
+              data-testid="btn-cancel-edit"
+              onClick={() => setConfirmDialog(null)}
+              className="px-3 py-1.5 text-xs text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2">
         {isEditMode ? (
