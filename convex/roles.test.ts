@@ -883,6 +883,107 @@ test("getActiveUserCountForRole: conta múltiplos usuários com o mesmo role", a
   expect(result.count).toBe(3);
 });
 
+// ── Ciclo 13: updateRoleCapabilities ─────────────────────────────────────────
+
+test("updateRoleCapabilities: substitui capabilities de um role customizado", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+  const cap1 = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read", isBase: true }),
+  );
+  const cap2 = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:write", description: "Write", isBase: true }),
+  );
+  await t.run((ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: cap1 }));
+
+  await t.mutation(internal.roles.updateRoleCapabilities, {
+    callerId: adminId,
+    orgId,
+    roleId,
+    capabilityIds: [cap2],
+  });
+
+  const roleCaps = await t.run((ctx) =>
+    ctx.db.query("role_capabilities").filter((q) => q.eq(q.field("roleId"), roleId)).collect(),
+  );
+  expect(roleCaps).toHaveLength(1);
+  expect(roleCaps[0].capabilityId).toBe(cap2);
+});
+
+test("updateRoleCapabilities: aceita lista vazia (remove todas as capabilities)", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+  const cap1 = await t.run((ctx) =>
+    ctx.db.insert("capabilities", { name: "doc:read", description: "Read", isBase: true }),
+  );
+  await t.run((ctx) => ctx.db.insert("role_capabilities", { roleId, capabilityId: cap1 }));
+
+  await t.mutation(internal.roles.updateRoleCapabilities, {
+    callerId: adminId,
+    orgId,
+    roleId,
+    capabilityIds: [],
+  });
+
+  const roleCaps = await t.run((ctx) =>
+    ctx.db.query("role_capabilities").filter((q) => q.eq(q.field("roleId"), roleId)).collect(),
+  );
+  expect(roleCaps).toHaveLength(0);
+});
+
+test("updateRoleCapabilities: throws forbidden ao tentar editar role base", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const baseRoleId = await t.run((ctx) =>
+    ctx.db.query("roles").filter((q) => q.eq(q.field("isBase"), true)).first().then((r) => r!._id),
+  );
+
+  await expect(
+    t.mutation(internal.roles.updateRoleCapabilities, {
+      callerId: adminId,
+      orgId,
+      roleId: baseRoleId,
+      capabilityIds: [],
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
+test("updateRoleCapabilities: throws forbidden quando caller não é org_admin", async () => {
+  const t = convexTest(schema, modules);
+  const { orgId, workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+  const memberId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "member@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+
+  await expect(
+    t.mutation(internal.roles.updateRoleCapabilities, {
+      callerId: memberId,
+      orgId,
+      roleId,
+      capabilityIds: [],
+    }),
+  ).rejects.toThrow("forbidden");
+});
+
 test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra org", async () => {
   const t = convexTest(schema, modules);
   const { adminId, orgId, rootId } = await setupOrgWithAdminAndWorkspace(t);

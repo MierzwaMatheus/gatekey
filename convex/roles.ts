@@ -221,6 +221,47 @@ export const duplicateRole = internalMutation({
   },
 });
 
+// ── updateRoleCapabilities ────────────────────────────────────────────────────
+
+export const updateRoleCapabilities = internalMutation({
+  args: {
+    callerId: v.id("users"),
+    orgId: v.id("orgs"),
+    roleId: v.id("roles"),
+    capabilityIds: v.array(v.id("capabilities")),
+  },
+  handler: async (ctx, args) => {
+    await assertOrgAdminOrRoot(ctx as never, args.callerId, args.orgId);
+
+    const role = await ctx.db.get(args.roleId);
+    if (!role) throw new Error("not_found: role");
+    if (role.isBase) throw new Error("forbidden: cannot_edit_base_role");
+
+    const existing = await ctx.db
+      .query("role_capabilities")
+      .filter((q) => q.eq(q.field("roleId"), args.roleId))
+      .collect();
+    for (const rc of existing) {
+      await ctx.db.delete(rc._id);
+    }
+
+    for (const capabilityId of args.capabilityIds) {
+      await ctx.db.insert("role_capabilities", { roleId: args.roleId, capabilityId });
+    }
+
+    await ctx.runMutation(internal.auditLog.writeAuditEvent, {
+      actorType: "user",
+      actorId: args.callerId as string,
+      action: "role.update_capabilities",
+      target: { type: "roles", id: args.roleId as string },
+      orgId: args.orgId,
+      result: "allow",
+    });
+
+    return { success: true };
+  },
+});
+
 // ── getActiveUserCountForRole ─────────────────────────────────────────────────
 
 export const getActiveUserCountForRole = internalQuery({

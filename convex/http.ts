@@ -914,6 +914,52 @@ http.route({
   }),
 });
 
+// ── PATCH /v1/roles/:id/capabilities ─────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/roles/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const segments = url.pathname.replace(/^\/v1\/roles\//, "").split("/");
+    const roleId = segments[0];
+    const sub = segments[1];
+
+    if (!roleId || sub !== "capabilities") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+
+    let body: { capabilityIds?: unknown; workspaceId?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_json" }, 400);
+    }
+
+    if (!Array.isArray(body.capabilityIds)) {
+      return jsonResponse({ error: "missing_fields", detail: "capabilityIds must be an array" }, 400);
+    }
+
+    try {
+      await ctx.runMutation(internal.roles.updateRoleCapabilities, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        roleId: roleId as never,
+        capabilityIds: body.capabilityIds as never,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── GET /v1/capabilities ──────────────────────────────────────────────────────
 
 http.route({
