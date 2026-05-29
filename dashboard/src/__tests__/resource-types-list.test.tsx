@@ -97,6 +97,71 @@ describe('CreateResourceTypeForm', () => {
   })
 })
 
+describe('ResourceTypesList: toggle de herança e confirmation dialog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(workspaceApi.listResourceTypes).mockResolvedValue([
+      { _id: 'rt1', name: 'document', inheritsFrom: 'folder', inheritanceMode: 'full' },
+    ])
+    vi.mocked(workspaceApi.checkResourceTypeInheritance).mockResolvedValue({ affectedCount: 0 })
+    vi.mocked(workspaceApi.updateResourceTypeInheritance).mockResolvedValue(undefined)
+  })
+
+  it('exibe botão de toggle para resource type com inheritanceMode', async () => {
+    render(<ResourceTypesList token="tok" />)
+    await waitFor(() => screen.getByTestId('btn-toggle-inheritance-rt1'))
+  })
+
+  it('salva sem dialog quando não há usuários afetados', async () => {
+    vi.mocked(workspaceApi.checkResourceTypeInheritance).mockResolvedValue({ affectedCount: 0 })
+    render(<ResourceTypesList token="tok" />)
+    await waitFor(() => screen.getByTestId('btn-toggle-inheritance-rt1'))
+    fireEvent.click(screen.getByTestId('btn-toggle-inheritance-rt1'))
+
+    await waitFor(() =>
+      expect(workspaceApi.updateResourceTypeInheritance).toHaveBeenCalledWith('tok', 'document', null),
+    )
+    expect(screen.queryByTestId('dialog-inheritance-warning')).toBeNull()
+  })
+
+  it('abre dialog quando há usuários afetados', async () => {
+    vi.mocked(workspaceApi.checkResourceTypeInheritance).mockResolvedValue({ affectedCount: 3 })
+    render(<ResourceTypesList token="tok" />)
+    await waitFor(() => screen.getByTestId('btn-toggle-inheritance-rt1'))
+    fireEvent.click(screen.getByTestId('btn-toggle-inheritance-rt1'))
+
+    await waitFor(() => screen.getByTestId('dialog-inheritance-warning'))
+    expect(screen.getByText(/3/)).toBeDefined()
+  })
+
+  it('não salva quando usuário cancela o dialog', async () => {
+    vi.mocked(workspaceApi.checkResourceTypeInheritance).mockResolvedValue({ affectedCount: 2 })
+    render(<ResourceTypesList token="tok" />)
+    await waitFor(() => screen.getByTestId('btn-toggle-inheritance-rt1'))
+    fireEvent.click(screen.getByTestId('btn-toggle-inheritance-rt1'))
+
+    await waitFor(() => screen.getByTestId('btn-cancel-inheritance'))
+    fireEvent.click(screen.getByTestId('btn-cancel-inheritance'))
+
+    expect(workspaceApi.updateResourceTypeInheritance).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('dialog-inheritance-warning')).toBeNull()
+  })
+
+  it('salva quando usuário confirma o dialog', async () => {
+    vi.mocked(workspaceApi.checkResourceTypeInheritance).mockResolvedValue({ affectedCount: 2 })
+    render(<ResourceTypesList token="tok" />)
+    await waitFor(() => screen.getByTestId('btn-toggle-inheritance-rt1'))
+    fireEvent.click(screen.getByTestId('btn-toggle-inheritance-rt1'))
+
+    await waitFor(() => screen.getByTestId('btn-confirm-inheritance'))
+    fireEvent.click(screen.getByTestId('btn-confirm-inheritance'))
+
+    await waitFor(() =>
+      expect(workspaceApi.updateResourceTypeInheritance).toHaveBeenCalledWith('tok', 'document', null),
+    )
+  })
+})
+
 describe('workspace-api: checkResourceTypeInheritance e updateResourceTypeInheritance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
