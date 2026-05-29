@@ -1321,6 +1321,80 @@ http.route({
   }),
 });
 
+// ── GET /v1/resource-types/:name/inheritance-check ───────────────────────────
+
+http.route({
+  pathPrefix: "/v1/resource-types/",
+  method: "GET",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const parts = url.pathname.replace(/^\/v1\/resource-types\//, "").split("/");
+    const resourceTypeName = decodeURIComponent(parts[0]);
+    const action = parts[1];
+
+    if (action !== "inheritance-check") {
+      return jsonResponse({ error: "not_found" }, 404);
+    }
+
+    try {
+      const affectedCount = await ctx.runQuery(
+        internal.resourceTypes.getAffectedInheritanceUsers,
+        {
+          callerId: caller.callerId as never,
+          orgId: caller.orgId as never,
+          resourceTypeName,
+        },
+      );
+      return jsonResponse({ affectedCount });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
+// ── PATCH /v1/resource-types/:name ───────────────────────────────────────────
+
+http.route({
+  pathPrefix: "/v1/resource-types/",
+  method: "PATCH",
+  handler: httpAction(async (ctx, req) => {
+    const caller = await resolveJwtCaller(ctx, req);
+    if (isResponse(caller)) return caller;
+
+    const url = new URL(req.url);
+    const resourceTypeName = decodeURIComponent(
+      url.pathname.replace(/^\/v1\/resource-types\//, "").split("/")[0],
+    );
+
+    let body: { inheritanceMode?: string | null };
+    try {
+      body = await req.json();
+    } catch {
+      return jsonResponse({ error: "invalid_body" }, 400);
+    }
+
+    try {
+      await ctx.runMutation(internal.resourceTypes.updateResourceTypeInheritance, {
+        callerId: caller.callerId as never,
+        orgId: caller.orgId as never,
+        resourceTypeName,
+        inheritanceMode: body.inheritanceMode ?? undefined,
+      });
+      return jsonResponse({ success: true });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      if (msg.includes("not_found")) return jsonResponse({ error: "not_found" }, 404);
+      if (msg.includes("forbidden")) return jsonResponse({ error: msg }, 403);
+      return jsonResponse({ error: "internal_error" }, 500);
+    }
+  }),
+});
+
 // ── POST /v1/check ────────────────────────────────────────────────────────────
 
 http.route({
@@ -1961,6 +2035,7 @@ http.route({ path: "/v1/sessions", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/api-keys", method: "OPTIONS", handler: preflight });
 http.route({ path: "/v1/audit-log", method: "OPTIONS", handler: preflight });
 // Preflight OPTIONS — rotas com pathPrefix
+http.route({ pathPrefix: "/v1/resource-types/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/users/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/roles/", method: "OPTIONS", handler: preflight });
 http.route({ pathPrefix: "/v1/bindings/", method: "OPTIONS", handler: preflight });

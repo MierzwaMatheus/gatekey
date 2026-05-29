@@ -197,6 +197,30 @@ test("createResourceType: rejeita inheritsFrom de outra org", async () => {
   ).rejects.toThrow("invalid_inherits_from");
 });
 
+// ── Helper: setup com JWT ─────────────────────────────────────────────────────
+
+async function setupOrgWithAdminAndJwt(t: ReturnType<typeof convexTest>) {
+  await t.action(internal.jwt.initializeKeyPair, {});
+  const { adminId, orgId } = await setupOrgWithAdmin(t);
+  const sessionId = await t.run((ctx) =>
+    ctx.db.insert("sessions", {
+      userId: adminId,
+      refreshTokenHash: "hash",
+      expiresAt: Date.now() + 3600_000,
+    }),
+  );
+  const token = await t.action(internal.jwt.signJwt, {
+    sub: adminId as string,
+    orgId: orgId as string,
+    workspaceIds: [],
+    roles: {},
+    capabilities: [],
+    sessionId: sessionId as string,
+    expiresInSeconds: 3600,
+  });
+  return { adminId, orgId, token };
+}
+
 // ── Ciclo 4: HTTP endpoints ───────────────────────────────────────────────────
 
 test("POST /v1/resource-types: cria via endpoint e retorna 201", async () => {
@@ -673,4 +697,98 @@ test("createResourceType: registra evento no audit_log", async () => {
   const event = events.find((e) => e.action === "resource_type.create");
   expect(event).toBeDefined();
   expect(event!.result).toBe("allow");
+});
+
+// ── Ciclo 8: HTTP endpoints inheritance-check e PATCH ────────────────────────
+
+test("GET /v1/resource-types/:name/inheritance-check: retorna affectedCount 0", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, token } = await setupOrgWithAdminAndJwt(t);
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  const resp = await t.fetch("/v1/resource-types/document/inheritance-check", {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+
+  expect(resp.status).toBe(200);
+  const body = await resp.json();
+  expect(body.affectedCount).toBe(0);
+});
+
+test("GET /v1/resource-types/:name/inheritance-check: retorna count correto quando há usuários afetados", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, token } = await setupOrgWithAdminAndJwt(t);
+
+  const workspaceId = await t.mutation(internal.hierarchy.createWorkspace, {
+    callerId: adminId, orgId, name: "WS",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "viewer", isBase: false, workspaceId }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", {
+      userId: adminId,
+      roleId,
+      resourceType: "document",
+      resourceId: "doc_1",
+      parentResourceId: "folder_1",
+      workspaceId,
+    }),
+  );
+
+  const resp = await t.fetch("/v1/resource-types/document/inheritance-check", {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${token}` },
+  });
+
+  expect(resp.status).toBe(200);
+  const body = await resp.json();
+  expect(body.affectedCount).toBe(1);
+});
+
+test("PATCH /v1/resource-types/:name: atualiza inheritanceMode e retorna 200", async () => {
+  const t = convexTest(schema, modules);
+  const { adminId, orgId, token } = await setupOrgWithAdminAndJwt(t);
+
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "folder",
+  });
+  await t.mutation(internal.resourceTypes.createResourceType, {
+    callerId: adminId, orgId, name: "document", inheritsFrom: "folder", inheritanceMode: "auto",
+  });
+
+  const resp = await t.fetch("/v1/resource-types/document", {
+    method: "PATCH",
+    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ inheritanceMode: null }),
+  });
+
+  expect(resp.status).toBe(200);
+});
+
+test("PATCH /v1/resource-types/:name: sem auth retorna 401", async () => {
+  const t = convexTest(schema, modules);
+  await t.action(internal.jwt.initializeKeyPair, {});
+
+  const resp = await t.fetch("/v1/resource-types/document", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inheritanceMode: null }),
+  });
+
+  expect(resp.status).toBe(401);
 });
