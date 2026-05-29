@@ -1008,3 +1008,45 @@ test("HTTP capabilities: GET listCapabilities retorna base + org, nunca outra or
   expect(caps.some((c) => c.name === "orga:custom")).toBe(true);
   expect(caps.some((c) => c.name === "orgb:secret")).toBe(false);
 });
+
+// ── Ciclo 16: getRoleUsage ────────────────────────────────────────────────────
+
+test("getRoleUsage: retorna usuários que possuem o role", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+  const userId = await t.run((ctx) =>
+    ctx.db.insert("users", {
+      email: "alice@acme.io",
+      passwordHash: "hash",
+      status: "active",
+      loginAttempts: 0,
+      updatedAt: Date.now(),
+    }),
+  );
+  await t.run((ctx) =>
+    ctx.db.insert("bindings", { userId, roleId, resourceType: "workspace", workspaceId }),
+  );
+
+  const result = await t.query(internal.roles.getRoleUsage, { roleId });
+
+  expect(result.users).toHaveLength(1);
+  expect(result.users[0].userId).toBe(userId);
+  expect(result.users[0].userEmail).toBe("alice@acme.io");
+});
+
+test("getRoleUsage: retorna array vazio quando role não está em uso", async () => {
+  const t = convexTest(schema, modules);
+  const { workspaceId } = await setupOrgWithAdminAndWorkspace(t);
+
+  const roleId = await t.run((ctx) =>
+    ctx.db.insert("roles", { name: "editor", isBase: false, workspaceId }),
+  );
+
+  const result = await t.query(internal.roles.getRoleUsage, { roleId });
+
+  expect(result.users).toHaveLength(0);
+});

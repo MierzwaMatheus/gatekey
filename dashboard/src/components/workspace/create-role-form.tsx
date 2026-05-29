@@ -8,13 +8,16 @@ interface CreateRoleFormProps {
   wsId: string
   onSuccess: () => void
   onCancel: () => void
+  roleId?: string
+  initialCapabilities?: string[]
 }
 
-export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleFormProps) {
+export function CreateRoleForm({ token, wsId, onSuccess, onCancel, roleId, initialCapabilities }: CreateRoleFormProps) {
   const { t } = useTranslation('roles')
+  const isEditMode = Boolean(roleId)
   const [capabilities, setCapabilities] = useState<WorkspaceCapability[] | null>(null)
   const [name, setName] = useState('')
-  const [selectedCaps, setSelectedCaps] = useState<Set<string>>(new Set())
+  const [selectedCaps, setSelectedCaps] = useState<Set<string>>(new Set(initialCapabilities ?? []))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,18 +57,20 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleF
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
-      <div>
-        <label className="block text-xs text-text-secondary mb-1">Nome do Role</label>
-        <input
-          data-testid="input-role-name"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t('create_name_placeholder')}
-          className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
-          required
-        />
-      </div>
+      {!isEditMode && (
+        <div>
+          <label className="block text-xs text-text-secondary mb-1">Nome do Role</label>
+          <input
+            data-testid="input-role-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('create_name_placeholder')}
+            className="w-full px-3 py-2 bg-surface-elevated border border-border-default rounded-input text-sm text-text-primary focus:outline-none"
+            required
+          />
+        </div>
+      )}
 
       <div>
         <p className="text-xs text-text-secondary mb-2">Capabilities</p>
@@ -89,14 +94,25 @@ export function CreateRoleForm({ token, wsId, onSuccess, onCancel }: CreateRoleF
       {error && <p className="text-status-deny text-xs">{error}</p>}
 
       <div className="flex gap-2">
-        <button
-          type="submit"
-          data-testid="btn-create-role"
-          disabled={loading || !name.trim()}
-          className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
-        >
-          {loading ? t('create_submit_loading') : t('create_submit')}
-        </button>
+        {isEditMode ? (
+          <button
+            type="submit"
+            data-testid="btn-save-role"
+            disabled={loading}
+            className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
+          >
+            {loading ? t('create_submit_loading') : 'Salvar'}
+          </button>
+        ) : (
+          <button
+            type="submit"
+            data-testid="btn-create-role"
+            disabled={loading || !name.trim()}
+            className="px-3 py-1.5 text-xs bg-accent-primary text-black rounded-button hover:bg-accent-hover disabled:opacity-60 transition-colors cursor-pointer"
+          >
+            {loading ? t('create_submit_loading') : t('create_submit')}
+          </button>
+        )}
         <button
           type="button"
           onClick={onCancel}

@@ -275,6 +275,28 @@ export const getActiveUserCountForRole = internalQuery({
   },
 });
 
+// ── getRoleUsage ──────────────────────────────────────────────────────────────
+
+export const getRoleUsage = internalQuery({
+  args: { roleId: v.id("roles") },
+  handler: async (ctx, { roleId }) => {
+    const bindings = await ctx.db
+      .query("bindings")
+      .filter((q) => q.eq(q.field("roleId"), roleId))
+      .collect();
+    const users = (
+      await Promise.all(
+        bindings.map(async (b) => {
+          const user = await ctx.db.get(b.userId);
+          if (!user) return null;
+          return { userId: b.userId as string, userEmail: user.email };
+        }),
+      )
+    ).filter((u): u is NonNullable<typeof u> => u !== null);
+    return { users };
+  },
+});
+
 // ── getCapabilityUsage ────────────────────────────────────────────────────────
 
 export const getCapabilityUsage = internalQuery({

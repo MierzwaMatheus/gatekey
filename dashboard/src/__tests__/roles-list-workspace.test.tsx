@@ -170,3 +170,58 @@ describe('CreateRoleForm', () => {
     ))
   })
 })
+
+describe('CreateRoleForm — modo de edição', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(workspaceApi.listCapabilities).mockResolvedValue(mockCapabilities)
+  })
+
+  it('oculta input de nome no modo de edição', async () => {
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('cap-check-cap1'))
+    expect(screen.queryByTestId('input-role-name')).toBeNull()
+  })
+
+  it('pré-seleciona as capabilities iniciais no modo de edição', async () => {
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={['cap1']}
+      />
+    )
+    await waitFor(() => screen.getByTestId('cap-check-cap1'))
+    const cap1 = screen.getByTestId('cap-check-cap1') as HTMLInputElement
+    const cap2 = screen.getByTestId('cap-check-cap2') as HTMLInputElement
+    expect(cap1.checked).toBe(true)
+    expect(cap2.checked).toBe(false)
+  })
+
+  it('exibe botão "Salvar" em vez de "Criar" no modo de edição', async () => {
+    render(
+      <CreateRoleForm
+        token="tok"
+        wsId="ws1"
+        onSuccess={() => {}}
+        onCancel={() => {}}
+        roleId="role2"
+        initialCapabilities={[]}
+      />
+    )
+    await waitFor(() => screen.getByTestId('btn-save-role'))
+    expect(screen.queryByTestId('btn-create-role')).toBeNull()
+  })
+})
