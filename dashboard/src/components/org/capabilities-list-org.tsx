@@ -107,9 +107,10 @@ function ConfirmDeleteDialog({ capName, onConfirm, onCancel }: ConfirmDeleteDial
 
 interface CapabilitiesListOrgProps {
   token: string
+  orgId?: string
 }
 
-export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
+export function CapabilitiesListOrg({ token, orgId }: CapabilitiesListOrgProps) {
   const { t } = useTranslation('common')
   const [capabilities, setCapabilities] = useState<Capability[] | null>(null)
   const [usageMap, setUsageMap] = useState<Record<string, CapabilityUsageRole[]>>({})
@@ -218,9 +219,25 @@ export function CapabilitiesListOrg({ token }: CapabilitiesListOrgProps) {
                     {inUse && (
                       <span
                         data-testid={`usage-count-${cap._id}`}
-                        className="text-[10px] text-text-muted ml-1"
+                        className="text-[10px] text-text-muted ml-1 flex items-center gap-1 flex-wrap"
                       >
-                        Usada por {usedBy.length} role{usedBy.length !== 1 ? 's' : ''}
+                        Usada por {usedBy.length} role{usedBy.length !== 1 ? 's' : ''}:
+                        {usedBy.map((r) =>
+                          r.workspaceId && orgId ? (
+                            <a
+                              key={r.roleId}
+                              data-testid={`role-link-${r.roleId}`}
+                              href={`/org/${orgId}/workspace/${r.workspaceId}?section=roles`}
+                              className="underline hover:text-accent-primary"
+                            >
+                              {r.roleName}
+                            </a>
+                          ) : (
+                            <span key={r.roleId} data-testid={`role-name-${r.roleId}`}>
+                              {r.roleName}
+                            </span>
+                          )
+                        )}
                       </span>
                     )}
                   </div>

@@ -77,6 +77,37 @@ describe('CapabilitiesListOrg — delete guard', () => {
     )
   })
 
+  it('exibe link para o workspace do role quando capability está em uso', async () => {
+    vi.mocked(orgApi.listCapabilities).mockResolvedValue({ capabilities: mockCaps })
+    vi.mocked(orgApi.getCapabilityUsage).mockImplementation((_token, capId) => {
+      if (capId === 'custom1')
+        return Promise.resolve({ roles: [{ roleId: 'r1', roleName: 'reader', workspaceId: 'ws123' }] })
+      return Promise.resolve({ roles: [] })
+    })
+
+    render(<CapabilitiesListOrg token="tok" orgId="org1" />)
+    await waitFor(() => screen.getByTestId('role-link-r1'))
+
+    const link = screen.getByTestId('role-link-r1') as HTMLAnchorElement
+    expect(link.href).toContain('/org/org1/workspace/ws123')
+    expect(link.textContent).toContain('reader')
+  })
+
+  it('exibe nome sem link quando role não tem workspaceId', async () => {
+    vi.mocked(orgApi.listCapabilities).mockResolvedValue({ capabilities: mockCaps })
+    vi.mocked(orgApi.getCapabilityUsage).mockImplementation((_token, capId) => {
+      if (capId === 'custom1')
+        return Promise.resolve({ roles: [{ roleId: 'r1', roleName: 'reader' }] })
+      return Promise.resolve({ roles: [] })
+    })
+
+    render(<CapabilitiesListOrg token="tok" orgId="org1" />)
+    await waitFor(() => screen.getByTestId('role-name-r1'))
+
+    expect(screen.queryByTestId('role-link-r1')).toBeNull()
+    expect(screen.getByTestId('role-name-r1').textContent).toContain('reader')
+  })
+
   it('exibe contador "Usada por N roles" por linha em uso', async () => {
     vi.mocked(orgApi.listCapabilities).mockResolvedValue({ capabilities: mockCaps })
     vi.mocked(orgApi.getCapabilityUsage).mockImplementation((_token, capId) => {

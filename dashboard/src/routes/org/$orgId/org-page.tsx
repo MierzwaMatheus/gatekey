@@ -117,7 +117,7 @@ export function OrgPage() {
         )
 
       case 'capabilities':
-        return <CapabilitiesListOrg token={tok} />
+        return <CapabilitiesListOrg token={tok} orgId={orgId} />
 
       case 'api-keys':
         return <ApiKeysList token={tok} />
