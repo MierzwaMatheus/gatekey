@@ -514,6 +514,18 @@ export const addWorkspaceMember = internalMutation({
     const workspace = await ctx.db.get(args.workspaceId);
     if (!workspace) throw new Error("not_found: workspace");
 
+    const targetOrgMembership = await ctx.db
+      .query("org_members")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId"), args.userId),
+          q.eq(q.field("orgId"), workspace.orgId),
+          q.eq(q.field("status"), "active"),
+        ),
+      )
+      .first();
+    if (!targetOrgMembership) throw new Error("user_not_org_member");
+
     if (!caller.isRoot) {
       const orgMembership = await ctx.db
         .query("org_members")
