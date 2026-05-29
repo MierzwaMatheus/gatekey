@@ -27,6 +27,7 @@
   "members_add_submit": "Add",
   "members_add_submit_loading": "Adding…",
   "members_loading": "Loading…",
+  "members_add_user_not_org_member": "This user does not belong to this organization. Ask the Org Admin to add them to the org first.",
   "resource_types_header": "Resource Types",
   "resource_types_empty": "No resource types registered.",
   "resource_types_col_name": "Name",

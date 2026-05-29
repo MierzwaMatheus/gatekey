@@ -27,6 +27,7 @@
   "members_add_submit": "Adicionar",
   "members_add_submit_loading": "Adicionando…",
   "members_loading": "Carregando…",
+  "members_add_user_not_org_member": "Este usuário não pertence a esta organização. Peça ao Org Admin que o adicione à org primeiro.",
   "resource_types_header": "Resource Types",
   "resource_types_empty": "Nenhum resource type registrado.",
   "resource_types_col_name": "Nome",

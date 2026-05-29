@@ -49,6 +49,19 @@ describe('AddMemberForm', () => {
     await waitFor(() => expect(workspaceApi.addMember).toHaveBeenCalledWith('tok', 'ws1', { userId: 'user1', roleId: 'role1' }))
   })
 
+  it('exibe mensagem específica quando user_not_org_member', async () => {
+    vi.mocked(workspaceApi.addMember).mockRejectedValue(new Error('user_not_org_member'))
+    render(<AddMemberForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={() => {}} />)
+    await waitFor(() => screen.getByTestId('select-user'))
+
+    fireEvent.change(screen.getByTestId('select-user'), { target: { value: 'user1' } })
+    fireEvent.click(screen.getByTestId('btn-add-member'))
+
+    await waitFor(() =>
+      expect(screen.getByText('Este usuário não pertence a esta organização. Peça ao Org Admin que o adicione à org primeiro.')).toBeDefined()
+    )
+  })
+
   it('shows cancel button and calls onCancel', async () => {
     const onCancel = vi.fn()
     render(<AddMemberForm token="tok" wsId="ws1" onSuccess={() => {}} onCancel={onCancel} />)

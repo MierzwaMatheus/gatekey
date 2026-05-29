@@ -36,7 +36,8 @@ export function AddMemberForm({ token, wsId, onSuccess, onCancel }: AddMemberFor
       await addMember(token, wsId, { userId: selectedUser, roleId: selectedRole || undefined })
       onSuccess()
     } catch (err) {
-      setError((err as Error).message)
+      const msg = (err as Error).message
+      setError(msg === 'user_not_org_member' ? t('members_add_user_not_org_member') : msg)
     } finally {
       setLoading(false)
     }
