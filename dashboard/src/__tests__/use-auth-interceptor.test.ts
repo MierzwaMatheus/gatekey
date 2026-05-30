@@ -152,3 +152,58 @@ describe('useAuthInterceptor - tryRefresh', () => {
     expect(authService.refresh).not.toHaveBeenCalled()
   })
 })
+
+describe('useAuthInterceptor - onRefreshFailed race condition', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    cleanup()
+    localStorage.clear()
+  })
+
+  it('preserva tokens do novo login quando refresh antigo falha com sessionId diferente', async () => {
+    // session_old estava no localStorage quando o refresh foi disparado
+    vi.mocked(authService.getStoredTokens)
+      .mockReturnValueOnce({
+        // primeira chamada: dentro de refreshToken() captura session_old
+        accessToken: makeJwtWithExp(-60),
+        refreshToken: 'refresh_old',
+        sessionId: 'session_old',
+        orgId: 'org_1',
+      })
+      .mockReturnValue({
+        // chamadas subsequentes: usuário já fez login, session_new no localStorage
+        accessToken: makeJwtWithExp(3600),
+        refreshToken: 'refresh_new',
+        sessionId: 'session_new',
+        orgId: 'org_1',
+      })
+
+    vi.mocked(authService.refresh).mockRejectedValue(new Error('expired'))
+
+    // Semente: novo login já salvou tokens frescos (JWT válido não expirado)
+    const freshToken = makeJwtWithExp(3600)
+    localStorage.setItem('gk_access_token', freshToken)
+    localStorage.setItem('gk_refresh_token', 'refresh_new')
+    localStorage.setItem('gk_session_id', 'session_new')
+    localStorage.setItem('gk_org_id', 'org_1')
+
+    renderHook(() => useAuthInterceptor(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(AuthProvider, null, children),
+    })
+
+    // refreshToken() usa session_old → falha → onRefreshFailed('session_old')
+    // mas localStorage agora tem session_new → clearAuth() NÃO deve ser chamado
+    const { refreshToken } = await import('../lib/token-refresh')
+    await act(async () => {
+      await refreshToken()
+    })
+
+    expect(localStorage.getItem('gk_session_id')).toBe('session_new')
+    expect(localStorage.getItem('gk_access_token')).toBe(freshToken)
+  })
+})
