@@ -2,7 +2,7 @@ import { authService, parseJwtPayload } from './auth-service'
 import type { UserRole } from './auth-context'
 
 type RefreshCallback = (token: string, orgId: string, role: UserRole) => void
-type RefreshFailedCallback = () => void
+type RefreshFailedCallback = (sessionId: string) => void
 
 let onRefreshed: RefreshCallback | null = null
 let onRefreshFailed: RefreshFailedCallback | null = null
@@ -27,14 +27,15 @@ export async function refreshToken(): Promise<string | null> {
   pendingRefresh = (async () => {
     const stored = authService.getStoredTokens()
     if (!stored) return null
+    const sessionId = stored.sessionId
     try {
-      const result = await authService.refresh(stored.sessionId, stored.refreshToken, stored.orgId)
+      const result = await authService.refresh(sessionId, stored.refreshToken, stored.orgId)
       const payload = parseJwtPayload(result.accessToken)
       const role: UserRole = payload.orgId ? 'org_admin' : 'root'
       onRefreshed?.(result.accessToken, result.orgId, role)
       return result.accessToken
     } catch {
-      onRefreshFailed?.()
+      onRefreshFailed?.(sessionId)
       return null
     } finally {
       pendingRefresh = null
