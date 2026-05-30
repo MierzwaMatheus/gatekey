@@ -89,6 +89,15 @@ input {
   overflow: hidden;
   background: var(--bg);
   position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  z-index: 1;
+}
+.circuit-texture {
+  grid-column: 2;
+  grid-row: 1;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ---------- Sidebar ---------- */

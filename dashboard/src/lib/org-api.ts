@@ -1,14 +1,25 @@
+import { refreshToken } from './token-refresh'
+
 const BASE_URL = (import.meta.env.VITE_CONVEX_SITE_URL ?? import.meta.env.VITE_CONVEX_URL) as string
 
 async function apiFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...options?.headers,
-    },
-  })
+  const doFetch = (t: string) =>
+    fetch(`${BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${t}`,
+        ...options?.headers,
+      },
+    })
+
+  let res = await doFetch(token)
+
+  if (res.status === 401) {
+    const newToken = await refreshToken()
+    if (newToken) res = await doFetch(newToken)
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'unknown' }))
     throw new Error(err.error ?? `HTTP ${res.status}`)

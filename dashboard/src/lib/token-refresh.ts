@@ -1,0 +1,45 @@
+import { authService, parseJwtPayload } from './auth-service'
+import type { UserRole } from './auth-context'
+
+type RefreshCallback = (token: string, orgId: string, role: UserRole) => void
+type RefreshFailedCallback = () => void
+
+let onRefreshed: RefreshCallback | null = null
+let onRefreshFailed: RefreshFailedCallback | null = null
+let pendingRefresh: Promise<string | null> | null = null
+
+export function registerRefreshCallback(cb: RefreshCallback) {
+  onRefreshed = cb
+}
+
+export function registerRefreshFailedCallback(cb: RefreshFailedCallback) {
+  onRefreshFailed = cb
+}
+
+export function unregisterRefreshCallback() {
+  onRefreshed = null
+  onRefreshFailed = null
+}
+
+export async function refreshToken(): Promise<string | null> {
+  if (pendingRefresh) return pendingRefresh
+
+  pendingRefresh = (async () => {
+    const stored = authService.getStoredTokens()
+    if (!stored) return null
+    try {
+      const result = await authService.refresh(stored.sessionId, stored.refreshToken, stored.orgId)
+      const payload = parseJwtPayload(result.accessToken)
+      const role: UserRole = payload.orgId ? 'org_admin' : 'root'
+      onRefreshed?.(result.accessToken, result.orgId, role)
+      return result.accessToken
+    } catch {
+      onRefreshFailed?.()
+      return null
+    } finally {
+      pendingRefresh = null
+    }
+  })()
+
+  return pendingRefresh
+}

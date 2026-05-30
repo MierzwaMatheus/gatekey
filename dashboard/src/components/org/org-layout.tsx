@@ -59,7 +59,7 @@ export function OrgLayout({ children, activeSection = 'users', onSectionChange, 
 
   return (
     <div className="app">
-      <aside className="sidebar" data-testid="org-sidebar">
+      <aside className="sidebar w-[220px]" data-testid="org-sidebar">
         <div className="sidebar-meta">
           <span>// gatekey.iam</span>
           <span>v2.4.1</span>

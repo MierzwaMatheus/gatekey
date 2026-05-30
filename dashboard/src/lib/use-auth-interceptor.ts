@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { useAuth } from './auth-context'
-import { authService } from './auth-service'
+import { authService, parseJwtPayload } from './auth-service'
+import { registerRefreshCallback, registerRefreshFailedCallback, unregisterRefreshCallback } from './token-refresh'
 
 function base64urlDecode(str: string): string {
   const base64 = str.replace(/-/g, '+').replace(/_/g, '/')
@@ -37,15 +38,36 @@ export function useAuthInterceptor() {
         stored.refreshToken,
         stored.orgId ?? orgId ?? ''
       )
+      const payload = parseJwtPayload(result.accessToken)
+      const role = payload.orgId ? 'org_admin' : 'root'
       setAuth({
         token: result.accessToken,
-        role: null,
+        role,
         orgId: result.orgId,
+        impersonationSession: null,
       })
     } catch {
       clearAuth()
     }
   }, [token, orgId, setAuth, clearAuth])
+
+  // Register callback so token-refresh.ts can update the auth context
+  // when apiFetch triggers a reactive 401 refresh
+  useEffect(() => {
+    registerRefreshCallback((newToken, newOrgId, role) => {
+      setAuth({ token: newToken, role, orgId: newOrgId, impersonationSession: null })
+    })
+    registerRefreshFailedCallback(() => {
+      clearAuth()
+    })
+    return () => unregisterRefreshCallback()
+  }, [setAuth, clearAuth])
+
+  // Run immediately on mount so an expired token at page-load is refreshed
+  // before the first API calls fail
+  useEffect(() => {
+    void tryRefresh()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const interval = setInterval(() => { void tryRefresh() }, 30_000)
