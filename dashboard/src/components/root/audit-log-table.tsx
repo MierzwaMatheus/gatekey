@@ -223,7 +223,7 @@ export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
                       {event.action}
                     </span>
                     <span className="text-[11px] font-mono text-text-muted">
-                      → {event.target.type}:{event.target.id.slice(0, 8)}
+                      → {event.target.type}:{event.target.id?.slice(0, 8) ?? '—'}
                     </span>
                     {isDeny && (
                       <span className="inline-flex items-center gap-1 text-[10px] text-status-deny">
@@ -233,7 +233,7 @@ export function AuditLogTable({ token, orgId }: AuditLogTableProps) {
                     )}
                   </div>
                   <p className="text-[11px] font-mono text-text-muted truncate">
-                    {event.actorId.slice(0, 20)}
+                    {event.actorId?.slice(0, 20) ?? '—'}
                   </p>
                 </div>
 
