@@ -57,8 +57,11 @@ export function useAuthInterceptor() {
     registerRefreshCallback((newToken, newOrgId, role) => {
       setAuth({ token: newToken, role, orgId: newOrgId, impersonationSession: null })
     })
-    registerRefreshFailedCallback(() => {
-      clearAuth()
+    registerRefreshFailedCallback((failedSessionId) => {
+      const current = authService.getStoredTokens()
+      if (!current || current.sessionId === failedSessionId) {
+        clearAuth()
+      }
     })
     return () => unregisterRefreshCallback()
   }, [setAuth, clearAuth])
