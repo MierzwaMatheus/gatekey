@@ -56,7 +56,7 @@ export function LoginPage() {
   function navigateAfterLogin(accessToken: string, orgId: string, mustChangePassword = false) {
     const payload = parseJwtPayload(accessToken)
     const role = payload.orgId ? 'org_admin' : 'root'
-    setAuth({ token: accessToken, role, orgId })
+    setAuth({ token: accessToken, role, orgId, impersonationSession: null })
     if (mustChangePassword) {
       navigate({ to: '/change-password' })
     } else if (role === 'root') {

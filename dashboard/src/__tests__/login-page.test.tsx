@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { LoginPage } from '../routes/login'
 import { AuthProvider } from '../lib/auth-context'
+import * as AuthContext from '../lib/auth-context'
 import { authService, AuthError } from '../lib/auth-service'
 
 vi.mock('../lib/auth-service', async (importOriginal) => {
@@ -153,6 +154,41 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/bloqueado/i)).toBeDefined()
+    })
+  })
+
+  it('chama setAuth com impersonationSession: null após login bem-sucedido', async () => {
+    const mockSetAuth = vi.fn()
+    vi.spyOn(AuthContext, 'useAuth').mockReturnValue({
+      setAuth: mockSetAuth,
+      clearAuth: vi.fn(),
+      startImpersonation: vi.fn(),
+      endImpersonation: vi.fn(),
+      getActiveToken: vi.fn(),
+      token: null,
+      role: null,
+      orgId: null,
+      impersonationSession: null,
+    })
+
+    const mockToken = ['h', btoa(JSON.stringify({ orgId: 'org1', exp: 9999999999 })), 'sig'].join('.')
+    vi.mocked(authService.login).mockResolvedValue({
+      accessToken: mockToken,
+      refreshToken: 'r',
+      sessionId: 's',
+      orgId: 'org1',
+      mustChangePassword: false,
+    })
+
+    const { container } = renderLoginPage()
+    await userEvent.type(getEmailInput(container), 'admin@acme.com')
+    await userEvent.type(getPasswordInput(container), 'senha123')
+    fireEvent.click(getSubmitButton(container))
+
+    await waitFor(() => {
+      expect(mockSetAuth).toHaveBeenCalledWith(
+        expect.objectContaining({ impersonationSession: null })
+      )
     })
   })
 
