@@ -120,7 +120,7 @@ http.route({
         headers: { "Content-Type": "application/json" },
       });
     }
-    if (!body.sessionId || !body.refreshToken || !body.orgId) {
+    if (!body.sessionId || !body.refreshToken || body.orgId === undefined || body.orgId === null) {
       return withCors({ error: "missing_fields" }, 400);
     }
     const ip = req.headers.get("x-forwarded-for") ?? undefined;
