@@ -257,7 +257,7 @@ export const rotateRefreshToken = internalAction({
   args: {
     sessionId: v.id("sessions"),
     refreshToken: v.string(),
-    orgId: v.id("orgs"),
+    orgId: v.union(v.id("orgs"), v.literal("")),
     deviceInfo: v.optional(v.string()),
     ip: v.optional(v.string()),
   },
@@ -289,9 +289,11 @@ export const rotateRefreshToken = internalAction({
     });
 
     const rawToken = randomBytes(32).toString("hex");
-    const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
-      orgId: args.orgId,
-    })) as { jwtExpiryRefresh: number } | null;
+    const expiry = args.orgId
+      ? ((await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+          orgId: args.orgId as never,
+        })) as { jwtExpiryRefresh: number } | null)
+      : null;
     const refreshExpiresAt = Date.now() + (expiry?.jwtExpiryRefresh ?? 30 * 24 * 3600) * 1000;
     const newRefreshTokenHash: string = await bcrypt.hash(rawToken, 10);
     const newSessionId: string = await ctx.runMutation(internal.jwtStore.createSession, {

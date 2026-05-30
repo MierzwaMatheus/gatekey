@@ -316,10 +316,12 @@ export const refreshTokens = internalAction({
     })) as { userId: string } | null;
 
     let accessExpirySeconds = 3600;
-    const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
-      orgId: args.orgId as never,
-    })) as { jwtExpiryAccess: number } | null;
-    if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+    if (args.orgId) {
+      const expiry = (await ctx.runQuery(internal.jwtStore.getOrgJwtExpiry, {
+        orgId: args.orgId as never,
+      })) as { jwtExpiryAccess: number } | null;
+      if (expiry) accessExpirySeconds = expiry.jwtExpiryAccess;
+    }
 
     const accessToken = (await ctx.runAction(internal.jwt.signJwt, {
       sub: session?.userId ?? "",

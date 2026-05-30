@@ -111,42 +111,46 @@ http.route({
   path: "/v1/auth/refresh",
   method: "POST",
   handler: httpAction(async (ctx, req) => {
-    let body: { sessionId?: string; refreshToken?: string; orgId?: string };
     try {
-      body = await req.json();
-    } catch {
-      return new Response(JSON.stringify({ error: "invalid_body" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    if (!body.sessionId || !body.refreshToken || body.orgId === undefined || body.orgId === null) {
-      return withCors({ error: "missing_fields" }, 400);
-    }
-    const ip = req.headers.get("x-forwarded-for") ?? undefined;
-    const result = await ctx.runAction(internal.auth.refreshTokens, {
-      sessionId: body.sessionId as never,
-      refreshToken: body.refreshToken,
-      orgId: body.orgId,
-      ip,
-    });
-    if (!result.success) {
-      if (result.error === "rate_limit_exceeded") {
-        return new Response(
-          JSON.stringify({ error: "RateLimitExceeded", retryAfter: 60 }),
-          {
-            status: 429,
-            headers: { "Content-Type": "application/json", "Retry-After": "60", ...CORS_HEADERS },
-          },
-        );
+      let body: { sessionId?: string; refreshToken?: string; orgId?: string };
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "invalid_body" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+        });
       }
-      return withCors({ error: result.error }, 401);
+      if (!body.sessionId || !body.refreshToken || body.orgId === undefined || body.orgId === null) {
+        return withCors({ error: "missing_fields" }, 400);
+      }
+      const ip = req.headers.get("x-forwarded-for") ?? undefined;
+      const result = await ctx.runAction(internal.auth.refreshTokens, {
+        sessionId: body.sessionId as never,
+        refreshToken: body.refreshToken,
+        orgId: body.orgId,
+        ip,
+      });
+      if (!result.success) {
+        if (result.error === "rate_limit_exceeded") {
+          return new Response(
+            JSON.stringify({ error: "RateLimitExceeded", retryAfter: 60 }),
+            {
+              status: 429,
+              headers: { "Content-Type": "application/json", "Retry-After": "60", ...CORS_HEADERS },
+            },
+          );
+        }
+        return withCors({ error: result.error }, 401);
+      }
+      return withCors({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        sessionId: result.sessionId,
+      });
+    } catch {
+      return withCors({ error: "internal_error" }, 500);
     }
-    return withCors({
-      accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      sessionId: result.sessionId,
-    });
   }),
 });
 
@@ -220,17 +224,19 @@ async function resolveJwtCaller(
   // Check if this is an impersonation token before full JWT verification
   let rawPayload: Record<string, unknown> | null = null;
   try {
-    rawPayload = JSON.parse(
-      Buffer.from(token.split(".")[1]!, "base64url").toString("utf-8"),
-    ) as Record<string, unknown>;
-  } catch {
-    return jsonResponse({ error: "invalid_token" }, 401);
+    const b64url = token.split(".")[1]!;
+    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/").padEnd(
+      b64url.length + (4 - b64url.length % 4) % 4, "="
+    );
+    rawPayload = JSON.parse(atob(b64)) as Record<string, unknown>;
+  } catch (e) {
+    return jsonResponse({ error: "invalid_token", detail: "parse:" + (e as Error).message }, 401);
   }
   const actor = rawPayload["actor"] as Record<string, unknown> | undefined;
   if (actor?.type === "root_impersonating") {
     const result = await ctx.runAction(internal.impersonation.verifyImpersonationToken, { token });
     if (!result.valid) {
-      return jsonResponse({ error: "invalid_token" }, 401);
+      return jsonResponse({ error: "invalid_token", detail: "impersonation" }, 401);
     }
     const targetOrgId = (rawPayload["impersonatingOrgId"] as string | undefined) ?? "";
     return {
@@ -242,7 +248,7 @@ async function resolveJwtCaller(
 
   const verified = await ctx.runAction(internal.jwt.verifyJwt, { token });
   if (!verified.valid) {
-    return jsonResponse({ error: "invalid_token" }, 401);
+    return jsonResponse({ error: "invalid_token", detail: "jwt:" + String((verified as { error?: string }).error) }, 401);
   }
   const sessionId = verified.payload.sessionId;
   if (sessionId) {
