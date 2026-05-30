@@ -16,6 +16,7 @@ vi.mock('../lib/auth-service', async (importOriginal) => {
       refresh: vi.fn(),
       getStoredTokens: vi.fn(),
       clearTokens: vi.fn(),
+      saveTokens: vi.fn(),
     },
   }
 })

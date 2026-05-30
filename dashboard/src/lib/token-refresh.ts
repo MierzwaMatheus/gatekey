@@ -30,6 +30,11 @@ export async function refreshToken(): Promise<string | null> {
     const sessionId = stored.sessionId
     try {
       const result = await authService.refresh(sessionId, stored.refreshToken, stored.orgId)
+      const current = authService.getStoredTokens()
+      if (current && current.sessionId !== sessionId) {
+        return null
+      }
+      authService.saveTokens(result, result.orgId)
       const payload = parseJwtPayload(result.accessToken)
       const role: UserRole = payload.orgId ? 'org_admin' : 'root'
       onRefreshed?.(result.accessToken, result.orgId, role)

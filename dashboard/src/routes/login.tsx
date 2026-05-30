@@ -2,6 +2,7 @@ import { createRoute } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useState, useEffect } from 'react'
+import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Route as rootRoute } from './__root'
 import { loginSchema, type LoginFormData } from '../lib/schemas'
@@ -56,7 +57,9 @@ export function LoginPage() {
   function navigateAfterLogin(accessToken: string, orgId: string, mustChangePassword = false) {
     const payload = parseJwtPayload(accessToken)
     const role = payload.orgId ? 'org_admin' : 'root'
-    setAuth({ token: accessToken, role, orgId, impersonationSession: null })
+    flushSync(() => {
+      setAuth({ token: accessToken, role, orgId, impersonationSession: null })
+    })
     if (mustChangePassword) {
       navigate({ to: '/change-password' })
     } else if (role === 'root') {

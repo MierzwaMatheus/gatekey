@@ -39,6 +39,11 @@ export function useAuthInterceptor() {
         stored.refreshToken,
         stored.orgId ?? orgId ?? ''
       )
+      const current = authService.getStoredTokens()
+      if (current && current.sessionId !== sessionId) {
+        return
+      }
+      authService.saveTokens(result, result.orgId)
       const payload = parseJwtPayload(result.accessToken)
       const role = payload.orgId ? 'org_admin' : 'root'
       setAuth({

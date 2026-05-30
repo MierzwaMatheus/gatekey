@@ -163,8 +163,6 @@ async function refresh(sessionId: string, refreshToken: string, orgId: string): 
   }
 
   const tokens = await res.json() as AuthTokens
-  saveTokens(tokens, orgId)
-
   return { ...tokens, orgId }
 }
 
@@ -230,4 +228,4 @@ async function verifyMfaSetup(mfaSetupToken: string, totpCode: string): Promise<
   return res.json() as Promise<{ backupCodes: string[] }>
 }
 
-export const authService = { login, logout, refresh, getStoredTokens, clearTokens, requestMagicLink, verifyMagicLink, challengeMfa, setupMfa, verifyMfaSetup }
+export const authService = { login, logout, refresh, getStoredTokens, clearTokens, saveTokens, requestMagicLink, verifyMagicLink, challengeMfa, setupMfa, verifyMfaSetup }
