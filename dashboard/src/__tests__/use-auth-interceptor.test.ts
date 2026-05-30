@@ -206,4 +206,35 @@ describe('useAuthInterceptor - onRefreshFailed race condition', () => {
     expect(localStorage.getItem('gk_session_id')).toBe('session_new')
     expect(localStorage.getItem('gk_access_token')).toBe(freshToken)
   })
+
+  it('chama clearAuth() quando refresh falha e sessionId ainda é o mesmo', async () => {
+    // Sem novo login: session_same em ambas as chamadas
+    vi.mocked(authService.getStoredTokens).mockReturnValue({
+      accessToken: makeJwtWithExp(-60),
+      refreshToken: 'refresh_same',
+      sessionId: 'session_same',
+      orgId: 'org_1',
+    })
+    vi.mocked(authService.refresh).mockRejectedValue(new Error('expired'))
+
+    const expiringToken = makeJwtWithExp(-60)
+    localStorage.setItem('gk_access_token', expiringToken)
+    localStorage.setItem('gk_refresh_token', 'refresh_same')
+    localStorage.setItem('gk_session_id', 'session_same')
+    localStorage.setItem('gk_org_id', 'org_1')
+
+    renderHook(() => useAuthInterceptor(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(AuthProvider, null, children),
+    })
+
+    const { refreshToken } = await import('../lib/token-refresh')
+    await act(async () => {
+      await refreshToken()
+    })
+
+    // sessionId bate → clearAuth() deve limpar localStorage
+    expect(localStorage.getItem('gk_access_token')).toBeNull()
+    expect(localStorage.getItem('gk_session_id')).toBeNull()
+  })
 })
