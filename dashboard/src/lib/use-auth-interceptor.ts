@@ -32,9 +32,10 @@ export function useAuthInterceptor() {
       return
     }
 
+    const sessionId = stored.sessionId
     try {
       const result = await authService.refresh(
-        stored.sessionId,
+        sessionId,
         stored.refreshToken,
         stored.orgId ?? orgId ?? ''
       )
@@ -47,7 +48,10 @@ export function useAuthInterceptor() {
         impersonationSession: null,
       })
     } catch {
-      clearAuth()
+      const current = authService.getStoredTokens()
+      if (!current || current.sessionId === sessionId) {
+        clearAuth()
+      }
     }
   }, [token, orgId, setAuth, clearAuth])
 

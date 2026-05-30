@@ -151,6 +151,54 @@ describe('useAuthInterceptor - tryRefresh', () => {
 
     expect(authService.refresh).not.toHaveBeenCalled()
   })
+
+  it('preserva tokens do novo login quando tryRefresh falha com sessionId diferente', async () => {
+    const expiringToken = makeJwtWithExp(30)
+    const freshToken = makeJwtWithExp(3600)
+    const oldSession = { accessToken: expiringToken, refreshToken: 'refresh_old', sessionId: 'session_old', orgId: 'org_1' }
+    const newSession = { accessToken: freshToken, refreshToken: 'refresh_new', sessionId: 'session_new', orgId: 'org_1' }
+
+    // O renderHook dispara tryRefresh() no mount (useEffect):
+    //   call 1 → stored = session_old → refresh falha → catch
+    //   call 2 → current = session_new → session_new≠session_old → clearAuth não chamado
+    // Depois o teste chama tryRefresh() manualmente:
+    //   call 3 → stored = session_old → refresh falha → catch
+    //   call 4 → current = session_new → session_new≠session_old → clearAuth não chamado
+    vi.mocked(authService.getStoredTokens)
+      .mockReturnValueOnce(oldSession)  // call 1: mount stored
+      .mockReturnValueOnce(newSession)  // call 2: mount catch current
+      .mockReturnValueOnce(oldSession)  // call 3: manual stored
+      .mockReturnValue(newSession)      // call 4+: manual catch current
+
+    vi.mocked(authService.refresh).mockRejectedValue(new Error('expired'))
+
+    localStorage.setItem('gk_access_token', expiringToken)
+    localStorage.setItem('gk_refresh_token', 'refresh_old')
+    localStorage.setItem('gk_session_id', 'session_old')
+    localStorage.setItem('gk_org_id', 'org_1')
+
+    const { result } = renderHook(() => useAuthInterceptor(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(AuthProvider, null, children),
+    })
+
+    // Drena o tryRefresh() assíncrono disparado pelo useEffect de mount
+    await act(async () => {})
+
+    // Simula: usuário fez login novo enquanto o refresh estava em andamento
+    localStorage.setItem('gk_access_token', freshToken)
+    localStorage.setItem('gk_refresh_token', 'refresh_new')
+    localStorage.setItem('gk_session_id', 'session_new')
+    localStorage.setItem('gk_org_id', 'org_1')
+
+    await act(async () => {
+      await result.current.tryRefresh()
+    })
+
+    // tryRefresh falhou mas sessionId mudou → não deve limpar tokens novos
+    expect(localStorage.getItem('gk_session_id')).toBe('session_new')
+    expect(localStorage.getItem('gk_access_token')).toBe(freshToken)
+  })
 })
 
 describe('useAuthInterceptor - onRefreshFailed race condition', () => {
