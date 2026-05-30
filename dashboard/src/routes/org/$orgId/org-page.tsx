@@ -1,0 +1,193 @@
+import { useState } from 'react'
+import { useParams } from '@tanstack/react-router'
+import { useAuth } from '../../../lib/auth-context'
+import { useLogout } from '../../../lib/use-logout'
+import { OrgLayout, type OrgSection } from '../../../components/org/org-layout'
+import { UsersList } from '../../../components/org/users-list'
+import { CreateUserForm } from '../../../components/org/create-user-form'
+import { WorkspacesList } from '../../../components/org/workspaces-list'
+import { CreateWorkspaceForm } from '../../../components/org/create-workspace-form'
+import { CapabilitiesListOrg } from '../../../components/org/capabilities-list-org'
+import { ApiKeysList } from '../../../components/org/api-keys-list'
+import { AuditLogOrg } from '../../../components/org/audit-log-org'
+import { ColdStorageDownload } from '../../../components/org/cold-storage-download'
+import { OrgSettings } from '../../../components/org/org-settings'
+import { LogOut, Plus } from 'lucide-react'
+import { PageHeader } from '../../../components/ui/page-header'
+
+const SECTION_META: Record<OrgSection, { number: string; title: string; module: string; submodule: string; description: string }> = {
+  users: {
+    number: '01', title: 'Usuários', module: 'USERS', submodule: 'LIST',
+    description: 'Usuários ativos na organização. Gerencie membros, papéis e senhas temporárias.',
+  },
+  workspaces: {
+    number: '02', title: 'Workspaces', module: 'WORKSPACES', submodule: 'LIST',
+    description: 'Workspaces da organização. Crie e gerencie ambientes isolados de permissão.',
+  },
+  capabilities: {
+    number: '03', title: 'Capabilities', module: 'CAPABILITIES', submodule: 'LIST',
+    description: 'Permissões globais disponíveis para atribuição em workspaces desta organização.',
+  },
+  'api-keys': {
+    number: '04', title: 'API Keys', module: 'API-KEYS', submodule: 'BROWSER',
+    description: 'Chaves de API emitidas no escopo desta organização.',
+  },
+  'audit-log': {
+    number: '05', title: 'Audit Log', module: 'AUDIT', submodule: 'LOG',
+    description: 'Registro de operações realizadas no contexto desta organização.',
+  },
+  'cold-storage': {
+    number: '06', title: 'Cold Storage', module: 'STORAGE', submodule: 'COLD',
+    description: 'Configuração de armazenamento frio para dados desta organização.',
+  },
+  settings: {
+    number: '07', title: 'Configurações', module: 'SETTINGS', submodule: 'ORG',
+    description: 'Configurações gerais da organização.',
+  },
+}
+
+export function OrgPage() {
+  const { token } = useAuth()
+  const { handleLogout, isLoggingOut } = useLogout()
+  const { orgId } = useParams({ strict: false }) as { orgId: string }
+  const [section, setSection] = useState<OrgSection>('users')
+  const [showCreateUser, setShowCreateUser] = useState(false)
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
+  const [usersKey, setUsersKey] = useState(0)
+  const [workspacesKey, setWorkspacesKey] = useState(0)
+
+  const tok = token ?? ''
+
+  function renderSection() {
+    switch (section) {
+      case 'users':
+        return (
+          <div className="space-y-6">
+            <UsersList
+              key={usersKey}
+              token={tok}
+              orgId={orgId}
+              onAddUser={() => setShowCreateUser(true)}
+            />
+            {showCreateUser && (
+              <div className="border-t border-border-default pt-6">
+                <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
+                  Novo Usuário
+                </p>
+                <div className="max-w-md">
+                  <CreateUserForm
+                    token={tok}
+                    onSuccess={() => {
+                      setShowCreateUser(false)
+                      setUsersKey((k) => k + 1)
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )
+
+      case 'workspaces':
+        return (
+          <div className="space-y-6">
+            <WorkspacesList
+              key={workspacesKey}
+              token={tok}
+              orgId={orgId}
+              onAddWorkspace={() => setShowCreateWorkspace(true)}
+            />
+            {showCreateWorkspace && (
+              <div className="border-t border-border-default pt-6">
+                <p className="text-[12px] font-medium text-text-secondary uppercase tracking-wide mb-4">
+                  Novo Workspace
+                </p>
+                <div className="max-w-md">
+                  <CreateWorkspaceForm
+                    token={tok}
+                    onSuccess={() => {
+                      setShowCreateWorkspace(false)
+                      setWorkspacesKey((k) => k + 1)
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )
+
+      case 'capabilities':
+        return <CapabilitiesListOrg token={tok} orgId={orgId} />
+
+      case 'api-keys':
+        return <ApiKeysList token={tok} />
+
+      case 'audit-log':
+        return <AuditLogOrg token={tok} orgId={orgId} />
+
+      case 'cold-storage':
+        return <ColdStorageDownload token={tok} orgId={orgId} />
+
+      case 'settings':
+        return <OrgSettings token={tok} orgId={orgId} />
+
+      default:
+        return null
+    }
+  }
+
+  function renderActionButton() {
+    if (section === 'users' && !showCreateUser) {
+      return (
+        <button
+          onClick={() => setShowCreateUser(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-black bg-accent-primary rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
+        >
+          <Plus size={13} />
+          Novo usuário
+        </button>
+      )
+    }
+    if (section === 'workspaces' && !showCreateWorkspace) {
+      return (
+        <button
+          onClick={() => setShowCreateWorkspace(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-black bg-accent-primary rounded-button hover:bg-accent-hover transition-colors cursor-pointer"
+        >
+          <Plus size={13} />
+          Novo workspace
+        </button>
+      )
+    }
+    return null
+  }
+
+  return (
+    <OrgLayout activeSection={section} onSectionChange={setSection} orgId={orgId}>
+      <div className="p-6 space-y-5">
+        <PageHeader
+          {...SECTION_META[section]}
+          scope="ORG"
+          context={`org_${orgId.slice(-6)}`}
+          tenant={orgId.slice(-8)}
+          caller="org_admin@gatekey"
+          actions={
+            <>
+              {renderActionButton()}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-text-secondary border border-border-default rounded-button hover:bg-surface-hover transition-colors disabled:opacity-60 cursor-pointer"
+              >
+                <LogOut size={13} />
+                {isLoggingOut ? 'Saindo…' : 'Sair'}
+              </button>
+            </>
+          }
+        />
+
+        {renderSection()}
+      </div>
+    </OrgLayout>
+  )
+}

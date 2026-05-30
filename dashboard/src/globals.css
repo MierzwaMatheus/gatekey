@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* ── Tokens semânticos do Tailwind v4 (gate-* definidos em styles.css) ── */
+@theme inline {
+  /* Cores de superfície */
+  --color-surface-page:         var(--gate-midnight);
+  --color-surface-sidebar:      var(--gate-void);
+  --color-surface-intermediate: var(--gate-shadow);
+  --color-surface-card:         var(--gate-iron);
+  --color-surface-elevated:     var(--gate-steel);
+  --color-surface-hover:        rgba(255,255,255,0.04);
+
+  /* Texto */
+  --color-text-primary:   var(--gate-text);
+  --color-text-secondary: var(--gate-muted);
+  --color-text-muted:     rgba(139,148,158,0.6);
+
+  /* Accent âmbar */
+  --color-accent-primary: var(--gate-key);
+  --color-accent-hover:   var(--gate-key-dim);
+  --color-accent-subtle:  rgba(240,165,0,0.12);
+
+  /* Status */
+  --color-status-allow:   var(--gate-safe);
+  --color-status-deny:    var(--gate-danger);
+  --color-status-warning: #E3B341;
+
+  /* Bordas */
+  --color-border-default: var(--gate-dim);
+  --color-border-strong:  var(--gate-steel);
+  --color-border-subtle:  rgba(255,255,255,0.06);
+  --color-border-accent:  rgba(240,165,0,0.3);
+
+  /* Border radius */
+  --radius-card:   12px;
+  --radius-button: 8px;
+  --radius-input:  8px;
+  --radius-badge:  6px;
+  --radius-pill:   9999px;
+
+  /* Sombras */
+  --shadow-card:   0 1px 3px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-hover:  0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.08);
+  --shadow-float:  0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+  --shadow-accent: 0 0 0 1px rgba(240,165,0,0.4);
+
+  /* Tipografia */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}

@@ -8,13 +8,89 @@
  * @module
  */
 
+import type * as apiKeys from "../apiKeys.js";
+import type * as apiKeysActions from "../apiKeysActions.js";
+import type * as auditLog from "../auditLog.js";
+import type * as auth from "../auth.js";
+import type * as authStore from "../authStore.js";
+import type * as bindings from "../bindings.js";
+import type * as bindingsSimulate from "../bindingsSimulate.js";
+import type * as check from "../check.js";
+import type * as checkBatch from "../checkBatch.js";
+import type * as coldStorage from "../coldStorage.js";
+import type * as crons from "../crons.js";
+import type * as effectiveAccess from "../effectiveAccess.js";
+import type * as emailTemplates from "../emailTemplates.js";
+import type * as globalSettings from "../globalSettings.js";
+import type * as hierarchy from "../hierarchy.js";
+import type * as http from "../http.js";
+import type * as impersonation from "../impersonation.js";
+import type * as impersonationStore from "../impersonationStore.js";
+import type * as jwt from "../jwt.js";
+import type * as jwtStore from "../jwtStore.js";
+import type * as jwtVerify from "../jwtVerify.js";
+import type * as mfa from "../mfa.js";
+import type * as mfaStore from "../mfaStore.js";
+import type * as openapi from "../openapi.js";
+import type * as pdp from "../pdp.js";
+import type * as pep from "../pep.js";
+import type * as pepMutation from "../pepMutation.js";
+import type * as pepUtils from "../pepUtils.js";
+import type * as rateLimit from "../rateLimit.js";
+import type * as resourceTypes from "../resourceTypes.js";
+import type * as roles from "../roles.js";
+import type * as seed from "../seed.js";
+import type * as sessions from "../sessions.js";
+import type * as setup from "../setup.js";
+import type * as setupStore from "../setupStore.js";
+import type * as users from "../users.js";
+import type * as usersActions from "../usersActions.js";
+
 import type {
   ApiFromModules,
   FilterApi,
   FunctionReference,
 } from "convex/server";
 
-declare const fullApi: ApiFromModules<{}>;
+declare const fullApi: ApiFromModules<{
+  apiKeys: typeof apiKeys;
+  apiKeysActions: typeof apiKeysActions;
+  auditLog: typeof auditLog;
+  auth: typeof auth;
+  authStore: typeof authStore;
+  bindings: typeof bindings;
+  bindingsSimulate: typeof bindingsSimulate;
+  check: typeof check;
+  checkBatch: typeof checkBatch;
+  coldStorage: typeof coldStorage;
+  crons: typeof crons;
+  effectiveAccess: typeof effectiveAccess;
+  emailTemplates: typeof emailTemplates;
+  globalSettings: typeof globalSettings;
+  hierarchy: typeof hierarchy;
+  http: typeof http;
+  impersonation: typeof impersonation;
+  impersonationStore: typeof impersonationStore;
+  jwt: typeof jwt;
+  jwtStore: typeof jwtStore;
+  jwtVerify: typeof jwtVerify;
+  mfa: typeof mfa;
+  mfaStore: typeof mfaStore;
+  openapi: typeof openapi;
+  pdp: typeof pdp;
+  pep: typeof pep;
+  pepMutation: typeof pepMutation;
+  pepUtils: typeof pepUtils;
+  rateLimit: typeof rateLimit;
+  resourceTypes: typeof resourceTypes;
+  roles: typeof roles;
+  seed: typeof seed;
+  sessions: typeof sessions;
+  setup: typeof setup;
+  setupStore: typeof setupStore;
+  users: typeof users;
+  usersActions: typeof usersActions;
+}>;
 
 /**
  * A utility for referencing Convex functions in your app's public API.

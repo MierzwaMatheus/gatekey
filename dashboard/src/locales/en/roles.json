@@ -1,0 +1,21 @@
+{
+  "header": "Roles",
+  "empty": "No custom roles in this workspace.",
+  "col_name": "Name",
+  "col_type": "Type",
+  "col_capabilities": "Capabilities",
+  "col_actions": "Actions",
+  "type_base": "base",
+  "type_custom": "custom",
+  "action_delete": "Delete",
+  "action_duplicate": "Duplicate",
+  "duplicate_quota_error": "Workspace role limit reached. Remove a role before duplicating.",
+  "create_name_placeholder": "e.g. editor-docs",
+  "create_submit": "Create Role",
+  "create_submit_loading": "Creating…",
+  "delete_title": "Delete role {{name}}?",
+  "delete_warning": "This role has active bindings and cannot be deleted.",
+  "delete_warning_users": "This role is assigned to the following users. Reassign them to another role before deleting:",
+  "delete_confirm": "Delete",
+  "delete_confirm_loading": "Deleting…"
+}

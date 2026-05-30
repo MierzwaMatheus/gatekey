@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/dashboard/dist
+/.claude/skills/ui-ux-pro-max
+/temp

@@ -1,0 +1,21 @@
+{
+  "header": "Roles",
+  "empty": "Nenhum role customizado neste workspace.",
+  "col_name": "Nome",
+  "col_type": "Tipo",
+  "col_capabilities": "Capabilities",
+  "col_actions": "Ações",
+  "type_base": "base",
+  "type_custom": "custom",
+  "action_delete": "Deletar",
+  "action_duplicate": "Duplicar",
+  "duplicate_quota_error": "Limite de roles do workspace atingido. Remova um role antes de duplicar.",
+  "create_name_placeholder": "ex: editor-docs",
+  "create_submit": "Criar Role",
+  "create_submit_loading": "Criando…",
+  "delete_title": "Deletar role {{name}}?",
+  "delete_warning": "Este role possui bindings ativos e não pode ser deletado.",
+  "delete_warning_users": "Este role está em uso pelos seguintes usuários. Reatribua-os a outro role antes de deletar:",
+  "delete_confirm": "Deletar",
+  "delete_confirm_loading": "Deletando…"
+}

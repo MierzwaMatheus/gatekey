@@ -1,0 +1,11 @@
+{
+  "label_api_key": "API Key:",
+  "label_body": "Body (JSON)",
+  "label_params": "Parameters:",
+  "label_example": "Example:",
+  "label_history": "History",
+  "endpoint_placeholder": "/v1/check",
+  "body_placeholder": "{ \"key\": \"value\" }",
+  "btn_copy_curl": "copy as cURL",
+  "btn_copy_sdk": "copy as SDK call"
+}
